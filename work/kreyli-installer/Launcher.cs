@@ -31,7 +31,6 @@ internal static class Launcher {
  [STAThread] public static int Main(string[] args){
   Root=AppDomain.CurrentDomain.BaseDirectory;
   try{
-   if(args.Length==4&&args[0]=="--apply-update")return ApplyAndRestart(args[1],args[2],int.Parse(args[3]));
    Directory.SetCurrentDirectory(Root);bool acquired;
    using(var gate=new Mutex(true,MutexName(Root),out acquired)){
     if(!acquired){MessageBox.Show("Лаунчер уже открыт.",Brand);return 0;}
@@ -89,19 +88,34 @@ internal static class Launcher {
   for(int i=0;i<m.files.Length;i++){var f=m.files[i];progress("Загрузка обновления: "+(i+1)+" / "+m.files.Length);string target=SafePath(stage,f.path);Directory.CreateDirectory(Path.GetDirectoryName(target));File.WriteAllBytes(target,Download(f.url,f.size));if(new FileInfo(target).Length!=f.size||!Hash(target).Equals(f.sha256,StringComparison.OrdinalIgnoreCase))throw new Exception("SHA-256 не совпадает: "+f.path);}
   File.WriteAllText(Path.Combine(stage,"manifest.json"),Json.Serialize(m));return stage;
  }
- internal static void Apply(string root,string stage){
-  if(!File.Exists(Path.Combine(root,".kreyli-install")))throw new Exception("Не найдена отдельная установка Kreyli");
-  string expected=Path.GetFullPath(Path.Combine(root,".updates"))+Path.DirectorySeparatorChar;if(!Path.GetFullPath(stage).StartsWith(expected,StringComparison.OrdinalIgnoreCase))throw new Exception("Пакет находится вне папки обновлений");
-  var m=Json.Deserialize<UpdateManifest>(File.ReadAllText(Path.Combine(stage,"manifest.json")));Validate(m,root);foreach(var f in m.files){string source=SafePath(stage,f.path);if(!File.Exists(source)||new FileInfo(source).Length!=f.size||!Hash(source).Equals(f.sha256,StringComparison.OrdinalIgnoreCase))throw new Exception("Повреждён файл обновления: "+f.path);}
-  string backup=Path.Combine(stage,"backup");var changed=new List<UpdateFile>();
-  try{foreach(var f in m.files){string target=SafePath(root,f.path),saved=Path.Combine(backup,f.path);if(File.Exists(target)){Directory.CreateDirectory(Path.GetDirectoryName(saved));File.Copy(target,saved,true);}Directory.CreateDirectory(Path.GetDirectoryName(target));string temporary=target+".kreyli-new";File.Copy(SafePath(stage,f.path),temporary,true);try{if(File.Exists(target))File.Replace(temporary,target,null);else File.Move(temporary,target);changed.Add(f);}finally{if(File.Exists(temporary))File.Delete(temporary);}}File.WriteAllText(Path.Combine(root,"installed-version.txt"),m.version);}
-  catch{foreach(var f in changed.AsEnumerable().Reverse()){string target=SafePath(root,f.path),saved=Path.Combine(backup,f.path);if(File.Exists(saved))File.Copy(saved,target,true);else if(File.Exists(target))File.Delete(target);}throw;}
+ internal static void StartUpdater(string stage){
+  var m=Json.Deserialize<UpdateManifest>(File.ReadAllText(Path.Combine(stage,"manifest.json")));
+  Validate(m,Root);
+  foreach(var f in m.files){
+   string source=SafePath(stage,f.path);
+   if(!File.Exists(source)||new FileInfo(source).Length!=f.size||!Hash(source).Equals(f.sha256,StringComparison.OrdinalIgnoreCase))throw new Exception("Повреждён файл обновления: "+f.path);
+  }
+  string batchPath=Path.Combine(Path.GetTempPath(),"kreyli-update-"+Guid.NewGuid().ToString("N")+".bat");
+  var sb=new StringBuilder();
+  sb.AppendLine("@echo off");
+  sb.AppendLine("chcp 65001 >nul");
+  sb.AppendLine(":waitloop");
+  sb.AppendLine("tasklist /fi \"PID eq "+Process.GetCurrentProcess().Id+"\" 2>nul | find /i \""+Process.GetCurrentProcess().Id+"\" >nul");
+  sb.AppendLine("if not errorlevel 1 (");
+  sb.AppendLine("  timeout /t 1 /nobreak >nul");
+  sb.AppendLine("  goto waitloop");
+  sb.AppendLine(")");
+  foreach(var f in m.files){
+   string rel=f.path.Replace('/', '\\');
+   sb.AppendLine("copy /y " + Quote(Path.Combine(stage, rel)) + " " + Quote(Path.Combine(Root, rel)) + " >nul");
+  }
+  sb.AppendLine("echo " + m.version + " > " + Quote(Path.Combine(Root, "installed-version.txt")));
+  sb.AppendLine("rmdir /s /q " + Quote(stage));
+  sb.AppendLine("start \"\" " + Quote(Path.Combine(Root, "Kreyli Coop AOH2.exe")));
+  sb.AppendLine("del \"%~f0\"");
+  File.WriteAllText(batchPath,sb.ToString(),Encoding.GetEncoding(866));
+  Process.Start(new ProcessStartInfo("cmd.exe","/c "+Quote(batchPath)){WorkingDirectory=Path.GetTempPath(),UseShellExecute=false,CreateNoWindow=true});
  }
- static int ApplyAndRestart(string root,string stage,int parentId){
-  Root=Path.GetFullPath(root);try{using(var parent=Process.GetProcessById(parentId)){if(!parent.WaitForExit(30000))throw new Exception("Лаунчер не завершился для обновления");}}catch(ArgumentException){}
-  bool acquired;using(var gate=new Mutex(true,MutexName(root),out acquired)){if(!acquired)throw new Exception("Игра или лаунчер ещё работают");Apply(root,stage);}Process.Start(new ProcessStartInfo(Path.Combine(root,"Kreyli Coop AOH2.exe")){WorkingDirectory=root,UseShellExecute=true});return 0;
- }
- internal static void StartUpdater(string stage){string helper=Path.Combine(stage,"KreyliUpdate.exe");File.Copy(Assembly.GetExecutingAssembly().Location,helper,true);string config=Path.Combine(Root,"Kreyli Coop AOH2.exe.config");if(File.Exists(config))File.Copy(config,helper+".config",true);Process.Start(new ProcessStartInfo(helper,"--apply-update "+Quote(Root)+" "+Quote(stage)+" "+Process.GetCurrentProcess().Id){WorkingDirectory=Root,UseShellExecute=false,CreateNoWindow=true});}
 }
 
 
