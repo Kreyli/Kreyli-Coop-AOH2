@@ -1,0 +1,26 @@
+KREYLI_SAVE_RELOAD: PASS C:\Users\evgen\Documents\Codex\2026-10-19\read-https-github-com-cranebeaker-coop-2\work\coop-anything\local\vendor-de-2.2\lobby-11400eed4511486e8666a4380cb11146
+client.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+client.out.log
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+RELOAD guest phase=0 turn=1
+[MP] ��� ��� ������: ��� ���� ������ ������������ ReloadPlayer (2)
+RELOAD guest phase=3 turn=1
+[MP] ReloadPlayer (2) ����� � ���������� ����
+[MP] ReloadPlayer (2) ������� ����������
+RELOAD guest phase=5 turn=2
+RELOAD: PASS auto country restore and actual minimize/restore then next turn
+host.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+host.out.log
+(2) �����
+[MP] ���� ������� �� ����� 59420
+RELOAD host phase=4 turn=1
+[MP] ReloadPlayer (2) �����
+[MP] ReloadPlayer (2) ����� � ���������� ����
+RELOAD host phase=5 turn=1
+[MP] ReloadPlayer (2) ������� ����������
+[MP] ReloadPlayer (2) �����
+RELOAD: PASS actual save load, host country and guest rejoin assignment, late readiness

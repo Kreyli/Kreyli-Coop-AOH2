@@ -1,0 +1,1 @@
+PASS: bundled runtime, required archives and pinned game hash

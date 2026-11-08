@@ -1,0 +1,19 @@
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+VENDOR_NET: host phase=0 view=1 turn=1
+VENDOR_NET: PASS native host form mode toggle
+[MP] Игра создана на порту 63940
+VENDOR_NET: host phase=2 view=3 turn=1
+VENDOR_NET: host phase=2 view=3 turn=1
+VENDOR_NET: host phase=2 view=3 turn=1
+[MP] BotGuest вошёл
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Save hooks=1
+KREYLI_CAPACITY: PASS third player rejected by native host
+VENDOR_NET: host phase=2 view=3 turn=1
+[MP] BotGuest: i
+VENDOR_NET: PASS investment settlement; overlapping=false
+VENDOR_NET: host phase=3 view=3 turn=1
+[MP] BotGuest left
+VENDOR_NET: PASS host two-process investment and native turn; departing guest preserves host control

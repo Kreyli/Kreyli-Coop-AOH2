@@ -1,0 +1,8 @@
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+[MP] ���� ������� �� ����� 57787
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Save hooks=1
+KREYLI_SEATS: PASS native startup nickname, nonempty fallback, persisted host country and shared mode restore

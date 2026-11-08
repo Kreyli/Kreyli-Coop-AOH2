@@ -1,0 +1,7 @@
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+java.lang.AssertionError: Order failed to withdraw readiness
+	at age.of.civilizations2.jakowski.lukasz.mp.VendorNetworkProbe$1.render(VendorNetworkProbe.java:145)
+	at com.badlogic.gdx.backends.lwjgl3.Lwjgl3Window.update(Lwjgl3Window.java:403)
+	at com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application.loop(Lwjgl3Application.java:143)
+	at com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application.<init>(Lwjgl3Application.java:116)
+	at age.of.civilizations2.jakowski.lukasz.mp.VendorNetworkProbe.main(VendorNetworkProbe.java:50)

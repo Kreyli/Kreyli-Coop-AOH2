@@ -1,0 +1,1288 @@
+Compiled from "Menu_Main.java"
+public class age.of.civilizations2.jakowski.lukasz.Messages.Gift.R.Menu_Main extends age.of.civilizations2.jakowski.lukasz.Menu {
+  public int iTitleOffset;
+
+  public long lTime;
+
+  public int ANIMATION_TIME;
+
+  public static float ICONS_ALPHA_PC;
+
+  public static float ICONS_ALPHA;
+
+  public static final float LOGO_APLHA_DEFAULT;
+
+  public static age.of.civilizations2.jakowski.lukasz.TextB.Sparks.SparksAnimation sparksAnimation;
+
+  public static boolean RATE_THE_GAME;
+
+  public static int GLGO;
+
+  public static boolean SPECIAL_1;
+
+  public static boolean SPECIAL_2;
+
+  public java.util.List<age.of.civilizations2.jakowski.lukasz.Messages.Gift.R.Menu_Main$FSF> sF;
+
+  public static final int getMenuPosX_Default();
+    Code:
+       0: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+       3: invokestatic  #2                  // Method getMenuWidth_Default:()I
+       6: isub
+       7: getstatic     #3                  // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_W:I
+      10: iconst_2
+      11: imul
+      12: isub
+      13: ireturn
+
+  public static final int getMenuWidth_Default();
+    Code:
+       0: invokestatic  #4                  // Method age/of/civilizations2/jakowski/lukasz/CFG.isAndroid:()Z
+       3: ifeq          18
+       6: getstatic     #5                  // Field age/of/civilizations2/jakowski/lukasz/CFG.LANDSCAPE:Z
+       9: ifne          18
+      12: getstatic     #6                  // Field age/of/civilizations2/jakowski/lukasz/CFG.CIV_INFO_MENU_WIDTH:I
+      15: goto          27
+      18: getstatic     #6                  // Field age/of/civilizations2/jakowski/lukasz/CFG.CIV_INFO_MENU_WIDTH:I
+      21: getstatic     #6                  // Field age/of/civilizations2/jakowski/lukasz/CFG.CIV_INFO_MENU_WIDTH:I
+      24: iconst_2
+      25: idiv
+      26: iadd
+      27: ireturn
+
+  public age.of.civilizations2.jakowski.lukasz.Messages.Gift.R.Menu_Main();
+    Code:
+       0: aload_0
+       1: invokespecial #7                  // Method age/of/civilizations2/jakowski/lukasz/Menu."<init>":()V
+       4: aload_0
+       5: iconst_0
+       6: putfield      #8                  // Field iTitleOffset:I
+       9: aload_0
+      10: lconst_0
+      11: putfield      #9                  // Field lTime:J
+      14: aload_0
+      15: sipush        1250
+      18: putfield      #10                 // Field ANIMATION_TIME:I
+      21: aload_0
+      22: new           #11                 // class java/util/ArrayList
+      25: dup
+      26: invokespecial #12                 // Method java/util/ArrayList."<init>":()V
+      29: putfield      #13                 // Field sF:Ljava/util/List;
+      32: new           #11                 // class java/util/ArrayList
+      35: dup
+      36: invokespecial #12                 // Method java/util/ArrayList."<init>":()V
+      39: astore_1
+      40: invokestatic  #14                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP_UI.logo:()I
+      43: istore_2
+      44: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+      47: iconst_2
+      48: idiv
+      49: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+      52: bipush        6
+      54: imul
+      55: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+      58: bipush        7
+      60: imul
+      61: iadd
+      62: iconst_2
+      63: idiv
+      64: isub
+      65: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+      68: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+      71: iconst_2
+      72: imul
+      73: iadd
+      74: iconst_2
+      75: idiv
+      76: iadd
+      77: istore_3
+      78: invokestatic  #18                 // Method getMenuPosX_Default:()I
+      81: istore        4
+      83: invokestatic  #2                  // Method getMenuWidth_Default:()I
+      86: istore        5
+      88: iload_2
+      89: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+      92: invokevirtual #20                 // Method age/of/civilizations2/jakowski/lukasz/Image.getHeight:()I
+      95: iload_2
+      96: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+      99: invokevirtual #21                 // Method age/of/civilizations2/jakowski/lukasz/Image.getWidth:()I
+     102: iadd
+     103: istore        6
+     105: aload_1
+     106: new           #22                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$1
+     109: dup
+     110: aload_0
+     111: aconst_null
+     112: iconst_m1
+     113: iload         4
+     115: iload_3
+     116: iload         5
+     118: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     121: iconst_1
+     122: invokespecial #23                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$1."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     125: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     130: pop
+     131: aload_1
+     132: new           #25                 // class age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main
+     135: dup
+     136: aconst_null
+     137: iconst_m1
+     138: iload         4
+     140: iload_3
+     141: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     144: iadd
+     145: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     148: iadd
+     149: iload         5
+     151: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     154: iconst_1
+     155: invokespecial #26                 // Method age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main."<init>":(Ljava/lang/String;IIIIIZ)V
+     158: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     163: pop
+     164: aload_1
+     165: new           #25                 // class age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main
+     168: dup
+     169: aconst_null
+     170: iconst_m1
+     171: iload         4
+     173: iload_3
+     174: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     177: iconst_2
+     178: imul
+     179: iadd
+     180: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     183: iconst_2
+     184: imul
+     185: iadd
+     186: iload         5
+     188: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     191: iconst_1
+     192: invokespecial #26                 // Method age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main."<init>":(Ljava/lang/String;IIIIIZ)V
+     195: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     200: pop
+     201: aload_1
+     202: new           #27                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$2
+     205: dup
+     206: aload_0
+     207: aconst_null
+     208: iconst_m1
+     209: iload         4
+     211: iload_3
+     212: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     215: iconst_3
+     216: imul
+     217: iadd
+     218: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     221: iconst_3
+     222: imul
+     223: iadd
+     224: iload         5
+     226: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     229: iconst_1
+     230: invokespecial #28                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$2."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     233: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     238: pop
+     239: aload_1
+     240: new           #29                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$3
+     243: dup
+     244: aload_0
+     245: aconst_null
+     246: iconst_m1
+     247: iload         4
+     249: iload_3
+     250: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     253: iconst_4
+     254: imul
+     255: iadd
+     256: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     259: iconst_4
+     260: imul
+     261: iadd
+     262: iload         5
+     264: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     267: iconst_1
+     268: invokespecial #30                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$3."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     271: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     276: pop
+     277: iload         6
+     279: sipush        306
+     282: if_icmpeq     343
+     285: iload         6
+     287: sipush        278
+     290: if_icmpeq     343
+     293: iload         6
+     295: sipush        550
+     298: if_icmpeq     343
+     301: aload_1
+     302: new           #31                 // class age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LRMain_DC
+     305: dup
+     306: ldc           #32                 // String Age of History 2: Definitive Edition
+     308: aconst_null
+     309: iconst_m1
+     310: iload         4
+     312: iload_3
+     313: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     316: iconst_5
+     317: imul
+     318: iadd
+     319: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     322: iconst_5
+     323: imul
+     324: iadd
+     325: iload         5
+     327: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     330: iconst_1
+     331: invokespecial #33                 // Method age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LRMain_DC."<init>":(Ljava/lang/String;Ljava/lang/String;IIIIIZ)V
+     334: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     339: pop
+     340: goto          380
+     343: aload_1
+     344: new           #25                 // class age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main
+     347: dup
+     348: aconst_null
+     349: iconst_m1
+     350: iload         4
+     352: iload_3
+     353: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     356: iconst_5
+     357: imul
+     358: iadd
+     359: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     362: iconst_5
+     363: imul
+     364: iadd
+     365: iload         5
+     367: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     370: iconst_1
+     371: invokespecial #26                 // Method age/of/civilizations2/jakowski/lukasz/Button/Classic/Button_Classic_LR_Main."<init>":(Ljava/lang/String;IIIIIZ)V
+     374: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     379: pop
+     380: aload_1
+     381: new           #34                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$4
+     384: dup
+     385: aload_0
+     386: ldc           #35                 // String
+     388: iconst_m1
+     389: invokestatic  #18                 // Method getMenuPosX_Default:()I
+     392: invokestatic  #2                  // Method getMenuWidth_Default:()I
+     395: iconst_2
+     396: idiv
+     397: iadd
+     398: invokestatic  #14                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP_UI.logo:()I
+     401: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     404: invokevirtual #21                 // Method age/of/civilizations2/jakowski/lukasz/Image.getWidth:()I
+     407: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     410: iconst_4
+     411: imul
+     412: iadd
+     413: iconst_2
+     414: idiv
+     415: isub
+     416: aload_1
+     417: iconst_0
+     418: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     423: checkcast     #37                 // class age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI
+     426: invokevirtual #38                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getPosY:()I
+     429: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     432: isub
+     433: getstatic     #39                 // Field age/of/civilizations2/jakowski/lukasz/Images.mainMenuEdge:I
+     436: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     439: invokevirtual #20                 // Method age/of/civilizations2/jakowski/lukasz/Image.getHeight:()I
+     442: isub
+     443: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     446: isub
+     447: invokestatic  #4                  // Method age/of/civilizations2/jakowski/lukasz/CFG.isAndroid:()Z
+     450: ifeq          461
+     453: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     456: iconst_3
+     457: imul
+     458: goto          462
+     461: iconst_0
+     462: isub
+     463: invokestatic  #14                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP_UI.logo:()I
+     466: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     469: invokevirtual #21                 // Method age/of/civilizations2/jakowski/lukasz/Image.getWidth:()I
+     472: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     475: iconst_4
+     476: imul
+     477: iadd
+     478: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     481: invokespecial #40                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$4."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIII)V
+     484: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     489: pop
+     490: iconst_0
+     491: istore        7
+     493: iconst_0
+     494: istore        8
+     496: iload         8
+     498: aload_1
+     499: invokeinterface #41,  1           // InterfaceMethod java/util/List.size:()I
+     504: if_icmpge     548
+     507: iload         7
+     509: aload_1
+     510: iload         8
+     512: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     517: checkcast     #37                 // class age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI
+     520: invokevirtual #38                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getPosY:()I
+     523: if_icmple     542
+     526: aload_1
+     527: iload         8
+     529: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     534: checkcast     #37                 // class age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI
+     537: invokevirtual #38                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getPosY:()I
+     540: istore        7
+     542: iinc          8, 1
+     545: goto          496
+     548: iload         7
+     550: ifge          610
+     553: iconst_0
+     554: istore        8
+     556: iload         8
+     558: aload_1
+     559: invokeinterface #41,  1           // InterfaceMethod java/util/List.size:()I
+     564: if_icmpge     610
+     567: aload_1
+     568: iload         8
+     570: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     575: checkcast     #37                 // class age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI
+     578: aload_1
+     579: iload         8
+     581: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     586: checkcast     #37                 // class age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI
+     589: invokevirtual #38                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getPosY:()I
+     592: iload         7
+     594: isub
+     595: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     598: iconst_4
+     599: imul
+     600: iadd
+     601: invokevirtual #42                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setPosY:(I)V
+     604: iinc          8, 1
+     607: goto          556
+     610: aload_1
+     611: new           #43                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$5
+     614: dup
+     615: aload_0
+     616: aconst_null
+     617: iconst_m1
+     618: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     621: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     624: isub
+     625: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     628: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     631: isub
+     632: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     635: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     638: iconst_1
+     639: invokespecial #44                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$5."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     642: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     647: pop
+     648: aload_1
+     649: new           #45                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$6
+     652: dup
+     653: aload_0
+     654: aconst_null
+     655: iconst_m1
+     656: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     659: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     662: isub
+     663: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     666: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     669: iconst_2
+     670: imul
+     671: isub
+     672: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     675: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     678: iconst_1
+     679: invokespecial #46                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$6."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     682: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     687: pop
+     688: aload_1
+     689: new           #47                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$7
+     692: dup
+     693: aload_0
+     694: aconst_null
+     695: iconst_m1
+     696: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     699: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     702: isub
+     703: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     706: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     709: iconst_3
+     710: imul
+     711: isub
+     712: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     715: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     718: iconst_1
+     719: invokespecial #48                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$7."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     722: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     727: pop
+     728: aload_1
+     729: new           #49                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$8
+     732: dup
+     733: aload_0
+     734: aconst_null
+     735: iconst_m1
+     736: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     739: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     742: isub
+     743: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     746: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     749: iconst_4
+     750: imul
+     751: isub
+     752: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     755: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     758: iconst_1
+     759: invokespecial #50                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$8."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     762: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     767: pop
+     768: aload_1
+     769: new           #51                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$9
+     772: dup
+     773: aload_0
+     774: aconst_null
+     775: iconst_m1
+     776: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     779: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     782: isub
+     783: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     786: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     789: iconst_5
+     790: imul
+     791: isub
+     792: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     795: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     798: iconst_1
+     799: invokespecial #52                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$9."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     802: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     807: pop
+     808: aload_1
+     809: new           #53                 // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$10
+     812: dup
+     813: aload_0
+     814: aconst_null
+     815: iconst_m1
+     816: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     819: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     822: isub
+     823: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     826: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     829: bipush        6
+     831: imul
+     832: isub
+     833: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     836: getstatic     #16                 // Field age/of/civilizations2/jakowski/lukasz/CFG.BUTTON_H:I
+     839: iconst_1
+     840: invokespecial #54                 // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$10."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;IIIIIZ)V
+     843: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     848: pop
+     849: aload_1
+     850: bipush        7
+     852: ldc           #55                 // String discord.png
+     854: ldc           #57                 // String https://discord.gg/GDTgYj2dJ
+     856: invokestatic  #58                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP_UI.linkButton:(ILjava/lang/String;Ljava/lang/String;)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     859: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     864: pop
+     865: aload_1
+     866: bipush        8
+     868: ldc           #59                 // String mp.png
+     870: ldc           #60                 // String https://aoh2mp.web.app
+     872: invokestatic  #58                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP_UI.linkButton:(ILjava/lang/String;Ljava/lang/String;)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     875: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+     880: pop
+     881: aload_0
+     882: aconst_null
+     883: iconst_0
+     884: iconst_0
+     885: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     888: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     891: aload_1
+     892: invokevirtual #61                 // Method initMenu:(Lage/of/civilizations2/jakowski/lukasz/Title/TitleM;IIIILjava/util/List;)V
+     895: aload_0
+     896: invokevirtual #62                 // Method updateLang:()V
+     899: getstatic     #63                 // Field age/of/civilizations2/jakowski/lukasz/CFG.XXXHDPI:Z
+     902: ifeq          914
+     905: aload_0
+     906: bipush        7
+     908: putfield      #8                  // Field iTitleOffset:I
+     911: goto          950
+     914: getstatic     #64                 // Field age/of/civilizations2/jakowski/lukasz/CFG.XXHDPI:Z
+     917: ifeq          929
+     920: aload_0
+     921: bipush        7
+     923: putfield      #8                  // Field iTitleOffset:I
+     926: goto          950
+     929: getstatic     #65                 // Field age/of/civilizations2/jakowski/lukasz/CFG.XHDPI:Z
+     932: ifeq          944
+     935: aload_0
+     936: bipush        7
+     938: putfield      #8                  // Field iTitleOffset:I
+     941: goto          950
+     944: aload_0
+     945: bipush        7
+     947: putfield      #8                  // Field iTitleOffset:I
+     950: invokestatic  #66                 // Method age/of/civilizations2/jakowski/lukasz/CFG.getIsDesktop:()Z
+     953: ifeq          1094
+     956: invokestatic  #67                 // Method java/time/LocalDate.now:()Ljava/time/LocalDate;
+     959: astore        8
+     961: aload         8
+     963: invokestatic  #68                 // Method java/time/MonthDay.from:(Ljava/time/temporal/TemporalAccessor;)Ljava/time/MonthDay;
+     966: astore        9
+     968: iconst_4
+     969: iconst_1
+     970: invokestatic  #69                 // Method java/time/MonthDay.of:(II)Ljava/time/MonthDay;
+     973: astore        10
+     975: bipush        12
+     977: bipush        25
+     979: invokestatic  #69                 // Method java/time/MonthDay.of:(II)Ljava/time/MonthDay;
+     982: astore        11
+     984: aload         9
+     986: aload         10
+     988: invokevirtual #70                 // Method java/time/MonthDay.equals:(Ljava/lang/Object;)Z
+     991: ifeq          1038
+     994: getstatic     #71                 // Field SPECIAL_2:Z
+     997: ifne          1011
+    1000: iconst_1
+    1001: putstatic     #72                 // Field SPECIAL_1:Z
+    1004: iconst_1
+    1005: putstatic     #71                 // Field SPECIAL_2:Z
+    1008: goto          1024
+    1011: iconst_0
+    1012: putstatic     #72                 // Field SPECIAL_1:Z
+    1015: aload_0
+    1016: getfield      #13                 // Field sF:Ljava/util/List;
+    1019: invokeinterface #73,  1           // InterfaceMethod java/util/List.clear:()V
+    1024: getstatic     #74                 // Field age/of/civilizations2/jakowski/lukasz/CFG.toastM:Lage/of/civilizations2/jakowski/lukasz/Toast;
+    1027: ldc           #75                 // String April Fools!
+    1029: getstatic     #76                 // Field age/of/civilizations2/jakowski/lukasz/CFG.COLOR_HOVER_TITLE:Lcom/badlogic/gdx/graphics/Color;
+    1032: invokevirtual #77                 // Method age/of/civilizations2/jakowski/lukasz/Toast.addM:(Ljava/lang/String;Lcom/badlogic/gdx/graphics/Color;)V
+    1035: goto          1089
+    1038: aload         9
+    1040: aload         11
+    1042: invokevirtual #70                 // Method java/time/MonthDay.equals:(Ljava/lang/Object;)Z
+    1045: ifeq          1089
+    1048: getstatic     #71                 // Field SPECIAL_2:Z
+    1051: ifne          1065
+    1054: iconst_1
+    1055: putstatic     #72                 // Field SPECIAL_1:Z
+    1058: iconst_1
+    1059: putstatic     #71                 // Field SPECIAL_2:Z
+    1062: goto          1078
+    1065: iconst_0
+    1066: putstatic     #72                 // Field SPECIAL_1:Z
+    1069: aload_0
+    1070: getfield      #13                 // Field sF:Ljava/util/List;
+    1073: invokeinterface #73,  1           // InterfaceMethod java/util/List.clear:()V
+    1078: getstatic     #74                 // Field age/of/civilizations2/jakowski/lukasz/CFG.toastM:Lage/of/civilizations2/jakowski/lukasz/Toast;
+    1081: ldc           #78                 // String Happy Holidays!
+    1083: getstatic     #76                 // Field age/of/civilizations2/jakowski/lukasz/CFG.COLOR_HOVER_TITLE:Lcom/badlogic/gdx/graphics/Color;
+    1086: invokevirtual #77                 // Method age/of/civilizations2/jakowski/lukasz/Toast.addM:(Ljava/lang/String;Lcom/badlogic/gdx/graphics/Color;)V
+    1089: goto          1094
+    1092: astore        8
+    1094: return
+    Exception table:
+       from    to  target type
+         956  1089  1092   Class java/lang/Exception
+
+  public final void updateLang();
+    Code:
+       0: aload_0
+       1: iconst_0
+       2: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+       5: ldc           #81                 // String MP_PlayMultiplayer
+       7: ldc           #82                 // String Play Multiplayer
+       9: iconst_0
+      10: anewarray     #83                 // class java/lang/Object
+      13: invokestatic  #84                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP.t:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      16: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+      19: aload_0
+      20: iconst_1
+      21: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+      24: ldc           #86                 // String MP_ServerBrowser
+      26: ldc           #87                 // String Server Browser
+      28: iconst_0
+      29: anewarray     #83                 // class java/lang/Object
+      32: invokestatic  #84                 // Method age/of/civilizations2/jakowski/lukasz/mp/MP.t:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      35: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+      38: aload_0
+      39: iconst_3
+      40: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+      43: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+      46: ldc           #89                 // String Settings
+      48: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+      51: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+      54: aload_0
+      55: iconst_4
+      56: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+      59: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+      62: ldc           #91                 // String Editor
+      64: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+      67: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+      70: aload_0
+      71: iconst_2
+      72: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+      75: new           #92                 // class java/lang/StringBuilder
+      78: dup
+      79: invokespecial #93                 // Method java/lang/StringBuilder."<init>":()V
+      82: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+      85: ldc           #94                 // String MapType
+      87: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+      90: invokevirtual #95                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      93: ldc           #96                 // String :
+      95: invokevirtual #95                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      98: getstatic     #97                 // Field age/of/civilizations2/jakowski/lukasz/CFG.map:Lage/of/civilizations2/jakowski/lukasz/Map;
+     101: getstatic     #97                 // Field age/of/civilizations2/jakowski/lukasz/CFG.map:Lage/of/civilizations2/jakowski/lukasz/Map;
+     104: invokevirtual #98                 // Method age/of/civilizations2/jakowski/lukasz/Map.getActiveMapIDN:()I
+     107: invokevirtual #99                 // Method age/of/civilizations2/jakowski/lukasz/Map.getMapName_Just:(I)Ljava/lang/String;
+     110: invokevirtual #95                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+     113: invokevirtual #100                // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+     116: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+     119: aload_0
+     120: iconst_5
+     121: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     124: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+     127: ldc           #101                // String ExitGame
+     129: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+     132: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+     135: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+     138: ldc           #102                // String Total
+     140: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+     143: putstatic     #103                // Field age/of/civilizations2/jakowski/lukasz/CFG.sTOTAL:Ljava/lang/String;
+     146: getstatic     #88                 // Field age/of/civilizations2/jakowski/lukasz/CFG.lang:Lage/of/civilizations2/jakowski/lukasz/LangManager;
+     149: ldc           #104                // String WorldsPopulation
+     151: invokevirtual #90                 // Method age/of/civilizations2/jakowski/lukasz/LangManager.get:(Ljava/lang/String;)Ljava/lang/String;
+     154: putstatic     #105                // Field age/of/civilizations2/jakowski/lukasz/CFG.sTOTAL_WORLDS_POPULATION:Ljava/lang/String;
+     157: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     160: getstatic     #107                // Field age/of/civilizations2/jakowski/lukasz/CFG.fontMain:Ljava/util/List;
+     163: iconst_0
+     164: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     169: checkcast     #108                // class com/badlogic/gdx/graphics/g2d/BitmapFont
+     172: getstatic     #109                // Field age/of/civilizations2/jakowski/lukasz/CFG.sLoading:Ljava/lang/String;
+     175: invokevirtual #110                // Method com/badlogic/gdx/graphics/g2d/GlyphLayout.setText:(Lcom/badlogic/gdx/graphics/g2d/BitmapFont;Ljava/lang/CharSequence;)V
+     178: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     181: getfield      #111                // Field com/badlogic/gdx/graphics/g2d/GlyphLayout.width:F
+     184: f2i
+     185: putstatic     #112                // Field age/of/civilizations2/jakowski/lukasz/CFG.iLoadingWidth:I
+     188: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     191: getstatic     #107                // Field age/of/civilizations2/jakowski/lukasz/CFG.fontMain:Ljava/util/List;
+     194: getstatic     #113                // Field age/of/civilizations2/jakowski/lukasz/CFG.FONT_REGULAR_SMALL:I
+     197: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     202: checkcast     #108                // class com/badlogic/gdx/graphics/g2d/BitmapFont
+     205: invokestatic  #114                // Method age/of/civilizations2/jakowski/lukasz/CFG.gLG:()Ljava/lang/String;
+     208: invokevirtual #110                // Method com/badlogic/gdx/graphics/g2d/GlyphLayout.setText:(Lcom/badlogic/gdx/graphics/g2d/BitmapFont;Ljava/lang/CharSequence;)V
+     211: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     214: getfield      #111                // Field com/badlogic/gdx/graphics/g2d/GlyphLayout.width:F
+     217: f2i
+     218: putstatic     #115                // Field age/of/civilizations2/jakowski/lukasz/CFG.iJGW:I
+     221: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     224: getstatic     #107                // Field age/of/civilizations2/jakowski/lukasz/CFG.fontMain:Ljava/util/List;
+     227: iconst_0
+     228: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     233: checkcast     #108                // class com/badlogic/gdx/graphics/g2d/BitmapFont
+     236: ldc           #116                // String presents
+     238: invokevirtual #110                // Method com/badlogic/gdx/graphics/g2d/GlyphLayout.setText:(Lcom/badlogic/gdx/graphics/g2d/BitmapFont;Ljava/lang/CharSequence;)V
+     241: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     244: getfield      #111                // Field com/badlogic/gdx/graphics/g2d/GlyphLayout.width:F
+     247: f2i
+     248: putstatic     #117                // Field age/of/civilizations2/jakowski/lukasz/CFG.iJGPW:I
+     251: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     254: getstatic     #107                // Field age/of/civilizations2/jakowski/lukasz/CFG.fontMain:Ljava/util/List;
+     257: iconst_0
+     258: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     263: checkcast     #108                // class com/badlogic/gdx/graphics/g2d/BitmapFont
+     266: ldc           #32                 // String Age of History 2: Definitive Edition
+     268: invokevirtual #110                // Method com/badlogic/gdx/graphics/g2d/GlyphLayout.setText:(Lcom/badlogic/gdx/graphics/g2d/BitmapFont;Ljava/lang/CharSequence;)V
+     271: getstatic     #106                // Field age/of/civilizations2/jakowski/lukasz/CFG.glyphLay:Lcom/badlogic/gdx/graphics/g2d/GlyphLayout;
+     274: getfield      #111                // Field com/badlogic/gdx/graphics/g2d/GlyphLayout.width:F
+     277: f2i
+     278: putstatic     #118                // Field age/of/civilizations2/jakowski/lukasz/CFG.iAgeOfCivilizationsWidth:I
+     281: aload_0
+     282: bipush        6
+     284: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     287: ldc           #32                 // String Age of History 2: Definitive Edition
+     289: invokevirtual #85                 // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.setTextE:(Ljava/lang/String;)V
+     292: return
+
+  public void drawScrollPos(com.badlogic.gdx.graphics.g2d.SpriteBatch, int, int, boolean);
+    Code:
+       0: iload         4
+       2: ifeq          14
+       5: aload_0
+       6: aload_1
+       7: iload_2
+       8: iload_3
+       9: iload         4
+      11: invokespecial #119                // Method age/of/civilizations2/jakowski/lukasz/Menu.drawScrollPos:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V
+      14: return
+
+  public void beginClipM(com.badlogic.gdx.graphics.g2d.SpriteBatch, int, int, boolean);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: iload_2
+       3: iload_3
+       4: iload         4
+       6: invokespecial #120                // Method age/of/civilizations2/jakowski/lukasz/Menu.beginClipM:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V
+       9: return
+
+  public void draw(com.badlogic.gdx.graphics.g2d.SpriteBatch, int, int, boolean);
+    Code:
+       0: getstatic     #121                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedSize:I
+       3: ifle          151
+       6: aload_1
+       7: new           #122                // class com/badlogic/gdx/graphics/Color
+      10: dup
+      11: ldc           #123                // float 0.047058824f
+      13: ldc           #123                // float 0.047058824f
+      15: ldc           #123                // float 0.047058824f
+      17: fconst_1
+      18: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+      21: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+      24: getstatic     #126                // Field age/of/civilizations2/jakowski/lukasz/Images.pix:Lage/of/civilizations2/jakowski/lukasz/Image;
+      27: aload_1
+      28: iload_2
+      29: iload_3
+      30: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+      33: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+      36: invokevirtual #127                // Method age/of/civilizations2/jakowski/lukasz/Image.draw:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+      39: aload_1
+      40: new           #122                // class com/badlogic/gdx/graphics/Color
+      43: dup
+      44: fconst_1
+      45: fconst_1
+      46: fconst_1
+      47: fconst_1
+      48: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+      51: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+      54: getstatic     #128                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animated:Ljava/util/List;
+      57: getstatic     #129                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedID:I
+      60: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+      65: checkcast     #130                // class age/of/civilizations2/jakowski/lukasz/Image
+      68: aload_1
+      69: iload_2
+      70: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+      73: getstatic     #131                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedWidth:I
+      76: isub
+      77: iconst_2
+      78: idiv
+      79: iadd
+      80: iload_3
+      81: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+      84: getstatic     #132                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedHeight:I
+      87: isub
+      88: iconst_2
+      89: idiv
+      90: iadd
+      91: getstatic     #131                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedWidth:I
+      94: getstatic     #132                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedHeight:I
+      97: invokevirtual #127                // Method age/of/civilizations2/jakowski/lukasz/Image.draw:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     100: aload_1
+     101: getstatic     #133                // Field com/badlogic/gdx/graphics/Color.WHITE:Lcom/badlogic/gdx/graphics/Color;
+     104: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     107: getstatic     #134                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedTime:J
+     110: getstatic     #135                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedFrame:J
+     113: ladd
+     114: getstatic     #136                // Field age/of/civilizations2/jakowski/lukasz/CFG.currentTimeMillis:J
+     117: lcmp
+     118: ifge          284
+     121: getstatic     #129                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedID:I
+     124: iconst_1
+     125: iadd
+     126: putstatic     #129                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedID:I
+     129: getstatic     #136                // Field age/of/civilizations2/jakowski/lukasz/CFG.currentTimeMillis:J
+     132: putstatic     #134                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedTime:J
+     135: getstatic     #129                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedID:I
+     138: getstatic     #121                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedSize:I
+     141: if_icmplt     284
+     144: iconst_0
+     145: putstatic     #129                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.animatedID:I
+     148: goto          284
+     151: getstatic     #137                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.background:Lage/of/civilizations2/jakowski/lukasz/Image;
+     154: ifnull        284
+     157: aload_1
+     158: new           #122                // class com/badlogic/gdx/graphics/Color
+     161: dup
+     162: ldc           #123                // float 0.047058824f
+     164: ldc           #123                // float 0.047058824f
+     166: ldc           #123                // float 0.047058824f
+     168: fconst_1
+     169: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+     172: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     175: getstatic     #126                // Field age/of/civilizations2/jakowski/lukasz/Images.pix:Lage/of/civilizations2/jakowski/lukasz/Image;
+     178: aload_1
+     179: iload_2
+     180: iload_3
+     181: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     184: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     187: invokevirtual #127                // Method age/of/civilizations2/jakowski/lukasz/Image.draw:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     190: aload_1
+     191: new           #122                // class com/badlogic/gdx/graphics/Color
+     194: dup
+     195: fconst_1
+     196: fconst_1
+     197: fconst_1
+     198: fconst_1
+     199: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+     202: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     205: getstatic     #137                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.background:Lage/of/civilizations2/jakowski/lukasz/Image;
+     208: aload_1
+     209: iload_2
+     210: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     213: getstatic     #138                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.backgroundWidth:I
+     216: isub
+     217: iconst_2
+     218: idiv
+     219: iadd
+     220: iload_3
+     221: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     224: getstatic     #139                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.backgroundHeight:I
+     227: isub
+     228: iconst_2
+     229: idiv
+     230: iadd
+     231: getstatic     #138                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.backgroundWidth:I
+     234: getstatic     #139                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.backgroundHeight:I
+     237: invokevirtual #127                // Method age/of/civilizations2/jakowski/lukasz/Image.draw:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     240: aload_1
+     241: getstatic     #133                // Field com/badlogic/gdx/graphics/Color.WHITE:Lcom/badlogic/gdx/graphics/Color;
+     244: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     247: getstatic     #136                // Field age/of/civilizations2/jakowski/lukasz/CFG.currentTimeMillis:J
+     250: getstatic     #140                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.bgTIME_CHANGE:J
+     253: getstatic     #141                // Field age/of/civilizations2/jakowski/lukasz/GameValues/GameValues.gvUpdate:Lage/of/civilizations2/jakowski/lukasz/GameValues/GV_Update;
+     256: getfield      #142                // Field age/of/civilizations2/jakowski/lukasz/GameValues/GV_Update.MAIN_MENU_BG_CHANGE_BG_EVERY_X_MS:I
+     259: i2l
+     260: ladd
+     261: lcmp
+     262: ifle          284
+     265: getstatic     #136                // Field age/of/civilizations2/jakowski/lukasz/CFG.currentTimeMillis:J
+     268: putstatic     #140                // Field age/of/civilizations2/jakowski/lukasz/Menus/Menu_InitGame.bgTIME_CHANGE:J
+     271: new           #143                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$11
+     274: dup
+     275: aload_0
+     276: ldc           #144                // String loadBackground
+     278: invokespecial #145                // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$11."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;Ljava/lang/String;)V
+     281: invokestatic  #146                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.addSimpleTask:(Lage/of/civilizations2/jakowski/lukasz/Core/Core$SimpleTask;)V
+     284: goto          289
+     287: astore        5
+     289: aload_1
+     290: new           #122                // class com/badlogic/gdx/graphics/Color
+     293: dup
+     294: fconst_0
+     295: fconst_0
+     296: fconst_0
+     297: ldc           #147                // float 0.6f
+     299: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+     302: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     305: getstatic     #148                // Field age/of/civilizations2/jakowski/lukasz/Images.gradient:I
+     308: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     311: aload_1
+     312: iload_2
+     313: getstatic     #148                // Field age/of/civilizations2/jakowski/lukasz/Images.gradient:I
+     316: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     319: invokevirtual #20                 // Method age/of/civilizations2/jakowski/lukasz/Image.getHeight:()I
+     322: ineg
+     323: iload_3
+     324: iadd
+     325: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     328: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     331: iconst_3
+     332: imul
+     333: invokevirtual #149                // Method age/of/civilizations2/jakowski/lukasz/Image.drawO:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     336: getstatic     #148                // Field age/of/civilizations2/jakowski/lukasz/Images.gradient:I
+     339: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     342: aload_1
+     343: iload_2
+     344: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     347: getstatic     #148                // Field age/of/civilizations2/jakowski/lukasz/Images.gradient:I
+     350: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     353: invokevirtual #20                 // Method age/of/civilizations2/jakowski/lukasz/Image.getHeight:()I
+     356: isub
+     357: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     360: iconst_3
+     361: imul
+     362: isub
+     363: iload_3
+     364: iadd
+     365: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     368: getstatic     #17                 // Field age/of/civilizations2/jakowski/lukasz/CFG.PADD:I
+     371: iconst_3
+     372: imul
+     373: iconst_0
+     374: iconst_1
+     375: invokevirtual #150                // Method age/of/civilizations2/jakowski/lukasz/Image.drawO:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIIIZZ)V
+     378: aload_1
+     379: new           #122                // class com/badlogic/gdx/graphics/Color
+     382: dup
+     383: fconst_0
+     384: fconst_0
+     385: fconst_0
+     386: ldc           #151                // float 0.1f
+     388: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+     391: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     394: getstatic     #152                // Field age/of/civilizations2/jakowski/lukasz/Images.patternReversed:I
+     397: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     400: aload_1
+     401: iload_2
+     402: getstatic     #152                // Field age/of/civilizations2/jakowski/lukasz/Images.patternReversed:I
+     405: invokestatic  #19                 // Method age/of/civilizations2/jakowski/lukasz/IMGManager.getIMG:(I)Lage/of/civilizations2/jakowski/lukasz/Image;
+     408: invokevirtual #20                 // Method age/of/civilizations2/jakowski/lukasz/Image.getHeight:()I
+     411: ineg
+     412: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     415: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     418: fconst_0
+     419: iconst_0
+     420: invokevirtual #153                // Method age/of/civilizations2/jakowski/lukasz/Image.drawO:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIIIFI)V
+     423: aload_0
+     424: aload_1
+     425: iload_2
+     426: iload_3
+     427: iload         4
+     429: invokevirtual #154                // Method beginClipM:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V
+     432: aload_1
+     433: getstatic     #155                // Field age/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation.sparksColors:Lcom/badlogic/gdx/graphics/Color;
+     436: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     439: getstatic     #156                // Field sparksAnimation:Lage/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation;
+     442: aload_1
+     443: iload_2
+     444: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     447: getstatic     #157                // Field age/of/civilizations2/jakowski/lukasz/Images.sparkHeight:I
+     450: isub
+     451: iload_3
+     452: iadd
+     453: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     456: getstatic     #157                // Field age/of/civilizations2/jakowski/lukasz/Images.sparkHeight:I
+     459: invokevirtual #158                // Method age/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation.draw2:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     462: aload_1
+     463: getstatic     #133                // Field com/badlogic/gdx/graphics/Color.WHITE:Lcom/badlogic/gdx/graphics/Color;
+     466: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     469: aload_1
+     470: aload_0
+     471: iconst_0
+     472: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     475: invokevirtual #159                // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getPosXE:()I
+     478: iload_2
+     479: iadd
+     480: iload_3
+     481: aload_0
+     482: iconst_0
+     483: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     486: invokevirtual #160                // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.getWidthE:()I
+     489: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     492: invokestatic  #161                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.drawMenuBG:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     495: aload_0
+     496: aload_1
+     497: iload_2
+     498: iload_3
+     499: iload         4
+     501: invokevirtual #162                // Method drawMenuM:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V
+     504: aload_0
+     505: aload_1
+     506: iload_2
+     507: iload_3
+     508: iload         4
+     510: invokevirtual #163                // Method endClipM:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V
+     513: aload_1
+     514: iload_2
+     515: invokestatic  #164                // Method age/of/civilizations2/jakowski/lukasz/CFG.drawVersionLB:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;I)V
+     518: aload_1
+     519: getstatic     #133                // Field com/badlogic/gdx/graphics/Color.WHITE:Lcom/badlogic/gdx/graphics/Color;
+     522: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     525: getstatic     #72                 // Field SPECIAL_1:Z
+     528: ifeq          795
+     531: getstatic     #165                // Field age/of/civilizations2/jakowski/lukasz/CFG.oR:Ljava/util/Random;
+     534: sipush        1000
+     537: invokevirtual #166                // Method java/util/Random.nextInt:(I)I
+     540: sipush        347
+     543: if_icmpge     550
+     546: aload_0
+     547: invokevirtual #167                // Method cSF:()V
+     550: aload_0
+     551: getfield      #13                 // Field sF:Ljava/util/List;
+     554: invokeinterface #168,  1          // InterfaceMethod java/util/List.isEmpty:()Z
+     559: ifne          795
+     562: aload_1
+     563: new           #122                // class com/badlogic/gdx/graphics/Color
+     566: dup
+     567: fconst_1
+     568: fconst_1
+     569: fconst_1
+     570: ldc           #169                // float 0.125f
+     572: invokespecial #124                // Method com/badlogic/gdx/graphics/Color."<init>":(FFFF)V
+     575: invokevirtual #125                // Method com/badlogic/gdx/graphics/g2d/SpriteBatch.setColor:(Lcom/badlogic/gdx/graphics/Color;)V
+     578: aload_0
+     579: getfield      #13                 // Field sF:Ljava/util/List;
+     582: invokeinterface #41,  1           // InterfaceMethod java/util/List.size:()I
+     587: iconst_1
+     588: isub
+     589: istore        5
+     591: iload         5
+     593: iflt          795
+     596: aload_0
+     597: getfield      #13                 // Field sF:Ljava/util/List;
+     600: iload         5
+     602: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     607: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     610: getfield      #171                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.iH:I
+     613: ifle          777
+     616: aload_0
+     617: getfield      #13                 // Field sF:Ljava/util/List;
+     620: iload         5
+     622: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     627: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     630: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+     633: getstatic     #15                 // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEHEIGHT:I
+     636: invokevirtual #172                // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.update:(II)V
+     639: getstatic     #173                // Field age/of/civilizations2/jakowski/lukasz/CFG.core:Lage/of/civilizations2/jakowski/lukasz/Core/Core;
+     642: aload_0
+     643: getfield      #13                 // Field sF:Ljava/util/List;
+     646: iload         5
+     648: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     653: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     656: getfield      #174                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.c:I
+     659: invokevirtual #175                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.getCiv:(I)Lage/of/civilizations2/jakowski/lukasz/Civilization;
+     662: invokevirtual #176                // Method age/of/civilizations2/jakowski/lukasz/Civilization.getFlagC:()Lage/of/civilizations2/jakowski/lukasz/Image;
+     665: aload_1
+     666: iload_2
+     667: aload_0
+     668: getfield      #13                 // Field sF:Ljava/util/List;
+     671: iload         5
+     673: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     678: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     681: getfield      #177                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.x:I
+     684: iadd
+     685: iload_3
+     686: aload_0
+     687: getfield      #13                 // Field sF:Ljava/util/List;
+     690: iload         5
+     692: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     697: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     700: getfield      #178                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.y:I
+     703: iadd
+     704: aload_0
+     705: getfield      #13                 // Field sF:Ljava/util/List;
+     708: iload         5
+     710: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     715: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     718: getfield      #179                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.iW:I
+     721: aload_0
+     722: getfield      #13                 // Field sF:Ljava/util/List;
+     725: iload         5
+     727: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     732: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     735: getfield      #171                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.iH:I
+     738: invokevirtual #127                // Method age/of/civilizations2/jakowski/lukasz/Image.draw:(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIII)V
+     741: aload_0
+     742: getfield      #13                 // Field sF:Ljava/util/List;
+     745: iload         5
+     747: invokeinterface #36,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+     752: checkcast     #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+     755: getfield      #171                // Field age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF.iH:I
+     758: iconst_1
+     759: if_icmpgt     789
+     762: aload_0
+     763: getfield      #13                 // Field sF:Ljava/util/List;
+     766: iload         5
+     768: invokeinterface #180,  2          // InterfaceMethod java/util/List.remove:(I)Ljava/lang/Object;
+     773: pop
+     774: goto          789
+     777: aload_0
+     778: getfield      #13                 // Field sF:Ljava/util/List;
+     781: iload         5
+     783: invokeinterface #180,  2          // InterfaceMethod java/util/List.remove:(I)Ljava/lang/Object;
+     788: pop
+     789: iinc          5, -1
+     792: goto          591
+     795: return
+    Exception table:
+       from    to  target type
+           0   284   287   Class java/lang/Exception
+
+  public void cSF();
+    Code:
+       0: aload_0
+       1: getfield      #13                 // Field sF:Ljava/util/List;
+       4: new           #170                // class age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF
+       7: dup
+       8: aload_0
+       9: getstatic     #165                // Field age/of/civilizations2/jakowski/lukasz/CFG.oR:Ljava/util/Random;
+      12: getstatic     #1                  // Field age/of/civilizations2/jakowski/lukasz/CFG.GAMEWIDTH:I
+      15: bipush        44
+      17: isub
+      18: invokevirtual #166                // Method java/util/Random.nextInt:(I)I
+      21: iconst_0
+      22: bipush        44
+      24: bipush        27
+      26: invokespecial #181                // Method age/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main$FSF."<init>":(Lage/of/civilizations2/jakowski/lukasz/Messages/Gift/R/Menu_Main;IIII)V
+      29: invokeinterface #24,  2           // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+      34: pop
+      35: return
+
+  public final void actionEL(int);
+    Code:
+       0: iconst_0
+       1: putstatic     #72                 // Field SPECIAL_1:Z
+       4: iload_1
+       5: tableswitch   { // 0 to 14
+
+                     0: 80
+
+                     1: 92
+
+                     2: 98
+
+                     3: 116
+
+                     4: 134
+
+                     5: 144
+
+                     6: 151
+
+                     7: 172
+
+                     8: 184
+
+                     9: 196
+
+                    10: 208
+
+                    11: 220
+
+                    12: 232
+
+                    13: 244
+
+                    14: 244
+               default: 254
+          }
+      80: getstatic     #182                // Field age/of/civilizations2/jakowski/lukasz/CFG.menus:Lage/of/civilizations2/jakowski/lukasz/MenuManager;
+      83: getstatic     #183                // Field age/of/civilizations2/jakowski/lukasz/View.eMP:Lage/of/civilizations2/jakowski/lukasz/View;
+      86: invokevirtual #184                // Method age/of/civilizations2/jakowski/lukasz/MenuManager.setMenuIDWithoutAnim:(Lage/of/civilizations2/jakowski/lukasz/View;)V
+      89: goto          254
+      92: invokestatic  #185                // Method age/of/civilizations2/jakowski/lukasz/mp/MP.openBrowser:()V
+      95: goto          254
+      98: getstatic     #186                // Field age/of/civilizations2/jakowski/lukasz/View.eMAINMENU:Lage/of/civilizations2/jakowski/lukasz/View;
+     101: putstatic     #187                // Field age/of/civilizations2/jakowski/lukasz/CFG.backToMenu:Lage/of/civilizations2/jakowski/lukasz/View;
+     104: getstatic     #182                // Field age/of/civilizations2/jakowski/lukasz/CFG.menus:Lage/of/civilizations2/jakowski/lukasz/MenuManager;
+     107: getstatic     #188                // Field age/of/civilizations2/jakowski/lukasz/View.eSELECT_MAP_TYPE:Lage/of/civilizations2/jakowski/lukasz/View;
+     110: invokevirtual #189                // Method age/of/civilizations2/jakowski/lukasz/MenuManager.setMenuID:(Lage/of/civilizations2/jakowski/lukasz/View;)V
+     113: goto          254
+     116: getstatic     #186                // Field age/of/civilizations2/jakowski/lukasz/View.eMAINMENU:Lage/of/civilizations2/jakowski/lukasz/View;
+     119: putstatic     #190                // Field age/of/civilizations2/jakowski/lukasz/CFG.goToMenu2:Lage/of/civilizations2/jakowski/lukasz/View;
+     122: getstatic     #182                // Field age/of/civilizations2/jakowski/lukasz/CFG.menus:Lage/of/civilizations2/jakowski/lukasz/MenuManager;
+     125: getstatic     #191                // Field age/of/civilizations2/jakowski/lukasz/View.eSETTINGS:Lage/of/civilizations2/jakowski/lukasz/View;
+     128: invokevirtual #189                // Method age/of/civilizations2/jakowski/lukasz/MenuManager.setMenuID:(Lage/of/civilizations2/jakowski/lukasz/View;)V
+     131: goto          254
+     134: getstatic     #182                // Field age/of/civilizations2/jakowski/lukasz/CFG.menus:Lage/of/civilizations2/jakowski/lukasz/MenuManager;
+     137: getstatic     #192                // Field age/of/civilizations2/jakowski/lukasz/View.eEDITOR:Lage/of/civilizations2/jakowski/lukasz/View;
+     140: invokevirtual #184                // Method age/of/civilizations2/jakowski/lukasz/MenuManager.setMenuIDWithoutAnim:(Lage/of/civilizations2/jakowski/lukasz/View;)V
+     143: return
+     144: getstatic     #193                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.EXIT_GAME:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     147: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     150: return
+     151: getstatic     #182                // Field age/of/civilizations2/jakowski/lukasz/CFG.menus:Lage/of/civilizations2/jakowski/lukasz/MenuManager;
+     154: getstatic     #195                // Field age/of/civilizations2/jakowski/lukasz/View.eABOUT:Lage/of/civilizations2/jakowski/lukasz/View;
+     157: invokevirtual #189                // Method age/of/civilizations2/jakowski/lukasz/MenuManager.setMenuID:(Lage/of/civilizations2/jakowski/lukasz/View;)V
+     160: getstatic     #97                 // Field age/of/civilizations2/jakowski/lukasz/CFG.map:Lage/of/civilizations2/jakowski/lukasz/Map;
+     163: invokevirtual #196                // Method age/of/civilizations2/jakowski/lukasz/Map.getMpS:()Lage/of/civilizations2/jakowski/lukasz/MapScale;
+     166: ldc           #197                // float 0.175f
+     168: invokevirtual #198                // Method age/of/civilizations2/jakowski/lukasz/MapScale.setNewCurrentScaleByButton2:(F)V
+     171: return
+     172: ldc           #199                // String https://store.steampowered.com/app/3381680/Age_of_History_II_Definitive_Edition/
+     174: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     177: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     180: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     183: return
+     184: ldc           #202                // String https://play.google.com/store/apps/details?id=age.of.history2.definitive.lukasz.jakowski
+     186: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     189: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     192: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     195: return
+     196: ldc           #203                // String https://apps.apple.com/us/app/age-of-history-2-definitive/id6759263202
+     198: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     201: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     204: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     207: return
+     208: ldc           #204                // String https://www.facebook.com/AgeofCivilizationsJakowski/
+     210: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     213: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     216: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     219: return
+     220: ldc           #205                // String https://twitter.com/jakowskidev
+     222: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     225: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     228: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     231: return
+     232: ldc           #206                // String https://www.youtube.com/user/jakowskiuki
+     234: putstatic     #200                // Field age/of/civilizations2/jakowski/lukasz/CFG.GO_TO_LINK:Ljava/lang/String;
+     237: getstatic     #201                // Field age/of/civilizations2/jakowski/lukasz/Z_Other/DialogType.GO_TO_LINK:Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;
+     240: invokestatic  #194                // Method age/of/civilizations2/jakowski/lukasz/CFG.setDialogType:(Lage/of/civilizations2/jakowski/lukasz/Z_Other/DialogType;)V
+     243: return
+     244: aload_0
+     245: iload_1
+     246: invokevirtual #80                 // Method getMenuElem:(I)Lage/of/civilizations2/jakowski/lukasz/Button/MenuElemUI;
+     249: iload_1
+     250: invokevirtual #207                // Method age/of/civilizations2/jakowski/lukasz/Button/MenuElemUI.actionElem:(I)V
+     253: return
+     254: iconst_0
+     255: istore_2
+     256: iload_2
+     257: getstatic     #173                // Field age/of/civilizations2/jakowski/lukasz/CFG.core:Lage/of/civilizations2/jakowski/lukasz/Core/Core;
+     260: invokevirtual #208                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.getProvinSize:()I
+     263: if_icmpge     296
+     266: getstatic     #173                // Field age/of/civilizations2/jakowski/lukasz/CFG.core:Lage/of/civilizations2/jakowski/lukasz/Core/Core;
+     269: iload_2
+     270: invokevirtual #209                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.getProv:(I)Lage/of/civilizations2/jakowski/lukasz/Province;
+     273: invokevirtual #210                // Method age/of/civilizations2/jakowski/lukasz/Province.getSeaProv:()Z
+     276: ifne          290
+     279: getstatic     #173                // Field age/of/civilizations2/jakowski/lukasz/CFG.core:Lage/of/civilizations2/jakowski/lukasz/Core/Core;
+     282: iload_2
+     283: invokevirtual #209                // Method age/of/civilizations2/jakowski/lukasz/Core/Core.getProv:(I)Lage/of/civilizations2/jakowski/lukasz/Province;
+     286: iconst_0
+     287: invokevirtual #211                // Method age/of/civilizations2/jakowski/lukasz/Province.setFromCivID:(I)V
+     290: iinc          2, 1
+     293: goto          256
+     296: getstatic     #97                 // Field age/of/civilizations2/jakowski/lukasz/CFG.map:Lage/of/civilizations2/jakowski/lukasz/Map;
+     299: invokevirtual #212                // Method age/of/civilizations2/jakowski/lukasz/Map.getMpC:()Lage/of/civilizations2/jakowski/lukasz/MapCoords;
+     302: invokevirtual #213                // Method age/of/civilizations2/jakowski/lukasz/MapCoords.centerToRandomMapPos:()V
+     305: return
+
+  public final void onBackPressed();
+    Code:
+       0: return
+
+  public void setVisibleM(boolean);
+    Code:
+       0: aload_0
+       1: iload_1
+       2: invokespecial #214                // Method age/of/civilizations2/jakowski/lukasz/Menu.setVisibleM:(Z)V
+       5: aload_0
+       6: invokestatic  #215                // Method java/lang/System.currentTimeMillis:()J
+       9: putfield      #9                  // Field lTime:J
+      12: return
+
+  public void menuAction2();
+    Code:
+       0: return
+
+  static {};
+    Code:
+       0: ldc           #216                // float 0.15f
+       2: putstatic     #217                // Field ICONS_ALPHA_PC:F
+       5: ldc           #151                // float 0.1f
+       7: putstatic     #218                // Field ICONS_ALPHA:F
+      10: new           #219                // class age/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation
+      13: dup
+      14: invokespecial #220                // Method age/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation."<init>":()V
+      17: putstatic     #156                // Field sparksAnimation:Lage/of/civilizations2/jakowski/lukasz/TextB/Sparks/SparksAnimation;
+      20: iconst_0
+      21: putstatic     #221                // Field RATE_THE_GAME:Z
+      24: iconst_0
+      25: putstatic     #222                // Field GLGO:I
+      28: iconst_0
+      29: putstatic     #72                 // Field SPECIAL_1:Z
+      32: iconst_0
+      33: putstatic     #71                 // Field SPECIAL_2:Z
+      36: return
+}

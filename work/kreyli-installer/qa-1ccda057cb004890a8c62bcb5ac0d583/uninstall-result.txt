@@ -1,0 +1,1 @@
+PASS uninstall preserves saves/settings

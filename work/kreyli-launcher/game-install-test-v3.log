@@ -1,0 +1,5 @@
+Распаковка игры…
+System.IO.IOException: Архив не содержит нужный файл: game/civilizations_informations/modsScenarioExport/classified_file.txt
+   в GameInstall.Install(String destination, Action`2 progress)
+   в GameInstallTests.Run(String[] args)
+   в GameInstallTests.Main(String[] args)

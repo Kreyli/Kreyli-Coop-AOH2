@@ -1,0 +1,63 @@
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+PROBE_FRAME: 100
+PROBE_THREAD: Notification Thread
+PROBE_THREAD: main
+  java.base@21.0.12.1/java.io.FileInputStream.open0(Native Method)
+  java.base@21.0.12.1/java.io.FileInputStream.open(Unknown Source)
+  java.base@21.0.12.1/java.io.FileInputStream.<init>(Unknown Source)
+  app//com.badlogic.gdx.files.FileHandle.read(FileHandle.java:146)
+  app//com.badlogic.gdx.graphics.PixmapIO$CIM.read(PixmapIO.java:129)
+  app//com.badlogic.gdx.graphics.PixmapIO.readCIM(PixmapIO.java:56)
+  app//age.of.civilizations2.jakowski.lukasz.Province.loadProvinceBG(Province.java:3968)
+  app//age.of.civilizations2.jakowski.lukasz.Core.Core.loadProvinceTexture(Core.java:1042)
+  app//age.of.civilizations2.jakowski.lukasz.Menus.Menu_InitGame.loadAssets(Menu_InitGame.java:522)
+  app//age.of.civilizations2.jakowski.lukasz.Menus.Menu_InitGame.access$000(Menu_InitGame.java:76)
+  app//age.of.civilizations2.jakowski.lukasz.Menus.Menu_InitGame$1$1.run(Menu_InitGame.java:262)
+  app//com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application.loop(Lwjgl3Application.java:159)
+  app//com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application.<init>(Lwjgl3Application.java:116)
+  app//age.of.civilizations2.jakowski.lukasz.mp.KreyliBrandingProbe.main(KreyliBrandingProbe.java:19)
+PROBE_THREAD: Signal Dispatcher
+PROBE_THREAD: Thread-0
+  java.base@21.0.12.1/java.lang.Thread.dumpThreads(Native Method)
+  java.base@21.0.12.1/java.lang.Thread.getAllStackTraces(Unknown Source)
+  app//age.of.civilizations2.jakowski.lukasz.mp.KreyliBrandingProbe.lambda$main$1(KreyliBrandingProbe.java:18)
+  app//age.of.civilizations2.jakowski.lukasz.mp.KreyliBrandingProbe$$Lambda/0x000002431800d658.run(Unknown Source)
+  java.base@21.0.12.1/java.lang.Thread.runWith(Unknown Source)
+  java.base@21.0.12.1/java.lang.Thread.run(Unknown Source)
+PROBE_THREAD: Reference Handler
+  java.base@21.0.12.1/java.lang.ref.Reference.waitForReferencePendingList(Native Method)
+  java.base@21.0.12.1/java.lang.ref.Reference.processPendingReferences(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.Reference$ReferenceHandler.run(Unknown Source)
+PROBE_THREAD: Attach Listener
+PROBE_THREAD: LWJGL3 Timer
+  java.base@21.0.12.1/java.lang.Thread.sleep0(Native Method)
+  java.base@21.0.12.1/java.lang.Thread.sleep(Unknown Source)
+  app//com.badlogic.gdx.backends.lwjgl3.Sync$1.run(Sync.java:120)
+  java.base@21.0.12.1/java.lang.Thread.runWith(Unknown Source)
+  java.base@21.0.12.1/java.lang.Thread.run(Unknown Source)
+PROBE_THREAD: Finalizer
+  java.base@21.0.12.1/java.lang.Object.wait0(Native Method)
+  java.base@21.0.12.1/java.lang.Object.wait(Unknown Source)
+  java.base@21.0.12.1/java.lang.Object.wait(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.NativeReferenceQueue.await(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.ReferenceQueue.remove0(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.NativeReferenceQueue.remove(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.Finalizer$FinalizerThread.run(Unknown Source)
+PROBE_THREAD: Common-Cleaner
+  java.base@21.0.12.1/jdk.internal.misc.Unsafe.park(Native Method)
+  java.base@21.0.12.1/java.util.concurrent.locks.LockSupport.parkNanos(Unknown Source)
+  java.base@21.0.12.1/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.ReferenceQueue.await(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.ReferenceQueue.remove0(Unknown Source)
+  java.base@21.0.12.1/java.lang.ref.ReferenceQueue.remove(Unknown Source)
+  java.base@21.0.12.1/jdk.internal.ref.CleanerImpl.run(Unknown Source)
+  java.base@21.0.12.1/java.lang.Thread.runWith(Unknown Source)
+  java.base@21.0.12.1/java.lang.Thread.run(Unknown Source)
+  java.base@21.0.12.1/jdk.internal.misc.InnocuousThread.run(Unknown Source)
+PROBE_FRAME: 200
+PROBE_FRAME: 300
+KREYLI_BRANDING: PASS version, region filtering, credits suppression, menu placement, native renders

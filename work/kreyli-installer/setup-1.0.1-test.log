@@ -1,0 +1,2 @@
+PASS installer, critical file checksums, launcher --check, bundled runtime, user data preservation (uninstall skipped=False)
+QA=C:\Users\evgen\Documents\Codex\2026-10-19\read-https-github-com-cranebeaker-coop-2\work\kreyli-installer\qa-cf6c4627140b433f87deb484ce33690c

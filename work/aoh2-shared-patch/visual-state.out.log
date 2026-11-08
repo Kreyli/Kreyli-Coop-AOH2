@@ -1,0 +1,5 @@
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+KREYLI_VISUAL_STATE: PASS movement cache and input gesture recovery

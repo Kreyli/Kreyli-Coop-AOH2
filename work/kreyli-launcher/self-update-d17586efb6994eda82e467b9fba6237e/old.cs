@@ -1,0 +1,1 @@
+using System; using System.IO; using System.Threading; class Stub { static void Main(){File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"old-started.txt"),"running");Thread.Sleep(2000);} }

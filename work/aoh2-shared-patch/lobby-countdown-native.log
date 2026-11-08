@@ -1,0 +1,20 @@
+KREYLI_LOBBY: PASS C:\Users\evgen\Documents\Codex\2026-10-19\read-https-github-com-cranebeaker-coop-2\work\coop-anything\local\vendor-de-2.2\lobby-4763345f6035417690cc8201d25a4788
+client.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+client.out.log
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+KREYLI_LOBBY_NATIVE: PASS guest roster, ready, released state and exit button
+host.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+host.out.log
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP hooks=19
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_Net hooks=2
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+[MP] ���� ������� �� ����� 56903
+[MP] KreyliGuest �����
+[MP] KreyliGuest �����
+KREYLI_LOBBY_NATIVE: PASS host ready barrier, selector and departure reset

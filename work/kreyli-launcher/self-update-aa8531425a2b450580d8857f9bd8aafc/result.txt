@@ -1,0 +1,1 @@
+PASS self-update waits for running old executable, replaces launcher, restarts replacement, preserves nickname

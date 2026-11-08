@@ -1,0 +1,26 @@
+KREYLI_TURN_FEATURES: PASS C:\Users\evgen\Documents\Codex\2026-10-19\read-https-github-com-cranebeaker-coop-2\work\coop-anything\local\vendor-de-2.2\turn-features-6d560112db0b464e897f273fd310081b
+client.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+client.out.log
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI hooks=3
+SHARED_PATCH: installed age/of/civilizations2/jakowski/lukasz/mp/MP_UI$PlayersTable hooks=2
+TURN_FEATURES client phase=0 turn=1
+[MP] SkipGuest: ���������� ��������
+[MP] SkipGuest ����� � ���������� ����
+[MP] SkipGuest: ���������� ��������
+[MP] SkipGuest ������� ����������
+[MP] SkipHost ���������� ���������� 2 �����
+[MP] SkipHost ���������� ���������� 2 �����
+TURN_FEATURES PASS actual ready/cancel UI, ready gift acceptance and unanimous skip
+host.err.log
+[LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+host.out.log
+est ����� � ���������� ����
+[MP] SkipGuest: ag
+[MP] SkipGuest ������� ����������
+[MP] ������� �����: 2 (��������)
+[MP] SkipHost ���������� ���������� 2 �����
+TURN_FEATURES host phase=4 turn=1
+[MP] SkipHost ���������� ���������� 2 �����
+[MP] SkipGuest �����
+TURN_FEATURES PASS host gift settlement, vote reset and two unanimous turns

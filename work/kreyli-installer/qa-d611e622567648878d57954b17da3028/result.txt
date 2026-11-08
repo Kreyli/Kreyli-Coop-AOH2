@@ -1,0 +1,1 @@
+PASS installer, critical file checksums, launcher --check, bundled runtime, user data preservation (uninstall skipped=False)

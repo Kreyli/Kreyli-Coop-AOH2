@@ -1,0 +1,9 @@
+Распаковка игры…
+System.IO.PathTooLongException: Слишком длинный путь или имя файла. Полное имя файла должно содержать меньше 260 знаков, а имя каталога - меньше 248 знаков.
+   в System.IO.PathHelper.GetFullPathName()
+   в System.IO.Path.LegacyNormalizePath(String path, Boolean fullCheck, Int32 maxPathLength, Boolean expandShortPaths)
+   в System.IO.Path.GetFullPathInternal(String path)
+   в GameInstall.Safe(String root, String name, Boolean checkLinks)
+   в GameInstall.Install(String destination, Action`2 progress)
+   в GameInstallTests.Run(String[] args)
+   в GameInstallTests.Main(String[] args)

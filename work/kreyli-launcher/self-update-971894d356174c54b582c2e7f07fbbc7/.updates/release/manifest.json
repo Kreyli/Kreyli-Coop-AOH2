@@ -1,0 +1,11 @@
+{
+  "files": [
+    {
+      "url": "https://example.invalid/self-update-test.exe",
+      "sha256": "e2cb26b4bf9ff3f1b5c3ea71ef95207b0c7db42cf4ae5131048e19f928e887cd",
+      "path": "Kreyli Coop AOH2.exe",
+      "size": 4096
+    }
+  ],
+  "version": "1.1.1"
+}
