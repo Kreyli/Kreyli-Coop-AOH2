@@ -39,17 +39,62 @@ public final class SharedState {
             rows.add(s);
         }
         if(points.size()!=civs-1)throw new IllegalArgumentException("Missing movement points");
-        CFG.core.clearMoveUnits_JustDraw_AnotherArmies();
-        for(int c=1;c<civs;c++){var v=CFG.core.getCiv(c);v.clearMoveUnits();v.clearRecruitArmy();v.clearMoveUnits_Plunder();v.lMigrate.clear();field(v,"iMigrateSize",0);}
-        for(int p=0;p<provinces;p++){var v=CFG.core.getProv(p);for(int i=v.getCivsSize()-1;i>=0;i--)v.updateArmy4(v.getCivId(i),0);}
-        for(var s:rows){int c=Integer.parseInt(s[1]),p=Integer.parseInt(s[2]);var v=CFG.core.getCiv(c);
+        Map<Integer,List<int[]>> newMoves=new HashMap<>();
+        Map<Integer,List<int[]>> newMigrate=new HashMap<>();
+        Map<Integer,List<int[]>> newRecruit=new HashMap<>();
+        Map<Integer,Integer> newPoints=new HashMap<>();
+        Map<Integer,Map<Integer,Integer>> newArmies=new HashMap<>();
+        for(var s:rows){
+            int c=Integer.parseInt(s[1]),p=Integer.parseInt(s[2]);
             switch(s[0]){
-                case "p"->v.setMovementPoints(p);
-                case "a"->CFG.core.getProv(p).updateArmy4(c,Integer.parseInt(s[3]));
-                case "r"->{v.recruitArmy.add(new RecruitArmy(p,Integer.parseInt(s[3])));v.recruitArmySize=v.recruitArmy.size();}
-                case "m"->v.newMove(p,Integer.parseInt(s[3]),Integer.parseInt(s[4]),true);
-                case "g"->{v.lMigrate.add(new MoveUnits(p,Integer.parseInt(s[3]),Integer.parseInt(s[4]),true,true));field(v,"iMigrateSize",v.lMigrate.size());}
-                case "l"->v.newPlunder(p,Integer.parseInt(s[3]));
+                case "p"->newPoints.put(c,p);
+                case "a"->newArmies.computeIfAbsent(c,k->new HashMap<>()).put(p,Integer.parseInt(s[3]));
+                case "r"->newRecruit.computeIfAbsent(c,k->new ArrayList<>()).add(new int[]{p,Integer.parseInt(s[3])});
+                case "m"->newMoves.computeIfAbsent(c,k->new ArrayList<>()).add(new int[]{p,Integer.parseInt(s[3]),Integer.parseInt(s[4])});
+                case "g"->newMigrate.computeIfAbsent(c,k->new ArrayList<>()).add(new int[]{p,Integer.parseInt(s[3]),Integer.parseInt(s[4])});
+            }
+        }
+        CFG.core.clearMoveUnits_JustDraw_AnotherArmies();
+        for(int c=1;c<civs;c++){
+            var v=CFG.core.getCiv(c);
+            if(newPoints.containsKey(c))v.setMovementPoints(newPoints.get(c));
+            List<MoveUnits> existingMoves=new ArrayList<>();
+            for(int i=0;i<v.moveUnitsSize();i++)existingMoves.add(v.getMoveUnits(i));
+            List<int[]> desiredMoves=newMoves.getOrDefault(c,List.of());
+            boolean movesMatch=existingMoves.size()==desiredMoves.size();
+            if(movesMatch){
+                for(int i=0;i<existingMoves.size();i++){
+                    var em=existingMoves.get(i);var dm=desiredMoves.get(i);
+                    if(em.getFromProviID()!=dm[0]||em.getToProvID()!=dm[1]||em.getNumberOfUnits()!=dm[2]){movesMatch=false;break;}
+                }
+            }
+            if(!movesMatch){
+                v.clearMoveUnits();
+                for(var dm:desiredMoves)v.newMove(dm[0],dm[1],dm[2],true);
+            }
+            v.clearRecruitArmy();
+            for(var r:newRecruit.getOrDefault(c,List.of())){
+                v.recruitArmy.add(new RecruitArmy(r[0],r[1]));
+            }
+            v.recruitArmySize=v.recruitArmy.size();
+            v.clearMoveUnits_Plunder();
+            for(var s:rows){
+                if(s[0].equals("l")&&Integer.parseInt(s[1])==c)v.newPlunder(Integer.parseInt(s[2]),Integer.parseInt(s[3]));
+            }
+            v.lMigrate.clear();
+            for(var g:newMigrate.getOrDefault(c,List.of()))v.lMigrate.add(new MoveUnits(g[0],g[1],g[2],true,true));
+            field(v,"iMigrateSize",v.lMigrate.size());
+        }
+        for(int p=0;p<provinces;p++){
+            var v=CFG.core.getProv(p);
+            for(int i=v.getCivsSize()-1;i>=0;i--){
+                int civId=v.getCivId(i);
+                Integer amount=newArmies.getOrDefault(civId,Map.of()).get(p);
+                if(amount!=null)v.updateArmy4(civId,amount);else v.updateArmy4(civId,0);
+            }
+            for(var entry:newArmies.entrySet()){
+                int civId=entry.getKey();Integer amount=entry.getValue().get(p);
+                if(amount!=null&&amount>0)v.updateArmy4(civId,amount);
             }
         }
         NewGameManager.build_ArmyInAnotherProvince();

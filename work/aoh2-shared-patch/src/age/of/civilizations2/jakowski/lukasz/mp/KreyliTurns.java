@@ -82,7 +82,12 @@ public final class KreyliTurns {
         return true;
     }
     private static void acknowledge(){if(MP.isClient()&&remoteId!=0&&host()!=null&&remoteTurn==loadedTurn&&loadedTurn==GameCalendar.TURNID&&(lastAckId!=remoteId||lastAckTurn!=loadedTurn)){host().send("kreyli_skip_ack",remoteId,loadedTurn);lastAckId=remoteId;lastAckTurn=loadedTurn;}}
-    public static void afterSnapshot(){loadedTurn=GameCalendar.TURNID;acknowledge();}
+    public static void afterSnapshot(){
+        int camX=CFG.map!=null&&CFG.map.getMpC()!=null?CFG.map.getMpC().getPX():0;
+        int camY=CFG.map!=null&&CFG.map.getMpC()!=null?CFG.map.getMpC().getPY():0;
+        loadedTurn=GameCalendar.TURNID;acknowledge();
+        if(CFG.map!=null&&CFG.map.getMpC()!=null){CFG.map.getMpC().setNewPosX(camX);CFG.map.getMpC().setNewPosY(camY);}
+    }
     /** Call only for a genuine local or accepted remote command during INPUT_ORDERS. */
     public static void order(){if(MP.isHost()&&vote.id!=0){vote.clear();publish();}else if(MP.isClient()&&remoteId!=0)cancelSkip();}
     public static void newTurn(){
@@ -106,7 +111,7 @@ public final class KreyliTurns {
         boolean h=Boolean.TRUE.equals(field("hostReady")),g=guest!=null&&guest.ready;
         if(h!=lastHost){lastHost=h;notice(MP.nick+(h?" готов к следующему ходу":" отменил готовность"));}
         if(g!=lastGuest){lastGuest=g;notice(guest.nick+(g?" готов к следующему ходу":" отменил готовность"));}
-        if(active()&&guest!=null&&vote.mayAdvance(turn,guest,ackTurn==turn)&&SharedSupport.canEnd()){
+        if(active()&&guest!=null&&vote.mayAdvance(turn,guest)&&SharedSupport.canEnd()){
             vote.started();field("hostReady",true);guest.ready=true;
             try{Method m=MP.class.getDeclaredMethod("tryEndTurn");m.setAccessible(true);m.invoke(null);}catch(Exception e){vote.clear();publish();throw new IllegalStateException(e);}
         }

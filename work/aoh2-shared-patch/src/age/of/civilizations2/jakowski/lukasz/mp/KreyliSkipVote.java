@@ -13,7 +13,7 @@ final class KreyliSkipVote {
         if(hostYes&&guestYes)remaining=count;
         return true;
     }
-    boolean mayAdvance(int worldTurn,Object guest,boolean acknowledged){return id!=0&&remaining>0&&!waiting&&turn==worldTurn&&this.guest==guest&&acknowledged;}
+    boolean mayAdvance(int worldTurn,Object guest){return id!=0&&remaining>0&&!waiting&&turn==worldTurn&&this.guest==guest;}
     void started(){if(remaining<=0||waiting)throw new IllegalStateException();waiting=true;}
     void completed(int worldTurn){
         if(!waiting||worldTurn!=turn+1){clear();return;}
