@@ -14,9 +14,17 @@ internal static class GameInstall {
  internal static bool Paused;
  internal static void Pause(bool pause){Paused=pause;if(pause)Gate.Reset();else Gate.Set();}
  internal static string DirectoryPath {
-  get {string config=Path.Combine(Launcher.Root,"game-location.json");if(!File.Exists(config))return Launcher.Root;
-   var location=Launcher.Json.Deserialize<GameLocation>(File.ReadAllText(config));
-   if(location==null||string.IsNullOrWhiteSpace(location.path))throw new IOException("Не указан путь к игре");return Path.GetFullPath(location.path);}
+  get {
+   string config=Path.Combine(Launcher.Root,"game-location.json");
+   if(File.Exists(config)){
+    try{var location=Launcher.Json.Deserialize<GameLocation>(File.ReadAllText(config));
+     if(location!=null&&!string.IsNullOrWhiteSpace(location.path)&&Directory.Exists(IOPath(location.path)))return Path.GetFullPath(location.path);}catch{}
+   }
+   if(File.Exists(IOPath(Path.Combine(Launcher.Root,"game.jar"))))return Launcher.Root;
+   string parent=Path.GetFullPath(Path.Combine(Launcher.Root,".."));
+   if(File.Exists(IOPath(Path.Combine(parent,"game.jar"))))return parent;
+   return Launcher.Root;
+  }
  }
  internal static bool Installed {get{return File.Exists(IOPath(Path.Combine(DirectoryPath,"game.jar")));}}
  internal static GamePackage Package(){
