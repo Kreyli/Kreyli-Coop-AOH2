@@ -99,6 +99,12 @@ public final class SharedAgent implements Opcodes {
                             var base=super.visitMethod(access,command?"coopOriginalCmd":hostForm?"coopOriginalHost":entryForm?"coopOriginalEntry":method,desc,sig,ex);
                             return new MethodVisitor(ASM8,base){
                                 void call(String n,String d){super.visitMethodInsn(INVOKESTATIC,S,n,d,false);}
+                                public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
+                                    if(name.equals(P+"MP")&&opcode==GETSTATIC&&owner.equals(name)&&field.equals("turnSeconds")
+                                            &&Set.of("update","secondsLeft","timerActive").contains(method)){
+                                        super.visitInsn(ICONST_0);
+                                    }else super.visitFieldInsn(opcode,owner,field,descriptor);
+                                }
                                 void guard(String n,String d,int...loads){
                                     for(int i=0;i<loads.length;i+=2)super.visitVarInsn(loads[i],loads[i+1]);
                                     call(n,d);Label proceed=new Label();super.visitJumpInsn(IFEQ,proceed);super.visitInsn(RETURN);super.visitLabel(proceed);
@@ -113,9 +119,16 @@ public final class SharedAgent implements Opcodes {
                                     if(name.equals(P+"MP"))switch(method){
                                         case "onEnterInGame"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","prepare","()V",false);}
                                         case "join"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
-                                        case "onHello"->{super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}
+                                        case "onHello"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","beforeHello","()V",false);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}
                                         case "update"->{found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliPings","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliInputRecovery","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","tick","()V",false);}
-                                        case "civFree"->{found.add(method);super.visitVarInsn(ILOAD,0);call("free","(I)I");super.visitInsn(DUP);super.visitInsn(ICONST_M1);Label normal=new Label();super.visitJumpInsn(IF_ICMPEQ,normal);super.visitInsn(IRETURN);super.visitLabel(normal);super.visitInsn(POP);}
+                                        case "civFree"->{
+                                            found.add(method);
+                                            super.visitVarInsn(ILOAD,0);
+                                            super.visitVarInsn(ALOAD,1);
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","reservedForOther","(I"+C+")Z",false);
+                                            Label available=new Label();super.visitJumpInsn(IFEQ,available);super.visitInsn(ICONST_0);super.visitInsn(IRETURN);super.visitLabel(available);
+                                            super.visitVarInsn(ILOAD,0);call("free","(I)I");super.visitInsn(DUP);super.visitInsn(ICONST_M1);Label normal=new Label();super.visitJumpInsn(IF_ICMPEQ,normal);super.visitInsn(IRETURN);super.visitLabel(normal);super.visitInsn(POP);
+                                        }
                                         case "pick"->{found.add(method);guard("pick","(I)Z",ILOAD,0);}
                                         case "onClientLeft"->{found.add(method);guard("leave","("+C+")Z",ALOAD,0);}
                                         case "setPlayerLeader"->{found.add(method);guard("keepLeader","(I)Z",ILOAD,0);}
@@ -135,6 +148,7 @@ public final class SharedAgent implements Opcodes {
                                 public void visitInsn(int opcode){
                                     if(name.equals(P+"MP_Save")&&method.equals("saveToDisk")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);
                                     if(name.equals(P+"MP_UI")&&method.equals("updateInGame")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","updateUi","()V",false);
+                                    if(name.equals(P+"MP_UI")&&method.equals("chatToggleMenu")&&opcode==ARETURN){found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurnHud","attach","(Lage/of/civilizations2/jakowski/lukasz/Menu;)Lage/of/civilizations2/jakowski/lukasz/Menu;",false);}
                                     if(name.equals(P+"MP_Net")&&method.equals("listServers")&&opcode==ARETURN){found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliBrowser","filter","(Ljava/util/List;)Ljava/util/List;",false);}
                                     if(name.equals(P+"MP_UI")&&method.equals("build")&&opcode==ARETURN){found.add(method);super.visitVarInsn(ALOAD,0);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","menus","([Lage/of/civilizations2/jakowski/lukasz/Menu;Lage/of/civilizations2/jakowski/lukasz/View;)[Lage/of/civilizations2/jakowski/lukasz/Menu;",false);}
                                     if(name.equals(P+"MP_UI$PlayersTable")&&method.equals("<init>")&&opcode==RETURN){found.add(method);super.visitVarInsn(ALOAD,0);super.visitMethodInsn(INVOKESTATIC,P+"KreyliMenus","appendInvite","(Lage/of/civilizations2/jakowski/lukasz/Menu;)V",false);}
@@ -144,7 +158,8 @@ public final class SharedAgent implements Opcodes {
                                         if(method.equals("t")&&opcode==ARETURN){found.add(method);super.visitVarInsn(ALOAD,0);call("brandedText","(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");}
                                         if(method.equals("startHost")&&opcode==IRETURN){found.add(method);super.visitInsn(DUP);Label skip=new Label();super.visitJumpInsn(IFEQ,skip);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","hostStarted","()V",false);super.visitLabel(skip);}
                                         if(method.equals("onCmd")&&opcode==RETURN){found.add(method);call("afterCommand","()V");}
-                                        if(method.equals("stop")&&opcode==RETURN){found.add(method);call("reset","()V");super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","leaveSession","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","reset","()V",false);}
+                                        if(method.equals("assign")&&opcode==RETURN){super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","assigned","("+C+"I)V",false);}
+                                        if(method.equals("stop")&&opcode==RETURN){found.add(method);call("reset","()V");super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","reset","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","leaveSession","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","reset","()V",false);}
                                         if(method.equals("loadSnapshot")&&opcode==RETURN){found.add(method);super.visitVarInsn(ALOAD,1);call("loaded","(Ljava/lang/Object;)V");}
                                         if(method.equals("buildSnapshot")&&opcode==ARETURN){found.add(method);call("built","(Ljava/util/concurrent/Future;)Ljava/util/concurrent/Future;");}
                                     }else if(name.equals(P+"MP_Save")&&method.equals("pieces")&&opcode==ARETURN){found.add(method);call("pieces","(Ljava/util/Map;)Ljava/util/Map;");}
@@ -166,7 +181,7 @@ public final class SharedAgent implements Opcodes {
                             super.visitEnd();
                         }
                     },ClassReader.EXPAND_FRAMES);
-                    Set<String> required=launcher?Set.of("title"):name.equals(P+"MP")?Set.of("cmd","civFree","pick","onClientLeft","setPlayerLeader","onHostMessage","onClientMessage","endTurnPressed","endTurn","sendSnap","onCmd","stop","loadSnapshot","buildSnapshot","onHello","update","t","startHost","loadSettings"):name.equals(P+"MP_Save")?Set.of("pieces"):name.equals(P+"MP_UI")?Set.of("host","entry","build"):name.equals(P+"MP_Net")?Set.of("writeLine","listServers"):Set.of("<init>","actionEL");
+                    Set<String> required=launcher?Set.of("title"):name.equals(P+"MP")?Set.of("cmd","civFree","pick","onClientLeft","setPlayerLeader","onHostMessage","onClientMessage","endTurnPressed","endTurn","sendSnap","onCmd","stop","loadSnapshot","buildSnapshot","onHello","update","t","startHost","loadSettings"):name.equals(P+"MP_Save")?Set.of("pieces"):name.equals(P+"MP_UI")?Set.of("host","entry","build","chatToggleMenu"):name.equals(P+"MP_Net")?Set.of("writeLine","listServers"):Set.of("<init>","actionEL");
                     if(!found.equals(required))throw new IllegalStateException("Incomplete hooks: "+found);
                     System.out.println("SHARED_PATCH: installed "+name+" hooks="+found.size());return writer.toByteArray();
                 }catch(Throwable e){e.printStackTrace();Runtime.getRuntime().halt(7);return null;}

@@ -1,210 +1,171 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
-import age.of.civilizations2.jakowski.lukasz.*;
+
+import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.*;
 import java.util.*;
-import java.util.Map;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 
-/** Host-local save metadata. Primary binding via hashed reconnect key; secondary via SteamID64. Nickname is display only. */
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
+/** Host-local country reservations. Nicknames and unauthenticated Steam IDs grant no rights. */
 public final class KreyliSaveSeats {
-    private static final Map<String, Integer> savedSeats = new LinkedHashMap<>();
-    private static final Map<String, String> savedNicks = new HashMap<>();
-    private static final Map<MP_Net.Conn, String> clientPrimaryIds = new IdentityHashMap<>();
-    private static final Map<MP_Net.Conn, String> clientSteamIds = new IdentityHashMap<>();
-    private static boolean sentId;
+    private static final Map<String, Integer> seats = new LinkedHashMap<>();
+    private static final Map<MP_Net.Conn, String> identities = new IdentityHashMap<>();
+    private static final Field HOST = field("host");
+    private static final Field NICK_CIV = field("nickCiv");
+    private static final Method ASSIGN = method("assign", MP_Net.Conn.class, int.class);
+    private static final Method CIV_FREE = method("civFree", int.class, MP_Net.Conn.class);
 
-    public static void registerClient(MP_Net.Conn conn, String reconnectKey, long steamId) {
-        if (conn == null) return;
-        if (reconnectKey != null && !reconnectKey.isEmpty()) {
-            String hash = KreyliReconnect.hashKey(reconnectKey);
-            clientPrimaryIds.put(conn, "reconnect:" + hash);
+    private KreyliSaveSeats() {}
+
+    private static Field field(String name) {
+        try {
+            Field result = MP.class.getDeclaredField(name);
+            result.setAccessible(true);
+            return result;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
         }
-        if (steamId > 0) {
-            clientSteamIds.put(conn, "steam:" + steamId);
+    }
+
+    private static Method method(String name, Class<?>... types) {
+        try {
+            Method result = MP.class.getDeclaredMethod(name, types);
+            result.setAccessible(true);
+            return result;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** The base game's nickname-based reconnect must never grant a country. */
+    public static void beforeHello() {
+        try {
+            ((Map<?, ?>) NICK_CIV.get(null)).clear();
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static void afterWelcome() {
+        if (!MP.isClient()) return;
+        try {
+            MP_Net.Conn host = (MP_Net.Conn) HOST.get(null);
+            if (host != null) host.send("kreyli_identity", KreyliReconnect.getOrCreateKey(), 0L);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
         }
     }
 
     public static boolean hostMessage(MP_Net.Conn connection, Object[] message) {
-        if (message.length >= 2 && "kreyli_identity".equals(message[0])) {
-            String reconnectKey = message[1] instanceof String s ? s : "";
-            long steamId = message.length >= 3 && message[2] instanceof Number n ? n.longValue() : 0;
-            registerClient(connection, reconnectKey, steamId);
-            return true;
+        if (message.length == 0 || !"kreyli_identity".equals(message[0])) return false;
+        if (!MP.isHost() || connection.nick == null || !MP.clients.contains(connection)
+                || message.length != 3 || !(message[1] instanceof String key)
+                || !key.matches("[0-9a-f]{32}") || identities.containsKey(connection)) return true;
+        identities.put(connection, "reconnect:" + KreyliReconnect.hashKey(key));
+        return true;
+    }
+
+    public static boolean reservedForOther(int civ, MP_Net.Conn connection) {
+        String identity = identities.get(connection);
+        for (var seat : seats.entrySet()) {
+            if (seat.getValue() == civ && !seat.getKey().equals(identity)) return true;
         }
         return false;
     }
 
+    public static void assigned(MP_Net.Conn connection, int civ) {
+        String identity = identities.get(connection);
+        if (identity != null) seats.put(identity, civ);
+    }
+
     public static void tick() {
-        if (MP.isClient()) {
-            if (!sentId) {
-                try {
-                    var f = MP.class.getDeclaredField("host");
-                    f.setAccessible(true);
-                    MP_Net.Conn host = (MP_Net.Conn) f.get(null);
-                    if (host != null) {
-                        String reconnectKey = KreyliReconnect.getOrCreateKey();
-                        String testSteam = System.getProperty("kreyli.test.steamid");
-                        long steamId = testSteam != null ? Long.parseLong(testSteam) : (KreyliSteam.available() ? KreyliSteam.getSteamID64() : 0);
-                        host.send("kreyli_identity", reconnectKey, steamId);
-                        sentId = true;
-                    }
-                } catch (Exception ignored) {}
+        if (!MP.isHost()) return;
+        identities.keySet().retainAll(MP.clients);
+        restoreConnected();
+    }
+
+    public static void restoreConnected() {
+        if (!MP.isHost() || !MP.started || !MP.inputOrders()) return;
+        for (var connection : MP.clients) {
+            if (connection.civ > 0) continue;
+            Integer civ = seats.get(identities.get(connection));
+            if (civ == null || !MP.pickable(civ)) continue;
+            try {
+                if (Boolean.TRUE.equals(CIV_FREE.invoke(null, civ, connection))) {
+                    ASSIGN.invoke(null, connection, civ);
+                }
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException(e);
             }
-        } else if (MP.isHost()) {
-            sentId = false;
         }
     }
 
     private static Path file() {
-        try {
-            String key = CFG.map.getActiveMapIDN() + ":" + SaveGameManager.saveTag;
-            String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(key.getBytes(StandardCharsets.UTF_8)));
-            return Path.of("saves", "kreyli-seats", digest + ".properties");
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
+        String key = CFG.map.getActiveMapIDN() + ":" + SaveGameManager.saveTag;
+        return Path.of("saves", "kreyli-seats", KreyliReconnect.hashKey(key) + ".properties");
     }
 
-    private static String getHostIdentifier() {
-        String testSteam = System.getProperty("kreyli.test.steamid");
-        long steamId = testSteam != null ? Long.parseLong(testSteam) : (KreyliSteam.available() ? KreyliSteam.getSteamID64() : 0);
-        if (steamId > 0) return "steam:" + steamId;
-        return "reconnect:" + KreyliReconnect.hashKey(KreyliReconnect.getOrCreateKey());
-    }
-
-    public static void restoreConnected() {
-        if (!MP.isHost() || !MP.started) return;
-        try {
-            var method = MP.class.getDeclaredMethod("assign", MP_Net.Conn.class, int.class);
-            method.setAccessible(true);
-            var free = MP.class.getDeclaredMethod("civFree", int.class, MP_Net.Conn.class);
-            free.setAccessible(true);
-
-            String hostId = getHostIdentifier();
-            Integer hostCiv = savedSeats.get(hostId);
-            if (hostCiv == null) hostCiv = savedSeats.get("host");
-            if (hostCiv != null && MP.pickable(hostCiv)) {
-                CFG.core.getPlayer(0).setCivId(hostCiv);
-            }
-
-            for (var c : MP.clients) {
-                if (c.civ > 0) continue;
-                String primaryId = clientPrimaryIds.get(c);
-                String steamIdKey = clientSteamIds.get(c);
-                Integer civ = null;
-                
-                if (steamIdKey != null && savedSeats.containsKey(steamIdKey)) {
-                    civ = savedSeats.get(steamIdKey);
-                } else if (primaryId != null && savedSeats.containsKey(primaryId)) {
-                    civ = savedSeats.get(primaryId);
-                }
-                // Nickname is display only and does not grant country rights (old seat.<nickname> saves are ignored).
-
-                if (civ != null && MP.pickable(civ) && Boolean.TRUE.equals(free.invoke(null, civ, c))) {
-                    method.invoke(null, c, civ);
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
     public static void save() {
         if (!MP.isHost() || !MP.started || SaveGameManager.saveTag == null) return;
-        Properties p = new Properties();
-        p.setProperty("shared", Boolean.toString(SharedSupport.shared));
-        String hostId = getHostIdentifier();
-        p.setProperty("host.id", hostId);
-        p.setProperty("seat." + hostId, Integer.toString(CFG.core.getPlayer(0).getCivId()));
-        p.setProperty("nick." + hostId, MP.nick);
-
-        try {
-            var f = MP.class.getDeclaredField("nickCiv");
-            f.setAccessible(true);
-            for (var entry : ((Map<String, Integer>) f.get(null)).entrySet()) {
-                if (entry.getKey() != null && entry.getValue() > 0) {
-                    p.setProperty("seat." + entry.getKey(), entry.getValue().toString());
-                }
-            }
-        } catch (Exception ignored) {}
-
-        for (var c : MP.clients) {
-            if (c.civ > 0) {
-                String clientId = clientSteamIds.get(c);
-                if (clientId == null) clientId = clientPrimaryIds.get(c);
-                if (clientId != null) {
-                    p.setProperty("seat." + clientId, Integer.toString(c.civ));
-                    if (c.nick != null) p.setProperty("nick." + clientId, c.nick);
-                }
-            }
+        Properties data = new Properties();
+        data.setProperty("shared", Boolean.toString(SharedSupport.shared));
+        data.setProperty("hostCiv", Integer.toString(CFG.core.getPlayer(0).getCivId()));
+        for (var seat : seats.entrySet()) {
+            if (MP.pickable(seat.getValue())) data.setProperty("seat." + seat.getKey(), seat.getValue().toString());
         }
-
         try {
-            Path f = file();
-            Files.createDirectories(f.getParent());
-            Path temp = f.resolveSibling(f.getFileName() + ".tmp");
+            Path target = file();
+            Files.createDirectories(target.getParent());
+            Path temp = target.resolveSibling(target.getFileName() + ".tmp");
             try (var out = Files.newOutputStream(temp)) {
-                p.store(out, "Kreyli save countries");
+                data.store(out, "Kreyli save countries");
             }
-            Files.move(temp, f, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(temp, target, REPLACE_EXISTING);
         } catch (Exception e) {
             System.err.println("Kreyli seat metadata save: " + e.getClass().getSimpleName());
         }
     }
 
     /** Before native onEnterInGame, which subsequently builds JOIN snapshots. */
-    @SuppressWarnings("unchecked")
     public static void prepare() {
         if (!MP.isHost() || MP.started || SaveGameManager.saveTag == null) return;
-        savedSeats.clear();
-        savedNicks.clear();
-        Properties p = new Properties();
+        seats.clear();
+        Properties data = new Properties();
         try {
-            Path f = file();
-            if (!Files.exists(f)) return;
-            try (var in = Files.newInputStream(f)) {
-                p.load(in);
+            Path target = file();
+            if (!Files.exists(target)) return;
+            try (var in = Files.newInputStream(target)) {
+                data.load(in);
             }
-            String hostId = p.getProperty("host.id");
-            int host = Integer.parseInt(p.getProperty("hostCiv", "0"));
-            if (hostId != null && savedSeats.containsKey(hostId)) {
-                host = savedSeats.get(hostId);
+            // Older files describe the host by host.id or hostCiv. These fields belong to the
+            // host's local save. Do not guess the host country from an arbitrary guest record.
+            String hostKey = "seat." + data.getProperty("host.id", "host");
+            int host = country(data.getProperty("hostCiv", data.getProperty(hostKey)));
+            if (MP.pickable(host)) CFG.core.getPlayer(0).setCivId(host);
+            SharedSupport.shared = Boolean.parseBoolean(data.getProperty("shared", "false"));
+            for (String key : data.stringPropertyNames()) {
+                if (key.equals(hostKey) || !key.matches("seat\\.reconnect:[0-9a-f]{64}")) continue;
+                int civ = country(data.getProperty(key));
+                if (MP.pickable(civ)) seats.put(key.substring(5), civ);
             }
-            if (host == 0) {
-                for (var entry : p.stringPropertyNames()) {
-                    if (entry.startsWith("seat.")) {
-                        int c = Integer.parseInt(p.getProperty(entry));
-                        if (c > 0) { host = c; break; }
-                    }
-                }
-            }
-            if (MP.pickable(host)) {
-                CFG.core.getPlayer(0).setCivId(host);
-                SharedSupport.shared = Boolean.parseBoolean(p.getProperty("shared", "false"));
-            }
-
-            for (String key : p.stringPropertyNames()) {
-                if (key.startsWith("seat.")) {
-                    int civ = Integer.parseInt(p.getProperty(key));
-                    String seatKey = key.substring(5);
-                    // Only load host or secure identifiers (reconnect:<hash>, steam:<id>); ignore old seat.<nickname>
-                    if (seatKey.equals("host") || seatKey.contains(":")) {
-                        if (MP.pickable(civ) || civ == host) {
-                            savedSeats.put(seatKey, civ);
-                        }
-                    }
-                } else if (key.startsWith("nick.")) {
-                    savedNicks.put(key.substring(5), p.getProperty(key));
-                }
-            }
-            var field = MP.class.getDeclaredField("nickCiv");
-            field.setAccessible(true);
-            ((Map<String, Integer>) field.get(null)).putAll(savedSeats);
         } catch (Exception e) {
-            System.err.println("Kreyli seat metadata load: "+e.getClass().getSimpleName());
+            System.err.println("Kreyli seat metadata load: " + e.getClass().getSimpleName());
         }
+    }
+
+    private static int country(String text) {
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public static void reset() {
+        seats.clear();
+        identities.clear();
     }
 }

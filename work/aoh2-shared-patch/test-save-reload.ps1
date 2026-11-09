@@ -6,7 +6,7 @@ $testBuild=Join-Path $PSScriptRoot 'test-build'
 $gameJar=Join-Path $localRoot 'vendor-test-host/game.jar'
 & javac -encoding UTF-8 -cp "$PSScriptRoot/build;$gameJar" -d $testBuild (Join-Path $PSScriptRoot 'test/KreyliSaveReloadProbe.java')
 if($LASTEXITCODE -ne 0){throw 'Save reload probe compile failed'}
-$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build-final/kreyli-steam.jar')).Path
+$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build/kreyli-steam.jar')).Path
 $sdk=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/vendor/steamworks4j-1.9.0.jar')).Path
 $channel=Join-Path $localRoot ('vendor-de-2.2/lobby-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $channel | Out-Null

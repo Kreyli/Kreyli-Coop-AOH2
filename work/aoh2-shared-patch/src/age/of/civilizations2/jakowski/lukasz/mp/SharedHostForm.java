@@ -5,6 +5,7 @@ import age.of.civilizations2.jakowski.lukasz.*;
 public final class SharedHostForm {
     static void openRoom(){
         MP.password="";
+        MP.turnSeconds=KreyliTurns.waitSetting();
         if(MP.startHost())MP_UI.open(View.eMP_HOST);
     }
 
@@ -31,6 +32,7 @@ public final class SharedHostForm {
             MP.startHost();
         }
         if(MP.isHost()){
+            KreyliTurns.saveWaitSetting(MP.turnSeconds);
             MP.saveSettings();
             if(changed)KreyliLobby.settingsChanged();
         }

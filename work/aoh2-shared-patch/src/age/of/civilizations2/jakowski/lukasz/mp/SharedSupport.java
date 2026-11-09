@@ -93,7 +93,10 @@ public final class SharedSupport {
         for(var c:MP.clients)if(c.civ>0&&(!expected.containsKey(c)||!Objects.equals(expected.get(c),acknowledged.get(c))))return false;
         return true;
     }
-    public static void incoming(Object[] message){if(message.length>9&&"snap".equals(message[0])&&message[9] instanceof Integer count)snapshotCommands=count;}
+    public static void incoming(Object[] message){
+        if(message.length>0&&"welcome".equals(message[0]))KreyliSaveSeats.afterWelcome();
+        if(message.length>9&&"snap".equals(message[0])&&message[9] instanceof Integer count)snapshotCommands=count;
+    }
     public static boolean waitBeforeReady(){return shared && MP.isClient() && pending;}
     /** A second press withdraws only the local player's vote, before turn processing. */
     public static boolean cancelReady(){

@@ -13,7 +13,7 @@ internal sealed class LauncherWindow:Form {
  ContextMenuStrip actions;Image backdrop,logo;bool busy,gameRunning,transfer,closingForUpdate,checkingUpdates;UpdateManifest pending;DateTime lastProgress=DateTime.MinValue;
  static readonly Color Red=Color.FromArgb(202,29,57),Blue=Color.FromArgb(39,110,209),Muted=Color.FromArgb(156,164,179);
  public LauncherWindow(string[] args){
-  gameArgs=args;Text="Kreyli Coop AOH2 · 1.1.7";ClientSize=new Size(1200,700);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;BackColor=Color.FromArgb(11,13,18);ForeColor=Color.White;Font=new Font("Segoe UI",11);DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
+  gameArgs=args;Text="Kreyli Coop AOH2 · "+typeof(Launcher).Assembly.GetName().Version.ToString(3);ClientSize=new Size(1200,700);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;BackColor=Color.FromArgb(11,13,18);ForeColor=Color.White;Font=new Font("Segoe UI",11);DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
   backdrop=Asset("background.png");logo=Asset("logo.png");string ico=Path.Combine(Launcher.Root,"kreyli.ico");if(File.Exists(ico))Icon=new Icon(ico);
   var minimize=new KreyliButton{Quiet=true};ButtonAt(minimize,"—",1080,19,44,36,Color.FromArgb(20,23,30));minimize.Click+=(s1,e)=>WindowState=FormWindowState.Minimized;hints.SetToolTip(minimize,"Свернуть");
   var close=new KreyliButton{Quiet=true};ButtonAt(close,"×",1134,19,40,36,Color.FromArgb(28,22,29));close.Click+=(s1,e)=>Close();hints.SetToolTip(close,"Закрыть");

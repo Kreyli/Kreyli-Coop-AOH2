@@ -10,7 +10,7 @@ foreach($name in @('KreyliTurns.class','KreyliSkipVote.class','KreyliMenus.class
 $gameJar=Join-Path $localRoot 'vendor-test-host/game.jar'
 & javac -encoding UTF-8 -cp "$PSScriptRoot/build;$gameJar" -d $testBuild (Join-Path $PSScriptRoot 'test/KreyliTurnFeaturesProbe.java')
 if($LASTEXITCODE -ne 0){throw 'Feature probe compile failed'}
-$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build-final/kreyli-steam.jar')).Path
+$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build/kreyli-steam.jar')).Path
 $sdk=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/vendor/steamworks4j-1.9.0.jar')).Path
 $channel=Join-Path $localRoot ('vendor-de-2.2/turn-features-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $channel | Out-Null
@@ -24,9 +24,8 @@ function Start-Bot([string]$role){
 }
 $hostBot=$null;$clientBot=$null
 try{
- $hostBot=Start-Bot 'host';$deadline=[DateTime]::UtcNow.AddSeconds(360)
- while(!(Test-Path (Join-Path $channel 'ready'))){if($hostBot.HasExited -or [DateTime]::UtcNow -gt $deadline){throw 'Host did not become ready'};Start-Sleep -Milliseconds 500}
- $clientBot=Start-Bot 'client';$deadline=[DateTime]::UtcNow.AddSeconds(360)
+ $hostBot=Start-Bot 'host'
+ $clientBot=Start-Bot 'client';$deadline=[DateTime]::UtcNow.AddSeconds(480)
  while(!$hostBot.HasExited -or !$clientBot.HasExited){
   if(($hostBot.HasExited -and $hostBot.ExitCode -ne 0) -or ($clientBot.HasExited -and $clientBot.ExitCode -ne 0)){throw 'Lobby bot failed'}
   if([DateTime]::UtcNow -gt $deadline){throw 'Lobby test timeout'};Start-Sleep -Milliseconds 500

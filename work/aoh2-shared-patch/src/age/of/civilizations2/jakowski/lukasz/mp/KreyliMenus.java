@@ -24,9 +24,6 @@ public final class KreyliMenus {
         MenuElemUI discord=new Button_InGameBox("Discord проекта",-1,CFG.PADD,bottom,menu.getWidthM()-CFG.PADD*2,true);
         menu.menuElem.add(discord);
         bottom+=discord.getHeightE()+CFG.PADD;
-        for(String text:new String[]{KreyliTurns.skipChoice(),KreyliTurns.skipStatus(),"Отменить пропуск"}){
-            MenuElemUI item=new Button_InGameBox(text,-1,CFG.PADD,bottom,menu.getWidthM()-CFG.PADD*2,true);menu.menuElem.add(item);bottom+=item.getHeightE()+CFG.PADD;
-        }
         menu.iMenuElemsSize=menu.menuElem.size();
         inviteIndexes.put(menu,index);
         menu.setHeight(Math.min(bottom,CFG.GAMEHEIGHT-menu.getPosY()-CFG.BUTTON_H));
@@ -57,17 +54,10 @@ public final class KreyliMenus {
     public static boolean inviteAction(Menu menu,int index){
         Integer expected=inviteIndexes.get(menu);
         if(expected==null)return false;
-        if(index==expected+2){KreyliTurns.chooseSkip();updateSkipLabels();return true;}
-        if(index==expected+3){KreyliTurns.voteAction();updateSkipLabels();return true;}
-        if(index==expected+4){KreyliTurns.cancelSkip();updateSkipLabels();return true;}
         if(index==expected+1){KreyliLobby.discord();return true;}
         if(expected!=index)return false;
         KreyliSteam.inviteFriends();
         return true;
     }
-    public static void updateSkipLabels(){for(var entry:inviteIndexes.entrySet()){
-        Menu menu=entry.getKey();int start=entry.getValue();if(menu.menuElem.size()<start+5)continue;
-        menu.menuElem.get(start+2).setTextE(KreyliTurns.skipChoice());menu.menuElem.get(start+3).setTextE(KreyliTurns.skipStatus());
-    }}
 }
 

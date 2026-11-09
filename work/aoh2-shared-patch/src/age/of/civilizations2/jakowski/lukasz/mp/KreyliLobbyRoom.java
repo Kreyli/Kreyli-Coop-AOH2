@@ -12,7 +12,7 @@ import java.util.ArrayList;
 /** Native menu hit targets with a purpose-built, two-column room presentation matching AoH2 style. */
 public final class KreyliLobbyRoom extends Menu {
     public static final int READY=5, INVITE=6, DISCORD=7, LEAVE=8, MODE=9, PASSWORD=10, TIMER=11, LISTED=12, CONNECTION=13, PORT=14, REGION=15, APPLY=16;
-    private static final Color INK=new Color(.045f,.052f,.073f,.98f), PANEL=new Color(.067f,.078f,.105f,1), ROW=new Color(.09f,.105f,.14f,1);
+    private static final Color PANEL=new Color(.055f,.071f,.086f,.82f), ROW=new Color(.12f,.16f,.19f,.82f);
     private static final Color LINE=new Color(.18f,.20f,.25f,1), WHITE=new Color(.94f,.95f,.98f,1), MUTED=new Color(.55f,.60f,.68f,1);
     private static final Color RED=new Color(.78f,.075f,.18f,1), GREEN=new Color(.35f,.82f,.61f,1), GOLD=new Color(.93f,.68f,.36f,1);
     private final int padding, left, rightX, right, bodyY, bodyH, bottom, buttonH;
@@ -20,7 +20,7 @@ public final class KreyliLobbyRoom extends Menu {
     private final Color blend=new Color();
     private final boolean host=MP.isHost();
     private boolean shared=SharedSupport.shared, listed=MP.listInLobby, direct=MP.hostDirect;
-    private int seconds=MP.turnSeconds > 0 ? MP.turnSeconds : 30;
+    private int seconds=MP.turnSeconds;
     private final java.util.List<String[]> regions=java.util.List.copyOf(MP.regions);
     private int region=Math.max(0,regions.indexOf(MP.selectedRegion()));
     private static final int[] TIMERS={0,10,20,30,45,60,90};
@@ -59,7 +59,7 @@ public final class KreyliLobbyRoom extends Menu {
         case INVITE -> "Пригласить через Steam";
         case DISCORD -> "Discord";
         case MODE -> shared?"Страны: общая страна":"Страны: разные страны";
-        case TIMER -> "Время ожидания: "+(seconds==0?"без таймера":seconds+" с");
+        case TIMER -> "Ожидание второго игрока: "+(seconds==0?"выкл.":seconds+" с");
         case LISTED -> "Публичный список: "+(listed?"да":"нет");
         case CONNECTION -> direct?"Подключение: LAN / VPN":"Подключение: код комнаты / Steam";
         case REGION -> "Регион: "+regions.get(region)[1];
@@ -76,7 +76,6 @@ public final class KreyliLobbyRoom extends Menu {
             int index=0;
             for(int i=0;i<TIMERS.length;i++)if(TIMERS[i]==seconds)index=i;
             seconds=TIMERS[(index+1)%TIMERS.length];
-            MP.turnSeconds=seconds;
         }
         case LISTED -> listed=!listed;
         case CONNECTION -> direct=!direct;
@@ -117,9 +116,8 @@ public final class KreyliLobbyRoom extends Menu {
         int x=getPosX()+offsetX,y=getPosY()+offsetY;
         float previous=batch.getPackedColor();
         fill(batch,0,0,CFG.GAMEWIDTH,CFG.GAMEHEIGHT,new Color(0,0,0,.48f));
-        for(int i=8;i>0;i--)round(batch,x-i,y+px(4)-i,getWidthM()+i*2,getHeightM()+i*2,px(12),new Color(0,0,0,.035f));
-        round(batch,x,y,getWidthM(),getHeightM(),px(12),INK);
-        fill(batch,x+padding,y,px(98),px(3),RED);
+        batch.setColor(Color.WHITE);
+        MP_Form.drawFrame(this,batch,offsetX,offsetY);
         for(int i=0;i<menuElem.size();i++){
             var item=menuElem.get(i);if(item.getVisibleE())item.drawE(batch,x,y,getMenuElementIsActive(active,i),false);
         }
@@ -188,7 +186,7 @@ public final class KreyliLobbyRoom extends Menu {
             }
             text(batch,"Параметры выбранного лобби",x+px(21),y+px(48),MUTED,.7f);
             setting(batch,x,y+px(90),w,"РЕЖИМ",SharedSupport.shared?"Общая страна":"Разные страны");
-            setting(batch,x,y+px(149),w,"ВРЕМЯ ОЖИДАНИЯ",seconds==0?"без таймера":seconds+" с");
+            setting(batch,x,y+px(149),w,"ОЖИДАНИЕ ВТОРОГО ИГРОКА",KreyliLobby.timerLabel());
             String connection=MP.isHost()?(MP.hostDirect?"Локальная сеть / VPN":"Комната по коду"):"Подключение к хосту";
             setting(batch,x,y+px(208),w,"СОЕДИНЕНИЕ",connection);
             String detail=MP.isHost()?(MP.hostDirect?"Порт: "+MP.port:"Код: "+MP.relayCode):"Настройки задаёт организатор";
@@ -197,19 +195,20 @@ public final class KreyliLobbyRoom extends Menu {
     }
     private void setting(SpriteBatch batch,int x,int y,int width,String key,String value){text(batch,key,x+px(21),y,MUTED,.65f);text(batch,fit(value,width-px(42),.94f),x+px(21),y+px(23),WHITE,.94f);fill(batch,x+px(21),y+px(51),width-px(42),1,LINE);}
     private final class ActionButton extends Button_InGameBox {
-        private final int action;private float hover;
+        private final int action;
         ActionButton(int x,int y,int w,int h,int action){super(label(action),-1,x,y,w,h,true);this.action=action;}
         @Override public String getTextE(){return label(action);}
         @Override public void actionElem(int index){if(getIsClickable())act(action);}
         @Override public boolean getIsClickable(){return action>=MODE?MP.isHost()&&!MP.started:(action!=READY||!KreyliLobby.choosingGame()||MP.isHost());}
         @Override public void drawTextE(SpriteBatch batch,int ox,int oy,boolean active){}
         @Override public void drawButtonBGE(SpriteBatch batch,int ox,int oy,boolean active){
-            boolean enabled=getIsClickable();hover+=(getIsHovered()&&enabled?1f-hover:-hover)*Math.min(1,Gdx.graphics.getDeltaTime()*13);
+            boolean enabled=getIsClickable();
             int x=getPosXE()+ox,y=getPosY()+oy,w=getWidthE(),h=getHeightE();
-            Color base=action==READY?(localReady()?new Color(.10f,.26f,.21f,1):RED):action==INVITE?new Color(.12f,.18f,.26f,1):PANEL;
-            blend.set(base).lerp(WHITE,hover*.09f);if(!enabled)blend.set(PANEL);round(batch,x,y,w,h,px(7),blend);
-            fill(batch,x+px(9),y,w-px(18),1,action==READY?new Color(.91f,.26f,.35f,.7f):LINE);
-            center(batch,fit(label(action),w-px(18),action>=MODE?.8f:.91f),x,y+(h-px(CFG.TEXT_HEIGHT_DEFAULT))/2,w,enabled?WHITE:MUTED,action==LEAVE||action>=MODE?.8f:.91f);
+            batch.setColor(Color.WHITE);
+            super.drawButtonBGE(batch,ox,oy,active);
+            Color color=enabled?(action==READY&&localReady()?GREEN:WHITE):MUTED;
+            float factor=action==LEAVE||action>=MODE?.8f:.91f;
+            center(batch,fit(label(action),w-px(18),factor),x,y+(h-px(CFG.TEXT_HEIGHT_DEFAULT))/2,w,color,factor);
         }
     }
 }

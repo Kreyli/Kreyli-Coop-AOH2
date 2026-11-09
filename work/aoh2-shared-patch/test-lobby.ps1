@@ -2,7 +2,11 @@ param()
 $ErrorActionPreference='Stop'
 $localRoot=(Resolve-Path (Join-Path $PSScriptRoot '../coop-anything/local')).Path
 $patchRoot=$PSScriptRoot
-$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build-final/kreyli-steam.jar')).Path
+$gameJar=Join-Path $localRoot 'vendor-test-host/game.jar'
+$testBuild=Join-Path $patchRoot 'test-build'
+& javac -encoding UTF-8 -cp "$patchRoot/build;$testBuild;$gameJar" -d $testBuild (Join-Path $patchRoot 'test/KreyliLobbyProbe.java')
+if($LASTEXITCODE -ne 0){throw 'Lobby probe compile failed'}
+$steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build/kreyli-steam.jar')).Path
 $sdk=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/vendor/steamworks4j-1.9.0.jar')).Path
 $channel=Join-Path $localRoot ('vendor-de-2.2/lobby-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $channel | Out-Null

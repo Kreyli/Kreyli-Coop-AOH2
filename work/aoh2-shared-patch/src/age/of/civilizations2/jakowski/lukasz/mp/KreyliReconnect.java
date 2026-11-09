@@ -10,6 +10,8 @@ public final class KreyliReconnect {
     private static String reconnectKey;
     private KreyliReconnect() {}
     public static synchronized String getOrCreateKey() {
+        String testKey = System.getProperty("kreyli.test.reconnect");
+        if (testKey != null) return testKey;
         if (reconnectKey != null && !reconnectKey.isEmpty()) return reconnectKey;
         try {
             Path path = Path.of("saves", "kreyli-reconnect.properties");
@@ -20,8 +22,8 @@ public final class KreyliReconnect {
                 }
                 reconnectKey = p.getProperty("key");
             }
-            if (reconnectKey == null || reconnectKey.isEmpty() || reconnectKey.length() < 16) {
-                reconnectKey = System.getProperty("kreyli.test.reconnect", UUID.randomUUID().toString().replace("-", ""));
+            if (reconnectKey == null || !reconnectKey.matches("[0-9a-f]{32}")) {
+                reconnectKey = UUID.randomUUID().toString().replace("-", "");
                 p.setProperty("key", reconnectKey);
                 Files.createDirectories(path.getParent());
                 try (var out = Files.newOutputStream(path)) {
@@ -29,7 +31,9 @@ public final class KreyliReconnect {
                 }
             }
         } catch (Exception e) {
-            reconnectKey = System.getProperty("kreyli.test.reconnect", UUID.randomUUID().toString().replace("-", ""));
+            if (reconnectKey == null || !reconnectKey.matches("[0-9a-f]{32}")) {
+                reconnectKey = UUID.randomUUID().toString().replace("-", "");
+            }
         }
         return reconnectKey;
     }
@@ -40,7 +44,7 @@ public final class KreyliReconnect {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(key.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
-            return key;
+            throw new IllegalStateException("Cannot hash reconnect key", e);
         }
     }
 }

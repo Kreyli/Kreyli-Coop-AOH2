@@ -1,3 +1,4 @@
+param([string]$Payload)
 $ErrorActionPreference='Stop'
 $root=Join-Path $PSScriptRoot ('self-update-'+[guid]::NewGuid().ToString('N'))
 $stage=Join-Path $root '.updates/release'
@@ -14,8 +15,15 @@ if($LASTEXITCODE -ne 0){throw 'Old stub compile failed'}
 & $compiler /nologo /target:winexe ("/out:"+$new) $newSource
 if($LASTEXITCODE -ne 0){throw 'New stub compile failed'}
 $expected=(Get-FileHash -LiteralPath $new).Hash
-@{version='1.1.1';files=@(@{path='Kreyli Coop AOH2.exe';url='https://example.invalid/self-update-test.exe';size=(Get-Item $new).Length;sha256=$expected.ToLowerInvariant()})}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $stage 'manifest.json') -Encoding utf8
-$payload=(Get-Content (Join-Path $PSScriptRoot '../kreyli-installer/latest-payload.txt') -Raw).Trim()
+$configName='Kreyli Coop AOH2.exe.config'
+'<configuration />' | Set-Content (Join-Path $root $configName)
+'<configuration><!-- replacement config --></configuration>' | Set-Content (Join-Path $stage $configName)
+$files=foreach($name in @('Kreyli Coop AOH2.exe',$configName)){
+ $file=Get-Item -LiteralPath (Join-Path $stage $name)
+ @{path=$name;url='https://example.invalid/'+[uri]::EscapeDataString($name);size=$file.Length;sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant()}
+}
+@{version='1.1.8';files=@($files)}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $stage 'manifest.json') -Encoding utf8
+if(!$Payload){$Payload=(Get-Content (Join-Path $PSScriptRoot '../kreyli-installer/latest-payload.txt') -Raw).Trim()}
 $helper=Join-Path $stage 'KreyliUpdate.exe'
 Copy-Item -LiteralPath (Join-Path $payload 'Kreyli Coop AOH2.exe') -Destination $helper
 $parent=$null;$updater=$null
@@ -29,7 +37,8 @@ try{
  while(!(Test-Path (Join-Path $root 'new-started.txt')) -and [DateTime]::UtcNow -lt $deadline){Start-Sleep -Milliseconds 100}
  if(!(Test-Path (Join-Path $root 'old-started.txt')) -or !(Test-Path (Join-Path $root 'new-started.txt'))){throw 'Old or replacement launcher did not run'}
  if((Get-FileHash -LiteralPath $old).Hash -ne $expected){throw 'Launcher binary not replaced'}
- if((Get-Content (Join-Path $root 'installed-version.txt') -Raw).Trim() -ne '1.1.1'){throw 'Version not recorded'}
+ if((Get-Content (Join-Path $root 'installed-version.txt') -Raw).Trim() -ne '1.1.8'){throw 'Version not recorded'}
+ if((Get-Content (Join-Path $root $configName) -Raw) -notmatch 'replacement config'){throw 'Launcher config not replaced'}
  if((Get-Content (Join-Path $root 'launcher-profile.json') -Raw) -notmatch 'SavedNickname'){throw 'Profile changed'}
  'PASS self-update waits for running old executable, replaces launcher, restarts replacement, preserves nickname' | Tee-Object -FilePath (Join-Path $root 'result.txt')
 }finally{foreach($p in @($parent,$updater)){if($null -ne $p){if(!$p.HasExited){$p.Kill();$p.WaitForExit()};$p.Dispose()}}}
