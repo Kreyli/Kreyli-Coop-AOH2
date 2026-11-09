@@ -153,6 +153,22 @@ public final class KreyliSteam {
         if(available())status="Steam: Spacewar — Shift+Tab";
     }
     public static long getSteamID64(){return available()&&localSteamID!=null&&localSteamID.isValid()?SteamNativeHandle.getNativeHandle(localSteamID):0;}
+    public static String profileName(){
+        try{return getSteamID64()==0?"":friends.getPersonaName();}
+        catch(RuntimeException|LinkageError e){return "";}
+    }
+    public static byte[] profileAvatar(){
+        try{
+            if(getSteamID64()==0)return null;
+            int image=friends.getSmallFriendAvatar(localSteamID);
+            int[] size=new int[2];
+            if(image<=0||!utils.getImageSize(image,size)||size[0]!=32||size[1]!=32)return null;
+            var pixels=java.nio.ByteBuffer.allocateDirect(32*32*4);
+            if(!utils.getImageRGBA(image,pixels))return null;
+            byte[] result=new byte[32*32*4];
+            pixels.rewind();pixels.get(result);return result;
+        }catch(Exception|LinkageError e){return null;}
+    }
     private static void notice(String text){status=text;try{MP.toast(text,false);}catch(Throwable ignored){System.out.println("KREYLI_STEAM: "+text);}}
     public static synchronized void shutdown(){
         if(!initialized)return;

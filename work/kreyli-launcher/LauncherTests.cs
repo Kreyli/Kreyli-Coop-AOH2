@@ -7,11 +7,18 @@ class LauncherTests {
  static int checks;
  static void Assert(bool value,string message){if(!value)throw new Exception(message);checks++;}
  static void Reject(Action action,string message){bool rejected=false;try{action();}catch{rejected=true;}Assert(rejected,message);}
+ static bool HasEditableTextBox(Control parent){
+  foreach(Control child in parent.Controls){
+   var text=child as TextBox;
+   if((text!=null&&!text.ReadOnly)||HasEditableTextBox(child))return true;
+  }
+  return false;
+ }
  static UpdateFile Entry(string path,string staged){return new UpdateFile{path=path,url="https://example.invalid/"+Uri.EscapeDataString(path),size=new FileInfo(staged).Length,sha256=Launcher.Hash(staged)};}
  [STAThread] static int Main(string[] args){
   string root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);Launcher.Root=root;File.WriteAllText(Path.Combine(root,".kreyli-install"),"test");Directory.CreateDirectory(Path.Combine(root,"saves"));File.WriteAllText(Path.Combine(root,"saves","keep.txt"),"save");File.WriteAllText(Path.Combine(root,"launcher-profile.json"),"{\"nickname\":\"Kreyli QA\"}");
   foreach(string bad in new[]{"../shared-agent.jar","saves/keep.txt","settings/config.txt","game.jar","C:/evil.exe","shared-agent.jar:evil","shared-agent.jar.","UI/foo.png","launcher-profile.json","update-channel.json"})Reject(()=>Launcher.SafePath(root,bad),"path accepted "+bad);
-  Assert(Launcher.Nick("  Николай  ")=="Николай","nickname trim");Reject(()=>Launcher.Nick("x;break"),"semicolon accepted");Reject(()=>Launcher.Nick("a\nb"),"control accepted");
+  using(var form=new LauncherWindow(new string[0]))Assert(!HasEditableTextBox(form),"launcher still accepts a nickname");
   string stage=Path.Combine(root,".updates","good");Directory.CreateDirectory(stage);File.WriteAllText(Path.Combine(root,"shared-agent.jar"),"old");File.WriteAllText(Path.Combine(stage,"shared-agent.jar"),"new");
   var m=new UpdateManifest{version="1.2.0",files=new[]{Entry("shared-agent.jar",Path.Combine(stage,"shared-agent.jar"))}};File.WriteAllText(Path.Combine(stage,"manifest.json"),Launcher.Json.Serialize(m));Launcher.Apply(root,stage);Assert(File.ReadAllText(Path.Combine(root,"shared-agent.jar"))=="new","update failed");Assert(File.ReadAllText(Path.Combine(root,"saves","keep.txt"))=="save","save changed");Assert(File.ReadAllText(Path.Combine(root,"launcher-profile.json")).Contains("Kreyli QA"),"profile changed");
   File.WriteAllText(Path.Combine(stage,"shared-agent.jar"),"corrupt");Reject(()=>Launcher.Apply(root,stage),"corruption accepted");Assert(File.ReadAllText(Path.Combine(root,"shared-agent.jar"))=="new","corruption changed installation");

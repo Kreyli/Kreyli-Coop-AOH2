@@ -78,6 +78,7 @@ public final class SharedSupport {
         if(MP.myCiv>0)((MP_Net.Conn)get("host")).send("coop_ack",rev);
     }
     public static boolean message(MP_Net.Conn connection,Object[] message){
+        if(KreyliProfile.hostMessage(connection,message))return true;
         if(KreyliOrderSync.hostMessage(connection,message))return true;
         if(KreyliTurns.hostMessage(connection,message))return true;
         if(KreyliPings.hostMessage(connection,message))return true;
@@ -94,7 +95,10 @@ public final class SharedSupport {
         return true;
     }
     public static void incoming(Object[] message){
-        if(message.length>0&&"welcome".equals(message[0]))KreyliSaveSeats.afterWelcome();
+        if(message.length>0&&"welcome".equals(message[0])){
+            KreyliProfile.connected((MP_Net.Conn)get("host"));
+            KreyliSaveSeats.afterWelcome();
+        }
         if(message.length>9&&"snap".equals(message[0])&&message[9] instanceof Integer count)snapshotCommands=count;
     }
     public static boolean waitBeforeReady(){return shared && MP.isClient() && pending;}

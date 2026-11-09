@@ -26,19 +26,27 @@ public final class KreyliOrderNetworkProbe {
   if(!Files.exists(Path.of(".coop-test-copy")))throw new IllegalStateException("Test copy required");
   boolean host=args[0].equals("host"),shared=Boolean.getBoolean("coop.shared");Path channel=Path.of(args[1]);int port=Integer.parseInt(args[2]);
   var remote=MP.class.getDeclaredField("remoteRequested");remote.setAccessible(true);remote.setBoolean(null,true);
-  new Thread(()->{try{Thread.sleep(360000);}catch(Exception e){}Runtime.getRuntime().halt(8);}).start();
+  new Thread(()->{try{Thread.sleep(480000);}catch(InterruptedException e){return;}Runtime.getRuntime().halt(8);}).start();
   var config=new Lwjgl3ApplicationConfiguration();config.setWindowedMode(1280,720);config.setInitialVisible(false);config.disableAudio(true);config.setForegroundFPS(30);
   new Lwjgl3Application(new AA_Game(){int frame,phase,civ,hostCiv,guestCiv,from,to;long began,snapshots,orderSequence;
    boolean has(String key){return Files.exists(channel.resolve(key));}void put(String key,String value)throws Exception{Files.writeString(channel.resolve(key),value);}String get(String key)throws Exception{return Files.readString(channel.resolve(key));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
    public void render(){try{super.render();frame++;
-    if(phase==0&&frame>300&&CFG.core.getCivsSize()>2){MP.nick=host?"OrdersHost":"OrdersGuest";MP.password="test";MP.hostDirect=true;MP.listInLobby=false;MP.port=port;MP.turnSeconds=0;
+    if(phase==0&&frame>300&&CFG.core.getCivsSize()>2&&(host||has("ready"))){MP.nick=host?"OrdersHost":"OrdersGuest";MP.password="test";MP.hostDirect=true;MP.listInLobby=false;MP.port=port;MP.turnSeconds=0;
      if(host){SharedSupport.shared=shared;check(MP.startHost(),"Host start");civ=1;while(CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;hostCiv=civ;CFG.core.getPlayer(0).setCivId(civ);Menu_CreateNewGame.newGame();}
      else{MP.address="127.0.0.1:"+port;MP.join();}phase=1;
     }
     if(host){
      if(phase==1&&MP.started&&playable()){put("ready",Integer.toString(civ));phase=2;}
-     if(phase==2&&has("guest-in")){guestCiv=MP.clients.get(0).civ;CFG.core.getCiv(hostCiv).setAlliance(0);CFG.core.getCiv(guestCiv).setAlliance(0);MP.requestSync();put("nonallied","ok");phase=3;}
+     if(phase==2&&has("guest-in")){
+      guestCiv=MP.clients.get(0).civ;
+      var treasury=CFG.core.getCiv(hostCiv);
+      long balance=treasury.getGold(), earned=KreyliProfile.earned();
+      treasury.setGold(balance+17);treasury.setGold(balance);
+      check(KreyliProfile.earned()==earned+17,"Treasury credit increments earnings without counting expenditure");
+      CFG.core.getCiv(hostCiv).setAlliance(0);CFG.core.getCiv(guestCiv).setAlliance(0);
+      MP.requestSync();put("nonallied","ok");phase=3;
+     }
      if(phase==3&&has("nonallied-synced")){KreyliPings.reset();ping();began=System.nanoTime();put("nonallied-ping","ok");phase=4;}
      if(phase==4&&has("nonallied-pass")){CFG.core.addAlliance("Probe alliance");int alliance=CFG.core.getAlliancesSize()-1;CFG.core.getCiv(hostCiv).setAlliance(alliance);CFG.core.getCiv(guestCiv).setAlliance(alliance);MP.requestSync();put("allied",Integer.toString(alliance));phase=5;}
      if(phase==5&&has("allied-synced")){KreyliPings.reset();pressAlt(com.badlogic.gdx.Input.Keys.ALT_RIGHT,640);check(KreyliPings.marks.isEmpty(),"Right Alt ignored");ping();var first=KreyliPings.marks.getFirst();pressAlt(com.badlogic.gdx.Input.Keys.ALT_LEFT,680);var last=KreyliPings.marks.getLast();check(KreyliPings.marks.size()==1&&last.x()!=first.x()&&last.until()>first.until(),"New Alt mark replaces old and renews lifetime");put("allied-ping",Integer.toString(last.x()));phase=6;}
@@ -57,7 +65,10 @@ public final class KreyliOrderNetworkProbe {
      if(phase==6&&has("allied-ping")&&KreyliPings.marks.stream().anyMatch(p->p.fromHost()&&p.x()==Integer.parseInt(readUnchecked(channel.resolve("allied-ping"))))){ping();check(!CFG.map.getTouchMgr().getActionMap(),"Alt ping started map drag");put("allied-pass","ok");KreyliUiProbe.capture("kreyli-allied-ping.png");snapshots=KreyliInputRecovery.snapshotApplications;phase=7;}
      if(phase==7&&has("fixture")){String[] pair=get("fixture").split(",");from=Integer.parseInt(pair[0]);to=Integer.parseInt(pair[1]);if(CFG.core.getProv(from).getArmyCivID1(hostCiv)==50&&KreyliInputRecovery.snapshotApplications>snapshots){snapshots=KreyliInputRecovery.snapshotApplications;orderSequence=received();put("fixture-ready","ok");phase=8;}}
      if(phase==8&&has("moved")&&received()>orderSequence){var own=CFG.core.getCiv(hostCiv);boolean found=false;for(int i=0;i<own.moveUnitsSize();i++)if(own.getMoveUnits(i).getFromProviID()==from&&own.getMoveUnits(i).getToProvID()==to)found=true;if(found){check(KreyliInputRecovery.snapshotApplications==snapshots,"Light movement reloaded full save");KreyliTurnHud.update();Menu turnHud=CFG.menus.getInGameMenu(CFG.menus.INGAME_MP_CHAT_TOGGLE);check(turnHud.menuElem.stream().anyMatch(e->"Пропустить".equals(e.getTextE())&&e.getVisibleE()&&e.getIsInView()),"Skip controls are drawable in the turn HUD without F10");MP_UI.togglePlayers();Menu table=CFG.menus.getInGameMenu(CFG.menus.INGAME_MP_PLAYERS);check(table.getVisibleM(),"F10 opens player table");for(int i=1;i<5;i++)check(table.getMenuElem(i).getWidthE()>=MP_UI.textWidth(table.getMenuElem(i).getTextE())+CFG.PADD*2,"F10 header overflow column "+i);phase=9;return;}}
-     if(phase==9){KreyliUiProbe.capture("kreyli-f10-columns.png");put("client-pass","ok");System.out.println("ORDER_NETWORK PASS client no save reload, movement queues, left Alt ping, alliance filtering and F10 headers");MP.stop();Runtime.getRuntime().halt(0);}
+     if(phase==9&&(!shared||KreyliProfile.earned()>=17)){
+      if(shared)check(KreyliProfile.player(civ).size()==2,"Both shared-country profiles visible");
+      KreyliUiProbe.capture("kreyli-f10-columns.png");put("client-pass","ok");System.out.println("ORDER_NETWORK PASS client no save reload, movement queues, left Alt ping, F10 headers and shared country profiles");MP.stop();Runtime.getRuntime().halt(0);
+     }
     }
    }catch(Throwable e){e.printStackTrace();Runtime.getRuntime().halt(3);}}
   },config);

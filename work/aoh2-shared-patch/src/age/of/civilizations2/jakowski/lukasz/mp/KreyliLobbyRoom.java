@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 /** A native AoH2 room with a roster, live settings and multiplayer actions. */
 public final class KreyliLobbyRoom extends Menu {
     public static final int READY=5, INVITE=6, DISCORD=7, LEAVE=8;
-    public static final int MODE=9, PASSWORD=10, TIMER=11, LISTED=12, CONNECTION=13, PORT=14, REGION=15;
+    public static final int MODE=9, PASSWORD=10, TIMER=11, LISTED=12, CONNECTION=13, PORT=14;
     private static final int[] TIMERS={0,10,20,30,45,60,90};
     private final boolean host=MP.isHost();
 
@@ -21,7 +21,7 @@ public final class KreyliLobbyRoom extends Menu {
         int gap=CFG.PADD*2;
         int width=Math.min(CFG.GAMEWIDTH-gap*4,Math.max(CFG.BUTTON_W*5,CFG.GAMEWIDTH*3/4));
         int row=Math.max(1,Math.min(CFG.BUTTON_H,(CFG.GAMEHEIGHT-CFG.BUTTON_H*3-gap*4)/9));
-        int height=row*(host?9:6)+gap*4;
+        int height=row*(host?8:6)+gap*4;
         int left=(width-gap*3)/2;
         int rightX=left+gap*2;
         int right=width-rightX-gap;
@@ -47,7 +47,6 @@ public final class KreyliLobbyRoom extends Menu {
             elements.add(new RoomButton(()->"Публичный список: "+MP_Form.yesNo(MP.listInLobby),rightX,first+row*3,right,row,()->change(LISTED)));
             elements.add(new RoomButton(this::connection,rightX,first+row*4,right,row,()->change(CONNECTION)));
             elements.add(new SettingInput(PORT,rightX,first+row*5,right,row));
-            elements.add(new RoomButton(()->"Регион: "+MP.selectedRegion()[1],rightX,first+row*6,right,row,()->change(REGION)));
         }else{
             elements.add(new RoomButton(this::mode,rightX,first,right,row,null));
             elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
@@ -107,12 +106,6 @@ public final class KreyliLobbyRoom extends Menu {
             }
             case LISTED -> listed=!listed;
             case CONNECTION -> direct=!direct;
-            case REGION -> {
-                if(!MP.regions.isEmpty()){
-                    int index=MP.regions.indexOf(MP.selectedRegion());
-                    region=MP.regions.get((index+1)%MP.regions.size())[1];
-                }
-            }
             default -> {return;}
         }
         SharedHostForm.apply(shared,MP.password,seconds,listed,direct,MP.port,region);
@@ -178,9 +171,17 @@ public final class KreyliLobbyRoom extends Menu {
                     case 3 -> Color.GOLD;
                     default -> Color.WHITE;
                 };
-                String value=MP_UI.fit(label.get(),getWidthE()-CFG.PADD*2);
+                int left=CFG.PADD;
+                if(index==1||index==2&&guestPresent()){
+                    String nick=index==1?KreyliLobby.hostDisplay():KreyliLobby.guestDisplay();
+                    int size=Math.max(12,Math.min(getHeightE()-CFG.PADD*2,CFG.BUTTON_H/2));
+                    KreyliProfileUi.drawAvatar(batch,x+getPosXE()+left,
+                            y+getPosY()+(getHeightE()-size)/2,size,KreyliProfile.avatar(nick));
+                    left+=size+CFG.PADD;
+                }
+                String value=MP_UI.fit(label.get(),getWidthE()-left-CFG.PADD);
                 Renderer.drawTextWithShadow(batch,MP_UI.font(),value,
-                        x+getPosXE()+CFG.PADD,y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,color);
+                        x+getPosXE()+left,y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,color);
                 return;
             }
             String value=MP_UI.fit(label.get(),getWidthE()-CFG.PADD*2);
@@ -199,7 +200,7 @@ public final class KreyliLobbyRoom extends Menu {
             if(action==null)return false;
             int index=menuElem.indexOf(this);
             if(index==READY)return host||!KreyliLobby.choosingGame();
-            if(index==CONNECTION||index==REGION||(index==LISTED&&MP.hostDirect&&!MP.listInLobby))return canChangeEndpoint();
+            if(index==CONNECTION||(index==LISTED&&MP.hostDirect&&!MP.listInLobby))return canChangeEndpoint();
             return index<MODE||canEdit();
         }
         @Override public void actionElem(int index){if(getIsClickable())action.run();}

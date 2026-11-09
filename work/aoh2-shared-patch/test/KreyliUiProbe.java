@@ -13,6 +13,22 @@ import java.net.ServerSocket;
 /** Runs only against a marked disposable game copy; never initializes Steam or sends an invite. */
 public final class KreyliUiProbe {
     static void require(boolean value,String message){if(!value)throw new AssertionError(message);}
+    static void verifyProfile(){
+        MP_UI.open(View.eMAINMENU);
+        String name=KreyliProfile.nick();
+        require(!KreyliProfile.steamLinked()&&!name.isBlank()&&name.equals(KreyliProfile.nick()),
+                "Steam-disabled profile has a stable local nickname");
+        InputProcessor previous=Gdx.input.getInputProcessor();
+        Touch touch=new Touch();
+        int x=CFG.PADD+3,y=CFG.PADD+3;
+        touch.actionDown(x,y,0,Input.Buttons.LEFT);
+        touch.actionUp(x,y,0,Input.Buttons.LEFT);
+        InputProcessor profile=Gdx.input.getInputProcessor();
+        require(profile!=null&&profile!=previous,"Profile badge opens the profile overlay");
+        require(profile.keyUp(Input.Keys.ESCAPE),"Profile handles Escape");
+        require(Gdx.input.getInputProcessor()==previous&&CFG.menus.getIn_MainMenu(),
+                "Closing the profile restores the native input and keeps the original view");
+    }
     static void verifyBranding(){
         MP_UI.open(View.eMP);
         Menu entry=CFG.menus.getActiveMenu().get(0);

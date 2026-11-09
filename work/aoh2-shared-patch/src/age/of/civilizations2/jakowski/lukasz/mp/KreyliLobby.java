@@ -55,6 +55,7 @@ public final class KreyliLobby {
         gate.guestReady=value;advance();return true;
     }
     public static boolean clientMessage(Object[] message){
+        if(KreyliProfile.clientMessage(message))return true;
         if(KreyliIdentity.clientMessage(message))return true;
         if(KreyliOrderSync.receive(message))return true;
         if(KreyliTurns.clientMessage(message))return true;
@@ -93,6 +94,7 @@ public final class KreyliLobby {
     static void settingsChanged(){
         gate.hostReady=false;gate.guestReady=false;gate.released=false;gate.clearCountdown();publish();
     }
+    static void profileChanged(){if(MP.isHost()&&!MP.started)publish();}
     private static void advance(){
         gate.updateCountdown(System.nanoTime());publishCountdown();
     }

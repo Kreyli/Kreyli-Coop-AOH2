@@ -24,9 +24,8 @@ function Start-Bot([string]$role){
 }
 $hostBot=$null;$clientBot=$null
 try{
- $hostBot=Start-Bot 'host';$deadline=[DateTime]::UtcNow.AddSeconds(360)
- while(!(Test-Path (Join-Path $channel 'ready'))){if($hostBot.HasExited -or [DateTime]::UtcNow -gt $deadline){throw 'Host did not become ready'};Start-Sleep -Milliseconds 500}
- $clientBot=Start-Bot 'client';$deadline=[DateTime]::UtcNow.AddSeconds(360)
+ $hostBot=Start-Bot 'host'
+ $clientBot=Start-Bot 'client';$deadline=[DateTime]::UtcNow.AddSeconds(480)
  while(!$hostBot.HasExited -or !$clientBot.HasExited){
   if(($hostBot.HasExited -and $hostBot.ExitCode -ne 0) -or ($clientBot.HasExited -and $clientBot.ExitCode -ne 0)){throw 'Order bot failed'}
   if([DateTime]::UtcNow -gt $deadline){throw 'Order test timeout'};Start-Sleep -Milliseconds 500

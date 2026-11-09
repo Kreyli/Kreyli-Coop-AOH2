@@ -14,11 +14,15 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 [assembly: AssemblyTitle("Kreyli Coop AOH2")]
 [assembly: AssemblyProduct("Kreyli Coop AOH2")]
-[assembly: AssemblyVersion("1.1.9.0")]
+[assembly: AssemblyVersion("1.1.10.0")]
 public sealed class UpdateFile { public string path,url,sha256; public long size; }
 public sealed class UpdateManifest { public string version; public UpdateFile[] files; }
 public sealed class Channel { public string manifestUrl; }
-public sealed class Profile { public string nickname; }
+public sealed class ReleaseEntry {
+ public string tag_name,name,body;
+ public bool draft,prerelease;
+ public override string ToString(){return string.IsNullOrWhiteSpace(name)?tag_name:name;}
+}
 internal static class Launcher {
  static Launcher(){AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling",false);AppContext.SetSwitch("Switch.System.IO.BlockLongPaths",false);}
  internal const string Brand="Kreyli Coop AOH2",GameHash="db144f0ddb7e62de92ad971eb7bc0b9a66b57cabbfe70b9dcda7d2a70204704c";
@@ -41,11 +45,10 @@ internal static class Launcher {
   }catch(Exception ex){try{File.WriteAllText(Path.Combine(Root,"launcher-error.txt"),ex.ToString());}catch{}if(!args.Contains("--check"))MessageBox.Show(ex.Message,Brand,MessageBoxButtons.OK,MessageBoxIcon.Error);return 1;}
  }
  internal static void CheckGame(bool verifyHash=true){foreach(string f in new[]{"runtime/bin/javaw.exe","shared-support.jar","shared-agent.jar","kreyli-steam.jar","lib/steamworks4j-1.9.0.jar"})if(!File.Exists(Path.Combine(Root,f)))throw new Exception("Не найден "+f+". Повторите установку.");if(verifyHash&&Hash(Path.Combine(GameInstall.DirectoryPath,"game.jar"))!=GameHash)throw new Exception("Версия game.jar не соответствует этой сборке.");}
- internal static string Nick(string text){text=(text??"").Trim();if(text.Length<2||text.Length>24||text.Any(c=>char.IsControl(c)||c==';'||c=='"'))throw new Exception("Ник: 2–24 символа, без кавычек, точки с запятой и управляющих символов.");return text;}
- internal static void RunGame(string nick,string[] args){
+ internal static void RunGame(string[] args){
   // The Java agent validates the pinned archive before the game loads.
   CheckGame(false);string gameRoot=GameInstall.DirectoryPath;foreach(string dir in new[]{"coop-home","coop-tmp","saves"})Directory.CreateDirectory(GameInstall.IOPath(Path.Combine(gameRoot,dir)));
-  var options=new[]{"--add-exports","java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED","-javaagent:"+Path.Combine(Root,"shared-agent.jar"),"-Dkreyli.nick="+Nick(nick),"-Dkreyli.version="+typeof(Launcher).Assembly.GetName().Version.ToString(3),"-Duser.home="+Path.Combine(gameRoot,"coop-home"),"-Djava.io.tmpdir="+Path.Combine(gameRoot,"coop-tmp"),"-cp",string.Join(";",new[]{Path.Combine(Root,"kreyli-steam.jar"),Path.Combine(Root,"shared-support.jar"),Path.Combine(Root,"lib/steamworks4j-1.9.0.jar"),Path.Combine(gameRoot,"game.jar")}),"age.of.civilizations2.jakowski.lukasz.mp.KreyliBootstrap"};
+  var options=new[]{"--add-exports","java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED","-javaagent:"+Path.Combine(Root,"shared-agent.jar"),"-Dkreyli.version="+typeof(Launcher).Assembly.GetName().Version.ToString(3),"-Duser.home="+Path.Combine(gameRoot,"coop-home"),"-Djava.io.tmpdir="+Path.Combine(gameRoot,"coop-tmp"),"-cp",string.Join(";",new[]{Path.Combine(Root,"kreyli-steam.jar"),Path.Combine(Root,"shared-support.jar"),Path.Combine(Root,"lib/steamworks4j-1.9.0.jar"),Path.Combine(gameRoot,"game.jar")}),"age.of.civilizations2.jakowski.lukasz.mp.KreyliBootstrap"};
   File.WriteAllText(GameInstall.IOPath(Path.Combine(gameRoot,"steam_appid.txt")),"480");
   var info=new ProcessStartInfo(Path.Combine(Root,"runtime/bin/javaw.exe"),string.Join(" ",options.Concat(args).Select(Quote))){WorkingDirectory=gameRoot,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
   using(var output=new StreamWriter(Path.Combine(Root,"kreyli.out.log"),false))using(var error=new StreamWriter(Path.Combine(Root,"kreyli.err.log"),false))using(var game=new Process()){
@@ -67,7 +70,8 @@ internal static class Launcher {
   var paths=new HashSet<string>(StringComparer.OrdinalIgnoreCase);long total=0;
   foreach(var f in m.files){if(f==null)throw new Exception("Пустой файл обновления");SafePath(root,f.path);if(!paths.Add(f.path)||f.sha256==null||!System.Text.RegularExpressions.Regex.IsMatch(f.sha256,"^[a-fA-F0-9]{64}$")||f.size<0||f.size>128L*1024*1024)throw new Exception("Некорректное описание файла");Uri url;if(!Uri.TryCreate(f.url,UriKind.Absolute,out url)||url.Scheme!="https"||!string.IsNullOrEmpty(url.UserInfo))throw new Exception("Обновления требуют HTTPS");total+=f.size;if(total>512L*1024*1024)throw new Exception("Пакет обновления слишком большой");}
  }
- internal static byte[] Download(string url,long limit){
+ internal static byte[] Download(string url,long limit){return DownloadCore(url,limit,true);}
+ static byte[] DownloadCore(string url,long limit,bool trackTransfer){
   Uri current=new Uri(url);
   for(int redirects=0;redirects<6;redirects++){
    if(current.Scheme!="https"||!string.IsNullOrEmpty(current.UserInfo))throw new Exception("Загрузка требует HTTPS");
@@ -75,9 +79,28 @@ internal static class Launcher {
    using(var response=(HttpWebResponse)req.GetResponse()){
     int code=(int)response.StatusCode;if(code==301||code==302||code==303||code==307||code==308){current=new Uri(current,response.Headers["Location"]);continue;}
     if(response.StatusCode!=HttpStatusCode.OK||response.ContentLength>limit)throw new Exception("Неподходящий ответ сервера обновлений");
-    using(var input=response.GetResponseStream())using(var memory=new MemoryStream()){byte[] block=new byte[65536];int count;long total=0;while((count=input.Read(block,0,block.Length))>0){GameInstall.Gate.Wait();total+=count;if(total>limit)throw new Exception("Размер загрузки превышен");memory.Write(block,0,count);if(TransferProgress!=null)TransferProgress((int)(total*100/Math.Max(1,limit)),"Загрузка обновления · "+(total/1048576)+" / "+(limit/1048576)+" МБ");}return memory.ToArray();}
+    using(var input=response.GetResponseStream())using(var memory=new MemoryStream()){byte[] block=new byte[65536];int count;long total=0;while((count=input.Read(block,0,block.Length))>0){if(trackTransfer)GameInstall.Gate.Wait();total+=count;if(total>limit)throw new Exception("Размер загрузки превышен");memory.Write(block,0,count);if(trackTransfer&&TransferProgress!=null)TransferProgress((int)(total*100/Math.Max(1,limit)),"Загрузка обновления · "+(total/1048576)+" / "+(limit/1048576)+" МБ");}return memory.ToArray();}
    }
   }throw new Exception("Слишком много перенаправлений загрузки");
+ }
+ internal static ReleaseEntry[] ReleaseHistory(){
+  const string url="https://api.github.com/repos/Kreyli/Kreyli-Coop-AOH2/releases?per_page=12";
+  string cache=Path.Combine(Root,"release-history.json");
+  try{
+   ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
+   string json=Encoding.UTF8.GetString(DownloadCore(url,2097152,false)).TrimStart('\uFEFF');
+   var releases=ParseHistory(json);
+   if(releases.Length==0)throw new IOException("История обновлений пуста");
+   try{File.WriteAllText(cache,json);}catch(IOException){}catch(UnauthorizedAccessException){}
+   return releases;
+  }catch{
+   try{return File.Exists(cache)?ParseHistory(File.ReadAllText(cache)):new ReleaseEntry[0];}
+   catch{return new ReleaseEntry[0];}
+  }
+ }
+ static ReleaseEntry[] ParseHistory(string json){
+  return (Json.Deserialize<ReleaseEntry[]>(json)??new ReleaseEntry[0])
+   .Where(r=>r!=null&&!r.draft&&!r.prerelease&&!string.IsNullOrWhiteSpace(r.tag_name)).ToArray();
  }
  internal static bool Configured(){string path=Path.Combine(Root,"update-channel.json");if(!File.Exists(path))return false;var channel=Json.Deserialize<Channel>(File.ReadAllText(path));return channel!=null&&!string.IsNullOrWhiteSpace(channel.manifestUrl);}
  internal static UpdateManifest CheckUpdate(){

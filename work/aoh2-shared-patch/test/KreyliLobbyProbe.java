@@ -19,18 +19,22 @@ public final class KreyliLobbyProbe {
         boolean host=args[0].equals("host");Path channel=Path.of(args[1]);int port=Integer.parseInt(args[2]);
         var remote=MP.class.getDeclaredField("remoteRequested");remote.setAccessible(true);remote.setBoolean(null,true);
         var config=new Lwjgl3ApplicationConfiguration();config.setWindowedMode(1280,720);config.setInitialVisible(false);config.disableAudio(true);config.setForegroundFPS(30);
-        var watchdog=new Thread(()->{try{Thread.sleep(180000);}catch(Exception ignored){}Runtime.getRuntime().halt(8);});watchdog.setDaemon(true);watchdog.start();
+        var watchdog=new Thread(()->{try{Thread.sleep(480000);}catch(InterruptedException ignored){return;}Runtime.getRuntime().halt(8);});watchdog.setDaemon(true);watchdog.start();
         new Lwjgl3Application(new AA_Game(){int frame,phase; boolean initialShared;
             @Override public void render(){try{
                 super.render();frame++;
                 if(frame==299&&host){
+                    KreyliUiProbe.verifyProfile();
                     KreyliUiProbe.verifyBranding();
                     MP_UI.open(View.eMAINMENU);
                     Menu main=CFG.menus.getActiveMenu().get(0);
                     require(main.getMenuElem(1).getVisibleE(),"Single player button visible");
                     main.actionEL(1);require(CFG.menus.getInGamesMenu()&&!MP.isOn(),"Single player selector");
                 }
-                if(frame==300){
+                if(phase==0&&frame>=300&&(host||Files.exists(channel.resolve("ready")))){
+                    require(!KreyliProfile.steamLinked()&&KreyliProfile.nick().length()>=2,"Offline profile available without Steam");
+                    for(int i=0;i<5&&KreyliProfile.avatar()==null;i++)KreyliProfile.cycleAvatar();
+                    require(KreyliProfile.avatar()!=null,"Custom local avatar generated");
                     MP.nick=host?"KreyliHost":"KreyliGuest";MP.port=port;MP.password="test-only";MP.listInLobby=false;MP.hostDirect=true;
                     if(host){MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;KreyliTurns.saveWaitSetting(30);click(1);require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");Files.writeString(channel.resolve("ready"),"ok");}
                     else{MP.password="";MP.address="127.0.0.1:"+port;MP.join();MP_UI.open(View.eMP_JOINING);}
@@ -40,7 +44,7 @@ public final class KreyliLobbyProbe {
                     if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.guest!=null){
                         require(!KreyliLobby.gate.released,"No implicit start");initialShared=SharedSupport.shared;
                         Menu room=CFG.menus.getActiveMenu().get(0);
-                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==16,"Settings inside room without Apply");
+                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==15,"Settings inside room without Apply or Region");
                         click(KreyliLobbyRoom.MODE);
                         require(SharedSupport.shared!=initialShared,"Country mode applies immediately");
                         click(KreyliLobbyRoom.TIMER);
@@ -55,7 +59,12 @@ public final class KreyliLobbyProbe {
                         CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);
                         require(!KreyliLobby.gate.released,"Host ready alone does not start");Files.writeString(channel.resolve("host-ready"),"ok");phase=2;
                     }
-                    if(phase==2&&KreyliLobby.gate.released){require(CFG.menus.getInGamesMenu(),"Both-ready opens campaign selector");KreyliUiProbe.capture("kreyli-game-selector.png");Files.writeString(channel.resolve("released"),"ok");phase=3;}
+                    if(phase==2&&KreyliLobby.gate.released){
+                        require(CFG.menus.getInGamesMenu(),"Both-ready opens campaign selector");
+                        require(MP.clients.get(0).nick.equals("RenamedGuest")&&KreyliProfile.avatar("RenamedGuest")!=null,
+                                "Guest nickname and avatar propagated to host");
+                        KreyliUiProbe.capture("kreyli-game-selector.png");Files.writeString(channel.resolve("released"),"ok");phase=3;
+                    }
                     if(phase==3&&MP.clients.isEmpty()&&KreyliLobby.gate.guest==null){
                         require(!KreyliLobby.gate.released&&!KreyliLobby.gate.hostReady&&!KreyliLobby.gate.guestReady,"Departure reset");
                         require(MP_UI.inView(View.eMP_HOST),"Departure returns host to lobby");
@@ -64,7 +73,17 @@ public final class KreyliLobbyProbe {
                 }else{
                     if(phase==1&&state("active")&&Files.exists(channel.resolve("host-ready"))){
                         require(MP_UI.inView(View.eMP_JOINING),"Guest lobby visible");
-                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");require("45 с".equals(KreyliLobby.timerLabel()),"Timer synchronized");KreyliUiProbe.capture("kreyli-lobby-guest.png");CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
+                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");
+                        require("45 с".equals(KreyliLobby.timerLabel()),"Timer synchronized");
+                        KreyliProfile.setNickname(KreyliLobby.hostDisplay());phase=4;return;
+                    }
+                    if(phase==4&&frame%60==0){
+                        require(!MP.nick.equalsIgnoreCase(KreyliLobby.hostDisplay()),"Duplicate nickname rejected");
+                        KreyliProfile.setNickname("RenamedGuest");phase=5;
+                    }
+                    if(phase==5&&MP.nick.equals("RenamedGuest")&&KreyliProfile.avatar(KreyliLobby.hostDisplay())!=null){
+                        KreyliUiProbe.capture("kreyli-lobby-guest.png");
+                        CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
                     }
                     if(phase==2&&state("choosing")&&Files.exists(channel.resolve("released"))){
                         require(state("hostReady")&&state("guestReady"),"Guest receives both ready");

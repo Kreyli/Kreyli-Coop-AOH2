@@ -18,7 +18,8 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.9");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.10");
+    private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static boolean requested;
     private static volatile List<String[]> arrived;
@@ -106,7 +107,7 @@ public final class KreyliBranding {
 
     public static void drawFooter(SpriteBatch batch){
         KreyliPings.draw(batch);
-        CFG.drawTextDefaultWithShadow(batch,LABEL,Math.max(6,CFG.PADD),Math.max(0,CFG.GAMEHEIGHT-CFG.TEXT_HEIGHT_DEFAULT-Math.max(6,CFG.PADD)),Color.WHITE);
+        CFG.drawTextDefaultWithShadow(batch,LABEL,Math.max(6,CFG.PADD),Math.max(0,CFG.GAMEHEIGHT-CFG.TEXT_HEIGHT_DEFAULT-Math.max(6,CFG.PADD)),FOOTER_COLOR);
     }
 }
 

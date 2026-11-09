@@ -18,9 +18,10 @@ public final class KreyliIdentity {
     public static void apply(){
         String fromLauncher=cleanNickname(System.getProperty("kreyli.nick"));
         if(!fromLauncher.isEmpty())MP.nick=fromLauncher.equals(sessionBase)&&!sessionAlias.isEmpty()?sessionAlias:fromLauncher;
-        else MP.nick=cleanNickname(MP.nick);
+        else if(!Boolean.getBoolean("kreyli.discovery.disabled")||MP.nick.isBlank())MP.nick=KreyliProfile.nick();
         if(MP.nick.isEmpty())MP.nick="Player";
     }
+    static void clearAlias(){sessionBase="";sessionAlias="";}
     /** Resolve identical display names only after validating native credentials and ban list. */
     public static void beforeHello(MP_Net.Conn conn,Object[] message){
         if(message.length!=4||!(message[1] instanceof String version)||!(message[2] instanceof String raw)||!(message[3] instanceof String password))return;

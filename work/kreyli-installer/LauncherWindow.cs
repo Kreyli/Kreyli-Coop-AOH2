@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 internal sealed class LauncherWindow:Form {
- readonly TextBox nickname=new TextBox();readonly Label status=new Label(),detail=new Label();
+ readonly Label status=new Label(),detail=new Label(),historyStatus=new Label();
+ readonly ListBox history=new ListBox();
+ readonly TextBox historyNotes=new TextBox();
  readonly Button play=new KreyliButton{LeadingIcon="play"},menu=new KreyliButton{LeadingIcon="chevron"};readonly KreyliProgress progress=new KreyliProgress();
  readonly string[] gameArgs;readonly Timer autoTimer=new Timer(),revealTimer=new Timer(),pollTimer=new Timer();readonly ToolTip hints=new ToolTip();
  ContextMenuStrip actions;Image backdrop,logo;bool busy,gameRunning,transfer,closingForUpdate,checkingUpdates;UpdateManifest pending;DateTime lastProgress=DateTime.MinValue;
@@ -21,11 +23,9 @@ internal sealed class LauncherWindow:Form {
   LabelAt("AGE OF HISTORY II",48,340,650,48,28,FontStyle.Bold,Color.FromArgb(245,242,239));
   LabelAt("DEFINITIVE EDITION  /  CO-OP",50,392,590,25,11,FontStyle.Regular,Color.FromArgb(208,170,145));
   var console=new KreyliCard{Fill=Color.FromArgb(19,22,29),Line=Color.FromArgb(49,54,66),Radius=18};console.SetBounds(32,531,1136,124);Controls.Add(console);
-  AddLabel(console,"ВАШ НИКНЕЙМ",23,16,290,20,8,FontStyle.Bold,Muted);
-  var input=new KreyliCard{Fill=Color.FromArgb(12,15,21),Line=Color.FromArgb(56,62,78),Radius=10};input.SetBounds(23,43,339,49);console.Controls.Add(input);
-  nickname.SetBounds(16,13,307,28);nickname.Font=new Font("Segoe UI",13);nickname.BackColor=input.Fill;nickname.ForeColor=Color.FromArgb(238,240,247);nickname.BorderStyle=BorderStyle.None;nickname.MaxLength=24;input.Controls.Add(nickname);
-  nickname.Enter+=(s1,e)=>{input.Line=Color.FromArgb(188,74,94);input.Invalidate();};nickname.Leave+=(s1,e)=>{input.Line=Color.FromArgb(56,62,78);input.Invalidate();};hints.SetToolTip(nickname,"Этот ник будет использоваться во всех лобби");
-  try{string profile=Path.Combine(Launcher.Root,"launcher-profile.json");if(File.Exists(profile))nickname.Text=Launcher.Json.Deserialize<Profile>(File.ReadAllText(profile)).nickname;}catch{}
+  AddLabel(console,"ПРОФИЛЬ ИГРОКА",23,26,310,24,11,FontStyle.Bold,Color.FromArgb(238,240,247));
+  AddLabel(console,"Имя и аватар можно настроить в игре",23,57,340,23,9,FontStyle.Regular,Muted);
+  AddReleaseHistory();
   ButtonAt(play,"Играть",425,561,326,62,Red);play.Font=new Font("Segoe UI Semibold",20,FontStyle.Bold);play.Click+=async(s1,e)=>await Primary();play.BringToFront();
   ButtonAt(menu,"",761,561,56,62,Color.FromArgb(38,42,53));menu.AccessibleName="Действия с игрой";hints.SetToolTip(menu,"Обновления, проверка файлов и удаление");
   actions=new ContextMenuStrip{BackColor=Color.FromArgb(24,27,35),ForeColor=Color.FromArgb(229,233,241),ShowImageMargin=false,Font=new Font("Segoe UI",10),Padding=new Padding(6),Renderer=new KreyliMenuRenderer()};
@@ -41,10 +41,35 @@ internal sealed class LauncherWindow:Form {
   autoTimer.Interval=1500;autoTimer.Tick+=async(s1,e)=>{autoTimer.Stop();if(pending!=null&&!busy&&!gameRunning)await UpdateFiles();};
   pollTimer.Interval=15000;pollTimer.Tick+=async(s1,e)=>await CheckUpdates(true);
   revealTimer.Interval=16;revealTimer.Tick+=(s1,e)=>{Opacity=Math.Min(1,Opacity+0.10);if(Opacity>=1)revealTimer.Stop();};
-  Shown+=async(s1,e)=>{if(SystemInformation.IsMenuAnimationEnabled){Opacity=0.15;revealTimer.Start();}RefreshState();pollTimer.Start();await CheckUpdates(true);};
+  Shown+=async(s1,e)=>{if(SystemInformation.IsMenuAnimationEnabled){Opacity=0.15;revealTimer.Start();}RefreshState();pollTimer.Start();await Task.WhenAll(CheckUpdates(true),LoadReleaseHistory());};
   FormClosing+=(s1,e)=>{if((busy||gameRunning)&&!closingForUpdate){e.Cancel=true;Status(gameRunning?"Сначала завершите игру.":"Дождитесь окончания операции; загрузку можно поставить на паузу.");}};
   foreach(Control control in new Control[]{play,menu,discord,progress,detail}){int x=control.Left-console.Left,y=control.Top-console.Top;console.Controls.Add(control);control.Location=new Point(x,y);control.BringToFront();}
   RefreshState();
+ }
+ void AddReleaseHistory(){
+  var card=new KreyliCard{Fill=Color.FromArgb(19,22,29),Line=Color.FromArgb(49,54,66),Radius=18};
+  card.SetBounds(727,119,425,378);Controls.Add(card);
+  AddLabel(card,"Обновления игры",21,17,385,31,15,FontStyle.Bold,Color.White);
+  historyStatus.Text="Загрузка истории…";historyStatus.ForeColor=Muted;historyStatus.BackColor=Color.Transparent;
+  historyStatus.Font=new Font("Segoe UI",9);historyStatus.SetBounds(21,53,381,24);card.Controls.Add(historyStatus);
+  var panel=Color.FromArgb(12,15,21);
+  history.SetBounds(21,53,383,90);history.IntegralHeight=false;history.BackColor=panel;
+  history.ForeColor=Color.White;history.BorderStyle=BorderStyle.FixedSingle;history.Visible=false;
+  history.AccessibleName="Версии игры";card.Controls.Add(history);
+  historyNotes.SetBounds(21,158,383,196);historyNotes.Multiline=true;historyNotes.ReadOnly=true;historyNotes.ScrollBars=ScrollBars.Vertical;
+  historyNotes.BackColor=panel;historyNotes.ForeColor=Color.FromArgb(222,226,237);historyNotes.BorderStyle=BorderStyle.FixedSingle;
+  historyNotes.Font=new Font("Segoe UI",10);historyNotes.Visible=false;historyNotes.AccessibleName="Описание обновления";card.Controls.Add(historyNotes);
+  history.SelectedIndexChanged+=(s,e)=>{
+   var release=history.SelectedItem as ReleaseEntry;
+   historyNotes.Text=release==null?"":string.IsNullOrWhiteSpace(release.body)?"У этого обновления нет описания.":release.body.Replace("\r\n","\n").Replace("\n",Environment.NewLine);
+  };
+ }
+ async Task LoadReleaseHistory(){
+  var releases=await Task.Run(()=>Launcher.ReleaseHistory());
+  if(IsDisposed||closingForUpdate)return;
+  if(releases.Length==0){historyStatus.Text="История обновлений недоступна";return;}
+  historyStatus.Visible=false;history.Visible=historyNotes.Visible=true;
+  history.Items.AddRange(releases);history.SelectedIndex=0;
  }
  static Image Asset(string name){using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream(name)){if(stream==null)return null;using(var image=Image.FromStream(stream))return new Bitmap(image);}}
  [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool ReleaseCapture();
@@ -63,7 +88,7 @@ internal sealed class LauncherWindow:Form {
  void ButtonAt(Button b,string text,int x,int y,int w,int h,Color color){b.Text=text;b.SetBounds(x,y,w,h);b.BackColor=color;b.ForeColor=Color.White;b.Font=new Font("Segoe UI Semibold",12,FontStyle.Bold);b.Cursor=Cursors.Hand;Controls.Add(b);b.BringToFront();}
  void Status(string text){if(IsDisposed)return;if(InvokeRequired){BeginInvoke(new Action<string>(Status),text);return;}status.Text=text;}
  void Progress(int percent,string text){if((DateTime.UtcNow-lastProgress).TotalMilliseconds<100&&percent>0&&percent<100)return;lastProgress=DateTime.UtcNow;if(IsDisposed)return;BeginInvoke(new Action(()=>{progress.Value=Math.Max(0,Math.Min(100,percent));if(!GameInstall.Paused)Status(text);}));}
- void RefreshState(){bool installed=false;try{installed=GameInstall.Installed;}catch(Exception ex){Status(ex.Message);}play.Text=gameRunning?"Игра запущена":transfer?(GameInstall.Paused?"Продолжить":"Пауза"):(busy?"Проверка…":(pending!=null?"Обновить":!installed?"Установить":"Играть"));play.BackColor=installed&&pending==null&&!transfer?Red:Blue;play.Enabled=transfer||(!busy&&!gameRunning);menu.Enabled=nickname.Enabled=!busy&&!gameRunning;detail.Text=gameRunning?"СЕССИЯ АКТИВНА":transfer?"ПОДГОТОВКА ИГРЫ":installed?"ГОТОВО К ЗАПУСКУ":"ТРЕБУЕТСЯ УСТАНОВКА";progress.Visible=transfer;}
+ void RefreshState(){bool installed=false;try{installed=GameInstall.Installed;}catch(Exception ex){Status(ex.Message);}play.Text=gameRunning?"Игра запущена":transfer?(GameInstall.Paused?"Продолжить":"Пауза"):(busy?"Проверка…":(pending!=null?"Обновить":!installed?"Установить":"Играть"));play.BackColor=installed&&pending==null&&!transfer?Red:Blue;play.Enabled=transfer||(!busy&&!gameRunning);menu.Enabled=!busy&&!gameRunning;detail.Text=gameRunning?"СЕССИЯ АКТИВНА":transfer?"ПОДГОТОВКА ИГРЫ":installed?"ГОТОВО К ЗАПУСКУ":"ТРЕБУЕТСЯ УСТАНОВКА";progress.Visible=transfer;}
  async Task Primary(){if(transfer){GameInstall.Pause(!GameInstall.Paused);Status(GameInstall.Paused?"Загрузка приостановлена":"Продолжаем…");RefreshState();return;}if(busy||gameRunning)return;
   if(pending!=null){await UpdateFiles();return;}
   if(!GameInstall.Installed){using(var dialog=new FolderBrowserDialog{Description="Выберите папку. Игра будет установлена в подпапку Kreyli Coop AOH2 Game.",ShowNewFolderButton=true}){if(dialog.ShowDialog(this)!=DialogResult.OK)return;string destination=Path.Combine(dialog.SelectedPath,"Kreyli Coop AOH2 Game");await FileOperation(()=>GameInstall.Install(destination,Progress),true);}return;}
@@ -92,7 +117,7 @@ internal sealed class LauncherWindow:Form {
  async Task UpdateFiles(){if(pending==null||busy||gameRunning)return;autoTimer.Stop();busy=transfer=true;GameInstall.Pause(false);RefreshState();try{Launcher.TransferProgress=Progress;Status("Загрузка обновления…");string stage=await Task.Run(()=>Launcher.Stage(pending,Status));Status("Применение обновления…");transfer=false;RefreshState();Launcher.StartUpdater(stage);closingForUpdate=true;Close();}catch(Exception ex){Status("Обновление не установлено: "+ex.Message);}finally{Launcher.TransferProgress=null;GameInstall.Pause(false);busy=transfer=false;if(!IsDisposed)RefreshState();}}
  async Task FileOperation(Action action,bool pausable){if(busy||gameRunning)return;autoTimer.Stop();busy=true;transfer=pausable;GameInstall.Pause(false);RefreshState();try{await Task.Run(action);}catch(Exception ex){try{File.WriteAllText(Path.Combine(Launcher.Root,"launcher-error.txt"),ex.ToString());}catch{}Status(ex.Message);}finally{GameInstall.Pause(false);busy=transfer=false;RefreshState();if(pending!=null)autoTimer.Start();}}
  async Task RemoveGame(){if(!GameInstall.Installed)return;if(MessageBox.Show(this,"Удалить файлы игры? Лаунчер, сохранения и настройки останутся.","Удаление игры",MessageBoxButtons.YesNo,MessageBoxIcon.Question)!=DialogResult.Yes)return;await FileOperation(()=>GameInstall.Remove(Progress),false);}
- async Task Launch(){if(pending!=null){await UpdateFiles();return;}string nick;try{nick=Launcher.Nick(nickname.Text);File.WriteAllText(Path.Combine(Launcher.Root,"launcher-profile.json"),Launcher.Json.Serialize(new Profile{nickname=nick}));}catch(Exception ex){Status(ex.Message);nickname.Focus();return;}autoTimer.Stop();gameRunning=true;RefreshState();Status("Игра запущена");try{await Task.Run(()=>Launcher.RunGame(nick,gameArgs));Status("Игра завершена");}catch(Exception ex){Status(ex.Message);}finally{gameRunning=false;RefreshState();if(pending!=null)autoTimer.Start();}}
+ async Task Launch(){if(pending!=null){await UpdateFiles();return;}autoTimer.Stop();gameRunning=true;RefreshState();Status("Игра запущена");try{await Task.Run(()=>Launcher.RunGame(gameArgs));Status("Игра завершена");}catch(Exception ex){Status(ex.Message);}finally{gameRunning=false;RefreshState();if(pending!=null)autoTimer.Start();}}
 }
 
 internal static class KreyliDrawing {
