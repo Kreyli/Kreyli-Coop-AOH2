@@ -82,6 +82,7 @@ public final class SharedSupport {
         if(KreyliTurns.hostMessage(connection,message))return true;
         if(KreyliPings.hostMessage(connection,message))return true;
         if(KreyliLobby.hostMessage(connection,message))return true;
+        if(KreyliSaveSeats.hostMessage(connection,message))return true;
         if(message.length==0||!"coop_ack".equals(message[0]))return false;
         if(!shared||message.length!=2||!(message[1] instanceof Long rev))return true;
         if(Objects.equals(expected.get(connection),rev))acknowledged.put(connection,rev);

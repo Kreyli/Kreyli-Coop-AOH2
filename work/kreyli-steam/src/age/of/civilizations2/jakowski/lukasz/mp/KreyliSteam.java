@@ -14,7 +14,8 @@ public final class KreyliSteam {
     private static SteamFriends friends;
     private static SteamMatchmaking matchmaking;
     private static SteamUtils utils;
-    private static SteamID lobby, requested;
+    private static SteamUser user;
+    private static SteamID lobby, requested, localSteamID;
     private static boolean initialized, hosting, creating, nativeJoin, invitePending;
     private static long startupLobby, lastRefresh;
     private static String status="Steam не запущен — доступна игра по IP / LAN";
@@ -46,6 +47,8 @@ public final class KreyliSteam {
                 }
             }));
             matchmaking=new SteamMatchmaking(callback(SteamMatchmakingCallback.class,KreyliSteam::matchEvent));
+            user=new SteamUser(callback(SteamUserCallback.class,(n,a)->{}));
+            localSteamID=user.getSteamID();
             status="Steam: Spacewar — Shift+Tab";
             Runtime.getRuntime().addShutdownHook(new Thread(KreyliSteam::shutdown,"Kreyli-Steam-shutdown"));
             System.out.println("KREYLI_STEAM: initialized AppID="+utils.getAppID());
@@ -149,11 +152,12 @@ public final class KreyliSteam {
         if(lobby!=null&&matchmaking!=null){matchmaking.leaveLobby(lobby);lobby=null;}
         if(available())status="Steam: Spacewar — Shift+Tab";
     }
+    public static long getSteamID64(){return available()&&localSteamID!=null&&localSteamID.isValid()?SteamNativeHandle.getNativeHandle(localSteamID):0;}
     private static void notice(String text){status=text;try{MP.toast(text,false);}catch(Throwable ignored){System.out.println("KREYLI_STEAM: "+text);}}
     public static synchronized void shutdown(){
         if(!initialized)return;
-        try{leaveSession();if(friends!=null)friends.dispose();if(matchmaking!=null)matchmaking.dispose();if(utils!=null)utils.dispose();SteamAPI.shutdown();}
-        catch(Throwable ignored){}finally{initialized=false;friends=null;matchmaking=null;utils=null;}
+        try{leaveSession();if(friends!=null)friends.dispose();if(matchmaking!=null)matchmaking.dispose();if(utils!=null)utils.dispose();if(user!=null)user.dispose();SteamAPI.shutdown();}
+        catch(Throwable ignored){}finally{initialized=false;friends=null;matchmaking=null;utils=null;user=null;localSteamID=null;}
     }
 }
 
