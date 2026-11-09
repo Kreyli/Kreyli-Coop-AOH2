@@ -39,11 +39,11 @@ public final class SharedState {
             rows.add(s);
         }
         if(points.size()!=civs-1)throw new IllegalArgumentException("Missing movement points");
-        Map<Integer,List<int[]>> newMoves=new HashMap<>();
-        Map<Integer,List<int[]>> newMigrate=new HashMap<>();
-        Map<Integer,List<int[]>> newRecruit=new HashMap<>();
-        Map<Integer,Integer> newPoints=new HashMap<>();
-        Map<Integer,Map<Integer,Integer>> newArmies=new HashMap<>();
+        java.util.Map<Integer,List<int[]>> newMoves=new HashMap<>();
+        java.util.Map<Integer,List<int[]>> newMigrate=new HashMap<>();
+        java.util.Map<Integer,List<int[]>> newRecruit=new HashMap<>();
+        java.util.Map<Integer,Integer> newPoints=new HashMap<>();
+        java.util.Map<Integer,java.util.Map<Integer,Integer>> newArmies=new HashMap<>();
         for(var s:rows){
             int c=Integer.parseInt(s[1]),p=Integer.parseInt(s[2]);
             switch(s[0]){
@@ -89,7 +89,7 @@ public final class SharedState {
             var v=CFG.core.getProv(p);
             for(int i=v.getCivsSize()-1;i>=0;i--){
                 int civId=v.getCivId(i);
-                Integer amount=newArmies.getOrDefault(civId,Map.of()).get(p);
+                Integer amount=newArmies.getOrDefault(civId,java.util.Map.of()).get(p);
                 if(amount!=null)v.updateArmy4(civId,amount);else v.updateArmy4(civId,0);
             }
             for(var entry:newArmies.entrySet()){
