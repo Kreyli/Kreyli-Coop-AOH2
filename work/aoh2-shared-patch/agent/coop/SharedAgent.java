@@ -12,7 +12,8 @@ public final class SharedAgent implements Opcodes {
     static byte[] brand(ClassLoader loader,String name,byte[] data){
         String root="age/of/civilizations2/jakowski/lukasz/", main=root+"Messages/Gift/R/Menu_Main", ui=P+"MP_UI", b=P+"KreyliBranding";
         String workshop=root+"Z_Other/ST/sUM";
-        if(!Set.of(P+"MP",ui,root+"CFG",root+"MenuManager",main,workshop,root+"Menus/Info/Menu_InGame_ProvInfo",root+"Save/SaveGameManager").contains(name))return data;
+        String browserBar=P+"MP_Browser$Bar";
+        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,root+"Menus/Info/Menu_InGame_ProvInfo",root+"Save/SaveGameManager").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
         reader.accept(new ClassVisitor(ASM8,writer){
@@ -26,13 +27,19 @@ public final class SharedAgent implements Opcodes {
                     mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
                 }
                 if(name.equals(ui)&&n.equals("addCredits")){
-                    mv.visitCode();mv.visitVarInsn(ILOAD,1);mv.visitInsn(IRETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
+                    mv.visitCode();mv.visitVarInsn(ALOAD,0);mv.visitVarInsn(ILOAD,1);
+                    mv.visitMethodInsn(INVOKESTATIC,b,"addCredits","(Ljava/util/List;I)I",false);
+                    mv.visitInsn(IRETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
                 }
                 if(name.equals(P+"MP")&&n.equals("updateRemoteConfig")){
                     mv.visitCode();mv.visitMethodInsn(INVOKESTATIC,b,"discoverRegions","()V",false);mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
                 }
                 return new MethodVisitor(ASM8,mv){
                     public void visitCode(){super.visitCode();
+                        if(name.equals(browserBar)&&n.equals("actionEL")&&d.equals("(I)V")){
+                            super.visitVarInsn(ILOAD,1);
+                            Label normal=new Label();super.visitJumpInsn(IFNE,normal);super.visitInsn(RETURN);super.visitLabel(normal);
+                        }
                         if(name.equals(main)&&n.equals("actionEL")&&d.equals("(I)V")){super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"openSinglePlayer","(I)Z",false);Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);}
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
@@ -51,6 +58,10 @@ public final class SharedAgent implements Opcodes {
                         super.visitLdcInsn(v);
                     }
                     public void visitInsn(int opcode){
+                        if(name.equals(browserBar)&&n.equals("<init>")&&opcode==RETURN){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitMethodInsn(INVOKESTATIC,b,"browserBar","(L"+root+"Menu;)V",false);
+                        }
                         if(name.equals(root+"Save/SaveGameManager")&&n.equals("saveGame_16")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);
                         if(name.equals(root+"MenuManager")&&n.equals("drawMM")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"drawFooter",d,false);

@@ -53,9 +53,8 @@ public final class KreyliIdentity {
     public static Menu entry(){
         MP.loadSettings();apply();
         if(MP.nick.isEmpty())MP.nick="Player";
-        return new MP_Form("Kreyli Coop AOH2",new String[]{MP.nick},new String[]{"Подключиться","Создать лобби","Список серверов","Discord проекта","Назад"},Math.min(CFG.GAMEWIDTH-CFG.PADD*8,Math.max(520,CFG.CIV_INFO_MENU_WIDTH*2))){
-            String rowText(int row,String value){return "Игрок: "+MP.nick;}
-            void onRow(int row){}
+        return new MP_Form("Kreyli Coop AOH2",new String[0],new String[]{"Подключиться","Создать лобби","Список серверов","Discord проекта","Назад"},Math.min(CFG.GAMEWIDTH-CFG.PADD*8,Math.max(520,CFG.CIV_INFO_MENU_WIDTH*2))){
+            String rowText(int row,String value){return value;}
             void onButton(int button){
                 if(button==4){MP_UI.open(View.eMAINMENU);return;}
                 if(button==3){Gdx.net.openURI(DISCORD);return;}

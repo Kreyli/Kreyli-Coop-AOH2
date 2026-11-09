@@ -36,7 +36,7 @@ public final class SharedHostForm {
             MP.saveSettings();
             if(changed)KreyliLobby.settingsChanged();
         }
-        MP_UI.open(MP.isHost()?View.eMP_HOST:View.eMP);
+        if(reconnect)MP_UI.open(MP.isHost()?View.eMP_HOST:View.eMP);
     }
 
 }

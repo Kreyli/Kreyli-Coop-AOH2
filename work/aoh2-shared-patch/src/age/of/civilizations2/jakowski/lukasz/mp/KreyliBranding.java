@@ -2,6 +2,10 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Menu;
+import age.of.civilizations2.jakowski.lukasz.AoCGame;
+import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
+import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
+import age.of.civilizations2.jakowski.lukasz.TextB.Texts.TextScale;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.net.HttpURLConnection;
@@ -14,11 +18,35 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.8");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.9");
 
     private static boolean requested;
     private static volatile List<String[]> arrived;
     private KreyliBranding(){}
+
+    public static void browserBar(Menu menu){
+        MenuElemUI nickname=menu.getMenuElem(0);
+        nickname.setVisibleE(false);
+        nickname.setClickable(false);
+        menu.getMenuElem(5).setPosX(CFG.PADD);
+        menu.updateMenuElements_IsInView();
+    }
+
+    public static int addCredits(List<MenuElemUI> items,int y){
+        int x=AoCGame.LEFT+CFG.BUTTON_W/2;
+        y+=CFG.PADD*6;
+        String[] lines={"Kreyli Coop AOH2","Создатель мода: Kreyli","Тестеры: -lockdown (Pin) и SpaceBodik","Спасибо, что играете!"};
+        for(int i=0;i<lines.length;i++){
+            MenuElemUI line=new TextScale(lines[i],x,y,i==0?1f:.9f);
+            items.add(line);
+            y+=line.getHeightE()+CFG.PADD*2;
+        }
+        MenuElemUI discord=new Button_InGameBox("Discord проекта",-1,x,y,CFG.BUTTON_W*2,true){
+            @Override public void actionElem(int index){KreyliLobby.discord();}
+        };
+        items.add(discord);
+        return y+discord.getHeightE()+CFG.PADD*2;
+    }
 
     public static void mainMenu(Menu menu){
         if(menu.menuElem.size()>1){

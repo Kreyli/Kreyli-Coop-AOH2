@@ -13,6 +13,20 @@ import java.net.ServerSocket;
 /** Runs only against a marked disposable game copy; never initializes Steam or sends an invite. */
 public final class KreyliUiProbe {
     static void require(boolean value,String message){if(!value)throw new AssertionError(message);}
+    static void verifyBranding(){
+        MP_UI.open(View.eMP);
+        Menu entry=CFG.menus.getActiveMenu().get(0);
+        require(entry.getMenuElemsSize()==5,"Multiplayer menu contains only actions");
+        MP_UI.open(View.eMP_BROWSER);
+        var bar=CFG.menus.getActiveMenu().stream()
+                .filter(menu->menu.getClass().getName().endsWith("MP_Browser$Bar")).findFirst().orElseThrow();
+        require(!bar.getMenuElem(0).getVisibleE()&&!bar.getMenuElem(0).getIsClickable(),"Server browser nickname editor disabled");
+        MP_UI.open(View.eMAINMENU);
+        CFG.menus.getActiveMenu().get(0).actionEL(6);
+        var texts=CFG.menus.getActiveMenu().stream().flatMap(menu->menu.menuElem.stream()).map(item->item.getTextE()).toList();
+        require(texts.contains("Создатель мода: Kreyli")&&texts.contains("Тестеры: -lockdown (Pin) и SpaceBodik")
+                &&texts.contains("Спасибо, что играете!")&&texts.contains("Discord проекта"),"Main logo opens mod credits and Discord");
+    }
     static void capture(String name){
         var pixmap=ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getBackBufferWidth(),Gdx.graphics.getBackBufferHeight());
         PixmapIO.writePNG(Gdx.files.local(name),pixmap,6,true);pixmap.dispose();

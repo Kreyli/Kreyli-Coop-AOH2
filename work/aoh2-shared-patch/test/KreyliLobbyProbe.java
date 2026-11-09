@@ -24,6 +24,7 @@ public final class KreyliLobbyProbe {
             @Override public void render(){try{
                 super.render();frame++;
                 if(frame==299&&host){
+                    KreyliUiProbe.verifyBranding();
                     MP_UI.open(View.eMAINMENU);
                     Menu main=CFG.menus.getActiveMenu().get(0);
                     require(main.getMenuElem(1).getVisibleE(),"Single player button visible");
@@ -31,7 +32,7 @@ public final class KreyliLobbyProbe {
                 }
                 if(frame==300){
                     MP.nick=host?"KreyliHost":"KreyliGuest";MP.port=port;MP.password="test-only";MP.listInLobby=false;MP.hostDirect=true;
-                    if(host){MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;KreyliTurns.saveWaitSetting(30);click(2);require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");Files.writeString(channel.resolve("ready"),"ok");}
+                    if(host){MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;KreyliTurns.saveWaitSetting(30);click(1);require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");Files.writeString(channel.resolve("ready"),"ok");}
                     else{MP.password="";MP.address="127.0.0.1:"+port;MP.join();MP_UI.open(View.eMP_JOINING);}
                     phase=1;
                 }
@@ -39,11 +40,14 @@ public final class KreyliLobbyProbe {
                     if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.guest!=null){
                         require(!KreyliLobby.gate.released,"No implicit start");initialShared=SharedSupport.shared;
                         Menu room=CFG.menus.getActiveMenu().get(0);
-                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==17,"Settings inside room");
+                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==16,"Settings inside room without Apply");
                         click(KreyliLobbyRoom.MODE);
+                        require(SharedSupport.shared!=initialShared,"Country mode applies immediately");
                         click(KreyliLobbyRoom.TIMER);
-                        room.getMenuElem(KreyliLobbyRoom.PASSWORD).setTextE("changed");
-                        click(KreyliLobbyRoom.APPLY);
+                        require(MP.turnSeconds==45,"Timer applies immediately");
+                        click(KreyliLobbyRoom.PASSWORD);
+                        CFG.keybMess="changed";
+                        CFG.keyboardSave.action();
                         phase=5;return;
                     }
                     if(phase==5&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom){
@@ -60,7 +64,7 @@ public final class KreyliLobbyProbe {
                 }else{
                     if(phase==1&&state("active")&&Files.exists(channel.resolve("host-ready"))){
                         require(MP_UI.inView(View.eMP_JOINING),"Guest lobby visible");
-                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==9,"Guest room layout");require("45 с".equals(KreyliLobby.timerLabel()),"Timer synchronized");KreyliUiProbe.capture("kreyli-lobby-guest.png");CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
+                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");require("45 с".equals(KreyliLobby.timerLabel()),"Timer synchronized");KreyliUiProbe.capture("kreyli-lobby-guest.png");CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
                     }
                     if(phase==2&&state("choosing")&&Files.exists(channel.resolve("released"))){
                         require(state("hostReady")&&state("guestReady"),"Guest receives both ready");
