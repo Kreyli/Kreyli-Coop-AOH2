@@ -9,7 +9,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.util.ArrayList;
 
-/** Native menu hit targets with a purpose-built, two-column room presentation. */
+/** Native menu hit targets with a purpose-built, two-column room presentation matching AoH2 style. */
 public final class KreyliLobbyRoom extends Menu {
     public static final int READY=5, INVITE=6, DISCORD=7, LEAVE=8, MODE=9, PASSWORD=10, TIMER=11, LISTED=12, CONNECTION=13, PORT=14, REGION=15, APPLY=16;
     private static final Color INK=new Color(.045f,.052f,.073f,.98f), PANEL=new Color(.067f,.078f,.105f,1), ROW=new Color(.09f,.105f,.14f,1);
@@ -20,10 +20,10 @@ public final class KreyliLobbyRoom extends Menu {
     private final Color blend=new Color();
     private final boolean host=MP.isHost();
     private boolean shared=SharedSupport.shared, listed=MP.listInLobby, direct=MP.hostDirect;
-    private int seconds=MP.turnSeconds;
+    private int seconds=MP.turnSeconds > 0 ? MP.turnSeconds : 30;
     private final java.util.List<String[]> regions=java.util.List.copyOf(MP.regions);
     private int region=Math.max(0,regions.indexOf(MP.selectedRegion()));
-    private static final int[] TIMERS={0,60,120,300};
+    private static final int[] TIMERS={0,10,20,30,45,60,90};
 
     public KreyliLobbyRoom(){
         int width=Math.min(1100,CFG.GAMEWIDTH-48), height=Math.min(570,CFG.GAMEHEIGHT-96);
@@ -59,7 +59,7 @@ public final class KreyliLobbyRoom extends Menu {
         case INVITE -> "Пригласить через Steam";
         case DISCORD -> "Discord";
         case MODE -> shared?"Страны: общая страна":"Страны: разные страны";
-        case TIMER -> "Время хода: "+KreyliLobby.timerLabel(seconds);
+        case TIMER -> "Время ожидания: "+(seconds==0?"без таймера":seconds+" с");
         case LISTED -> "Публичный список: "+(listed?"да":"нет");
         case CONNECTION -> direct?"Подключение: LAN / VPN":"Подключение: код комнаты / Steam";
         case REGION -> "Регион: "+regions.get(region)[1];
@@ -76,6 +76,7 @@ public final class KreyliLobbyRoom extends Menu {
             int index=0;
             for(int i=0;i<TIMERS.length;i++)if(TIMERS[i]==seconds)index=i;
             seconds=TIMERS[(index+1)%TIMERS.length];
+            MP.turnSeconds=seconds;
         }
         case LISTED -> listed=!listed;
         case CONNECTION -> direct=!direct;
@@ -187,7 +188,7 @@ public final class KreyliLobbyRoom extends Menu {
             }
             text(batch,"Параметры выбранного лобби",x+px(21),y+px(48),MUTED,.7f);
             setting(batch,x,y+px(90),w,"РЕЖИМ",SharedSupport.shared?"Общая страна":"Разные страны");
-            setting(batch,x,y+px(149),w,"ВРЕМЯ ХОДА",KreyliLobby.timerLabel());
+            setting(batch,x,y+px(149),w,"ВРЕМЯ ОЖИДАНИЯ",seconds==0?"без таймера":seconds+" с");
             String connection=MP.isHost()?(MP.hostDirect?"Локальная сеть / VPN":"Комната по коду"):"Подключение к хосту";
             setting(batch,x,y+px(208),w,"СОЕДИНЕНИЕ",connection);
             String detail=MP.isHost()?(MP.hostDirect?"Порт: "+MP.port:"Код: "+MP.relayCode):"Настройки задаёт организатор";
@@ -212,6 +213,3 @@ public final class KreyliLobbyRoom extends Menu {
         }
     }
 }
-
-
-

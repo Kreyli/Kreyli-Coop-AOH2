@@ -14,7 +14,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 [assembly: AssemblyTitle("Kreyli Coop AOH2")]
 [assembly: AssemblyProduct("Kreyli Coop AOH2")]
-[assembly: AssemblyVersion("1.1.5.0")]
+[assembly: AssemblyVersion("1.1.6.0")]
 public sealed class UpdateFile { public string path,url,sha256; public long size; }
 public sealed class UpdateManifest { public string version; public UpdateFile[] files; }
 public sealed class Channel { public string manifestUrl; }
