@@ -214,7 +214,7 @@ public final class KreyliProfileUi {
     public static void reserveCountryPlayers(Menu menu){
         var summary=menu.getMenuElem(10);
         int elementBottom=summary.getPosY()+summary.getHeightE();
-        int tilesBottom=elementBottom+Math.round(menu.getWidthM()*.26f);
+        int tilesBottom=elementBottom+Math.round(menu.getWidthM()*.37f);
         int bottom=Math.max(elementBottom,tilesBottom)+CFG.PADD;
         menu.setHeight(bottom+countryRowHeight()+CFG.PADD);
     }
