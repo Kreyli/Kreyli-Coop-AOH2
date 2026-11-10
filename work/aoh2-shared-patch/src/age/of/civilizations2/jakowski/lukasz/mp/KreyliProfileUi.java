@@ -214,8 +214,8 @@ public final class KreyliProfileUi {
     public static void reserveCountryPlayers(Menu menu){
         int bottom=menu.getHeightM();
         for(var element:menu.menuElem)bottom=Math.max(bottom,element.getPosY()+element.getHeightE()+CFG.PADD*2);
-        // The native stats menu also paints two lower rows outside its element bounds.
-        int nativeSummaryHeight=row()*2+CFG.PADD;
+        // The native stats menu paints summary tiles outside its element bounds.
+        int nativeSummaryHeight=row()*4+CFG.PADD;
         menu.setHeight(bottom+nativeSummaryHeight+countryRowHeight()+CFG.PADD);
     }
 
