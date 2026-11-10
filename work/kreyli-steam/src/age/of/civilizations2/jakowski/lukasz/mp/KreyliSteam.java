@@ -161,12 +161,14 @@ public final class KreyliSteam {
     public static byte[] profileAvatar(){
         try{
             if(getSteamID64()==0)return null;
-            int image=friends.getSmallFriendAvatar(localSteamID);
+            int image=friends.getLargeFriendAvatar(localSteamID);
+            if(image<0)return null; // Steam is still downloading the full-size image.
+            if(image==0)image=friends.getMediumFriendAvatar(localSteamID);
             int[] size=new int[2];
-            if(image<=0||!utils.getImageSize(image,size)||size[0]!=32||size[1]!=32)return null;
-            var pixels=java.nio.ByteBuffer.allocateDirect(32*32*4);
+            if(image<=0||!utils.getImageSize(image,size)||size[0]!=size[1]||(size[0]!=32&&size[0]!=64&&size[0]!=184))return null;
+            var pixels=java.nio.ByteBuffer.allocateDirect(size[0]*size[1]*4);
             if(!utils.getImageRGBA(image,pixels))return null;
-            byte[] result=new byte[32*32*4];
+            byte[] result=new byte[size[0]*size[1]*4];
             pixels.rewind();pixels.get(result);return result;
         }catch(Exception|LinkageError e){return null;}
     }

@@ -12,8 +12,8 @@ import java.util.function.Supplier;
 
 /** A native AoH2 room with a roster, live settings and multiplayer actions. */
 public final class KreyliLobbyRoom extends Menu {
-    public static final int READY=5, INVITE=6, DISCORD=7, LEAVE=8;
-    public static final int MODE=9, PASSWORD=10, TIMER=11, LISTED=12, CONNECTION=13, PORT=14;
+    public static final int READY=4, INVITE=5, DISCORD=6, LEAVE=7;
+    public static final int MODE=8, PASSWORD=9, TIMER=10, LISTED=11, CONNECTION=12, PORT=13;
     private static final int[] TIMERS={0,10,20,30,45,60,90};
     private final boolean host=MP.isHost();
 
@@ -21,7 +21,7 @@ public final class KreyliLobbyRoom extends Menu {
         int gap=CFG.PADD*2;
         int width=Math.min(CFG.GAMEWIDTH-gap*4,Math.max(CFG.BUTTON_W*5,CFG.GAMEWIDTH*3/4));
         int row=Math.max(1,Math.min(CFG.BUTTON_H,(CFG.GAMEHEIGHT-CFG.BUTTON_H*3-gap*4)/9));
-        int height=row*8+gap*4;
+        int height=row*9+gap*4;
         int left=(width-gap*3)/2;
         int rightX=left+gap*2;
         int right=width-rightX-gap;
@@ -31,8 +31,7 @@ public final class KreyliLobbyRoom extends Menu {
         var elements=new ArrayList<MenuElemUI>();
 
         elements.add(new RoomButton(()->KreyliText.nativeLabel("Players","Players")+"  "+KreyliLobby.roster().size()+" / "+KreyliSteam.MAX_PLAYERS,gap,gap,left,row,null));
-        elements.add(new RoomButton(()->"",gap,first,left,row,null));
-        elements.add(new RoomButton(()->"",gap,first+row,left,row,null));
+        elements.add(new RosterTable(gap,first,left,bottom-row-first));
         elements.add(new RoomButton(this::status,gap,bottom-row,left,row,null));
         elements.add(new RoomButton(()->KreyliText.t("Настройки лобби","Lobby settings"),rightX,gap,right,row,null));
         elements.add(new RoomButton(this::readyText,gap*4+quarter*3,bottom,width-gap*5-quarter*3,row,KreyliLobby::toggleReady));
@@ -146,6 +145,82 @@ public final class KreyliLobbyRoom extends Menu {
         }
     }
 
+    private static final class RosterTable extends Button_InGameBox {
+        private static final Color HEADER=new Color(0.10f,0.15f,0.22f,0.96f);
+        private static final Color EVEN_ROW=new Color(0.055f,0.085f,0.13f,0.93f);
+        private static final Color ODD_ROW=new Color(0.075f,0.11f,0.16f,0.93f);
+        private static final Color DIVIDER=new Color(0.40f,0.34f,0.23f,0.85f);
+        private static final Color EMPTY=new Color(0.57f,0.62f,0.69f,1f);
+
+        RosterTable(int x,int y,int width,int height){
+            super("",-1,x,y,width,height,false);
+        }
+
+        @Override public void drawButtonBGE(SpriteBatch batch,int x,int y,boolean active){}
+
+        @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
+            int left=x+getPosXE(),top=y+getPosY();
+            int width=getWidthE(),height=getHeightE(),padding=Math.max(2,CFG.PADD);
+            int slots=KreyliSteam.MAX_PLAYERS;
+            int header=height/(slots+1);
+            int body=height-header;
+            if(header<1||body<slots)return;
+            int statusWidth=Math.min(width/2,Math.max(width/4,
+                    MP_UI.textWidth(KreyliText.t("Не готов","Not ready"))+padding*2));
+            int split=left+width-statusWidth;
+            float old=batch.getPackedColor();
+            try{
+                rectangle(batch,left,top,width,header,HEADER);
+                cellText(batch,KreyliText.t("Игрок","Player"),left+padding,top,split-left-padding*2,header,CFG.COLOR_TEXT_CIV_INFO_TITLE);
+                cellText(batch,KreyliText.t("Статус","Status"),split+padding,top,statusWidth-padding*2,header,CFG.COLOR_TEXT_CIV_INFO_TITLE);
+
+                var members=KreyliLobby.roster();
+                for(int index=0;index<slots;index++){
+                    int rowY=top+header+body*index/slots;
+                    int rowHeight=top+header+body*(index+1)/slots-rowY;
+                    rectangle(batch,left,rowY,width,rowHeight,index%2==0?EVEN_ROW:ODD_ROW);
+                    if(index<members.size()){
+                        var member=members.get(index);
+                        int icon=Math.min(rowHeight-4,width/8);
+                        int nameX=left+padding;
+                        if(icon>0){
+                            var avatar=KreyliProfile.avatar(member.name());
+                            int iconY=rowY+(rowHeight-icon)/2;
+                            if(avatar!=null||icon>=CFG.TEXT_HEIGHT_DEFAULT_SMALL)
+                                KreyliProfileUi.drawAvatar(batch,nameX,iconY,icon,avatar);
+                            else rectangle(batch,nameX,iconY,icon,icon,HEADER);
+                            nameX+=icon+padding;
+                        }
+                        cellText(batch,member.name(),nameX,rowY,split-nameX-padding,rowHeight,Color.WHITE);
+                        cellText(batch,member.ready()?KreyliText.t("Готов","Ready"):KreyliText.t("Не готов","Not ready"),
+                                split+padding,rowY,statusWidth-padding*2,rowHeight,member.ready()?MP.GOOD:EMPTY);
+                    }else{
+                        cellText(batch,KreyliText.t("Свободное место","Open slot"),
+                                left+padding,rowY,split-left-padding*2,rowHeight,EMPTY);
+                    }
+                    rectangle(batch,left,rowY,width,1,DIVIDER);
+                }
+                rectangle(batch,left,top,width,1,DIVIDER);
+                rectangle(batch,left,top+height-1,width,1,DIVIDER);
+                rectangle(batch,left,top,1,height,DIVIDER);
+                rectangle(batch,split,top,1,height,DIVIDER);
+                rectangle(batch,left+width-1,top,1,height,DIVIDER);
+            }finally{batch.setPackedColor(old);}
+        }
+
+        private static void rectangle(SpriteBatch batch,int x,int y,int width,int height,Color color){
+            batch.setColor(color);
+            Images.pix.draw(batch,x,y,width,height);
+        }
+
+        private static void cellText(SpriteBatch batch,String value,int x,int y,int width,int height,Color color){
+            if(width<=0)return;
+            batch.setColor(Color.WHITE);
+            Renderer.drawTextWithShadow(batch,MP_UI.font(),MP_UI.fit(value,width),
+                    x,y+Math.max(0,(height-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2),color);
+        }
+    }
+
     private final class RoomButton extends Button_InGameBox {
         private final Supplier<String> label;
         private final Runnable action;
@@ -157,24 +232,9 @@ public final class KreyliLobbyRoom extends Menu {
         @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
             if(action==null){
                 int index=menuElem.indexOf(this);
-                if(index==1){
-                    var members=KreyliLobby.roster();
-                    int width=(getWidthE()-CFG.PADD)/2;
-                    for(int i=0;i<members.size();i++){
-                        var member=members.get(i);
-                        String label=member.name()+" · "+(member.ready()?KreyliText.t("Готов","Ready"):KreyliText.t("Не готов","Not ready"));
-                        int row=i%5,column=i/5;
-                        Renderer.drawTextWithShadow(batch,MP_UI.font(),MP_UI.fit(label,width-CFG.PADD*2),
-                                x+getPosXE()+CFG.PADD+column*width,y+getPosY()+row*getHeightE(),
-                                member.ready()?MP.GOOD:Color.WHITE);
-                    }
-                    return;
-                }
                 Color color=switch(index){
-                    case 0,4 -> CFG.COLOR_TEXT_CIV_INFO_TITLE;
-                    case 1 -> KreyliLobby.hostIsReady()?MP.GOOD:Color.WHITE;
-                    case 2 -> KreyliLobby.guestIsReady()?MP.GOOD:Color.WHITE;
-                    case 3 -> Color.GOLD;
+                    case 0,3 -> CFG.COLOR_TEXT_CIV_INFO_TITLE;
+                    case 2 -> Color.GOLD;
                     default -> Color.WHITE;
                 };
                 int left=CFG.PADD;
@@ -189,7 +249,7 @@ public final class KreyliLobbyRoom extends Menu {
         }
         @Override public void drawButtonBGE(SpriteBatch batch,int x,int y,boolean active){
             if(action!=null)super.drawButtonBGE(batch,x,y,active);
-            else if(menuElem.indexOf(this)==0||menuElem.indexOf(this)==4){
+            else if(menuElem.indexOf(this)==0||menuElem.indexOf(this)==3){
                 batch.setColor(CFG.COLOR_NEW_GAME_EDGE_LINE);
                 Images.pix.draw(batch,x+getPosXE(),y+getPosY()+getHeightE()-1,getWidthE(),1);
                 batch.setColor(Color.WHITE);

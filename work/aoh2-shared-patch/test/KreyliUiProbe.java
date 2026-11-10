@@ -15,6 +15,7 @@ public final class KreyliUiProbe {
     static void require(boolean value,String message){if(!value)throw new AssertionError(message);}
     static void verifyProfile()throws Exception{
         MP_UI.open(View.eMAINMENU);
+        KreyliProfile.resetNickname();
         String name=KreyliProfile.nick();
         require(!KreyliProfile.steamLinked()&&!name.isBlank()&&name.equals(KreyliProfile.nick()),
                 "Steam-disabled profile has a stable local nickname");
@@ -33,11 +34,15 @@ public final class KreyliUiProbe {
         int buttonX=(CFG.GAMEWIDTH-width)/2+gap+buttonWidth/2;
         touch.actionDown(buttonX,buttonY,0,Input.Buttons.LEFT);
         touch.actionUp(buttonX,buttonY,0,Input.Buttons.LEFT);
-        for(int i=0;i<name.length();i++)profile.keyDown(Input.Keys.BACKSPACE);
+        for(int i=0;i<name.length();i++)profile.keyTyped('\b');
         for(char c:"LocalEditorTest".toCharArray())profile.keyTyped(c);
         require(profile.keyUp(Input.Keys.ENTER)&&KreyliProfile.nick().equals("LocalEditorTest"),
                 "Native profile input saves nickname in game");
-        KreyliProfile.setNickname(name);
+        touch.actionDown(buttonX,buttonY,0,Input.Buttons.LEFT);
+        touch.actionUp(buttonX,buttonY,0,Input.Buttons.LEFT);
+        touch.actionDown(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
+        touch.actionUp(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
+        require(KreyliProfile.nick().equals(name),"Nickname default button restores the generated offline name");
         touch.actionDown(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
         touch.actionUp(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
         require(profile.keyUp(Input.Keys.ESCAPE)&&Gdx.input.getInputProcessor()==profile,
@@ -48,11 +53,11 @@ public final class KreyliUiProbe {
             source.setRGB(32,16,0xffafde12);
             javax.imageio.ImageIO.write(source,"PNG",image.toFile());
             byte[] pixels=KreyliProfileUi.decodeAvatar(image.toFile());
-            require(pixels.length==4096,"Avatar is normalized to bounded RGBA");
+            require(pixels.length==128*128*4,"Avatar is normalized to bounded RGBA");
             int index=KreyliProfile.addAvatar(pixels);
             require(KreyliProfile.addAvatar(pixels)==index,"Repeated upload keeps one history entry");
             KreyliProfile.selectAvatar(index);
-            require(KreyliProfile.selectedAvatar()==index&&KreyliProfile.avatar()!=null,"Uploaded avatar can be selected");
+            require(KreyliProfile.selectedAvatar()==index&&KreyliProfile.avatar()!=null&&KreyliProfile.avatar().getRegionWidth()==128,"Uploaded avatar retains portrait resolution");
             KreyliProfile.selectAvatar(-1);
             require(KreyliProfile.selectedAvatar()==-1&&KreyliProfile.avatar()==null,"Default restores offline question mark");
         }finally{Files.deleteIfExists(image);}

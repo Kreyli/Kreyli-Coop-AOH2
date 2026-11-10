@@ -1,164 +1,225 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
 
-import age.of.civilizations2.jakowski.lukasz.CFG;
-import age.of.civilizations2.jakowski.lukasz.Menu;
-import age.of.civilizations2.jakowski.lukasz.Renderer;
-import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
+import age.of.civilizations2.jakowski.lukasz.*;
+import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
+import age.of.civilizations2.jakowski.lukasz.Button.Game.Button_Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.EnumMap;
 
-/** Multiplayer turn controls in the native menu above the minimap. */
+import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
+
+/** Turn controls anchored to the rendered native Ready button and date. */
 public final class KreyliTurnHud {
-    private static final Map<Menu, KreyliTurnHud> panels = new WeakHashMap<>();
-    private final int chatX, chatY, chatWidth, chatHeight, gap, rowHeight, width;
-    private boolean choosing;
-    private final Control ready = new Control(null);
-    private final Control proposal = new Control(null);
-    private final Control arrow = new Control(() -> choosing=!choosing);
-    private final Control fewer = new Control(() -> KreyliTurns.changeSkip(-1));
-    private final Control more = new Control(() -> KreyliTurns.changeSkip(1));
-    private final Control submit = new Control(() -> {choosing=false;KreyliTurns.proposeSkip();});
-    private final Control accept = new Control(KreyliTurns::acceptSkip);
-    private final Control decline = new Control(KreyliTurns::rejectSkip);
-    private final Control cancel = new Control(KreyliTurns::cancelSkip);
-    private float slide;
-    private String lastPanelText="";
-    private int previousLift = -1;
-    private boolean previousExpanded, previousControls;
-
-    private KreyliTurnHud(Menu menu) {
-        chatX = menu.getPosX();
-        chatY = menu.getPosY();
-        chatWidth = menu.getWidthM();
-        chatHeight = menu.getHeightM();
-        gap = Math.max(3, CFG.PADD);
-        rowHeight = Math.max(MP_UI.toggleSize(), CFG.TEXT_HEIGHT_DEFAULT_SMALL + gap * 2);
-        width = Math.min(chatX - gap, Math.max(CFG.BUTTON_W * 2, MP_UI.textWidth(KreyliText.t("Готов к следующему ходу","Ready for the next turn")) + gap * 3));
-        for (Control control : new Control[]{ready, proposal, arrow, fewer, more, submit, accept, decline, cancel}) {
-            control.setHeightE(rowHeight);
-            control.setVisibleE(false);
-            menu.menuElem.add(control);
-        }
-        menu.iMenuElemsSize = menu.menuElem.size();
+    private enum Action { OPEN, FEWER, MORE, PROPOSE, ACCEPT, DECLINE, CANCEL }
+    private record Box(int x,int y,int width,int height) {
+        boolean contains(int px,int py){return px>=x&&px<x+width&&py>=y&&py<y+height;}
     }
 
-    public static Menu attach(Menu menu) {
-        panels.put(menu, new KreyliTurnHud(menu));
-        return menu;
+    private static final Color PANEL=new Color(0x101b2af6), BORDER=new Color(0xc39648ff);
+    private static final Color BUTTON=new Color(0x17253bff), BUTTON_HOVER=new Color(0x2b405aff);
+    private static final EnumMap<Action,Box> hits=new EnumMap<>(Action.class);
+    private static Box nativeReady,nativeDate;
+    private static Button_Game skin;
+    private static boolean choosing;
+    private static Action pressed;
+    private static float slide;
+    private static String lastReadiness="",lastProposal="";
+    private static int lastReadySoundTurn=-1;
+    private static long lastVoteSound;
+    private static String shownReadiness="",shownVote="";
+
+    private KreyliTurnHud(){}
+
+    public static void anchorReady(MenuElemUI button,int x,int y){
+        if(MP.playing())nativeReady=absolute(button,x,y);
     }
 
-    public static void update() {
-        if (CFG.menus == null || !CFG.menus.getInGameView() || CFG.menus.INGAME_MP_CHAT_TOGGLE < 0) return;
-        Menu menu = CFG.menus.getInGameMenu(CFG.menus.INGAME_MP_CHAT_TOGGLE);
-        KreyliTurnHud panel = panels.get(menu);
-        if (panel != null) panel.update(menu);
+    public static void anchorDate(Menu menu,int x,int y){
+        if(!MP.playing())return;
+        x+=menu.getMenuPosX();
+        y+=menu.getMenuPosY();
+        Box date=absolute(menu.getMenuElem(4),x,y);
+        Box turn=absolute(menu.getMenuElem(5),x,y);
+        nativeDate=date.x<turn.x?date:turn;
     }
 
-    private void update(Menu menu) {
-        boolean playing = MP.playing() && MP.inputOrders() && !MP.hasBattleReports();
-        boolean armyMenu = CFG.menus.getInGame_ProvinceMoveUnits_Visible()
-                || CFG.menus.getInGame_ProvinceRecruit_Visible()
-                || CFG.menus.getInGame_ProvinceRecruitInstantly_Visible()
-                || CFG.menus.getInGame_ProvinceDisband_Visible();
-        String readiness = playing ? KreyliTurns.readinessStatus() : "";
-        boolean activeVote = MP.playing()&&KreyliTurns.hasSkipVote();
-        String voteText = MP.playing()?KreyliTurns.skipStatus():"";
-        boolean showing = !voteText.isEmpty();
-        if(showing)lastPanelText=voteText;
-        float animationStep=Math.min(1,Gdx.graphics.getDeltaTime()*7);
-        slide=Math.max(0,Math.min(1,slide+(showing?animationStep:-animationStep)));
-        boolean votePanel=showing||slide>0;
-        if(votePanel&&(showing?slide<1:slide>0))CFG.setRenderO(true);
-        boolean respond = playing&&activeVote&&KreyliTurns.skipCanRespond();
-        boolean canCancel = playing&&activeVote&&KreyliTurns.skipCanCancel();
-        if(!playing||activeVote)choosing=false;
-        boolean controls=playing&&!armyMenu&&!activeVote;
-        boolean chooser=controls&&choosing;
-        int upperRows=(readiness.isEmpty()?0:1)+(votePanel?1:0)+(chooser?1:0);
-        int lift = upperRows * (rowHeight + gap);
-        int baseHeight = controls||respond||canCancel ? Math.max(rowHeight + 1, chatHeight) : chatHeight;
-        boolean expanded = controls || respond || canCancel || upperRows > 0;
-        if (previousLift != lift || previousExpanded != expanded || previousControls != controls) {
-            menu.setPosX(expanded ? chatX - width - gap : chatX);
-            menu.setPosY(chatY - lift);
-            menu.setWidth(expanded ? width + gap + chatWidth : chatWidth);
-            menu.setHeight(baseHeight + lift);
-            menu.getMenuElem(0).setPosX(expanded ? width + gap : 0);
-            menu.getMenuElem(0).setPosY(lift + 1);
-            previousLift = lift;
-            previousExpanded = expanded;
-            previousControls = controls;
+    private static Box absolute(MenuElemUI element,int x,int y){
+        return new Box(x+element.getPosXE(),y+element.getPosY(),element.getWidthE(),element.getHeightE());
+    }
+
+    public static void update(){
+        String readiness=MP.playing()?KreyliTurns.readinessStatus():"";
+        String vote=MP.playing()?KreyliTurns.skipStatus():"";
+        if(!shownReadiness.equals(readiness)||!shownVote.equals(vote)){
+            shownReadiness=readiness;
+            shownVote=vote;
             CFG.setRenderO(true);
         }
-
-        int row = 1;
-        ready.place(0, row, width, readiness, !readiness.isEmpty());
-        if (!readiness.isEmpty()) row += rowHeight + gap;
-        int shift=(int)((1-slide)*(1-slide)*(width+chatWidth));
-        proposal.place(shift,row,width,lastPanelText,votePanel);
-        if(votePanel)row+=rowHeight+gap;
-
-        int first = width / 2 - gap;
-        int small=Math.min(rowHeight,width/4);
-        arrow.place(width-small,lift+1,small,choosing?"▾":"▸",controls);
-        fewer.place(0,row,small,"−",chooser);
-        more.place(small+gap,row,small,"+",chooser);
-        submit.place(small*2+gap*2,row,width-small*2-gap*2,KreyliText.t("Пропустить: ","Skip: ")+KreyliTurns.selectedSkipCount(),chooser);
-        accept.place(0,lift+1,first,KreyliText.t("Принять","Accept"),respond);
-        decline.place(first+gap,lift+1,width-first-gap,KreyliText.t("Отказать","Reject"),respond);
-        cancel.place(0,lift+1,width,KreyliText.t("Отменить предложение","Cancel proposal"),canCancel);
-        menu.updateMenuElements_IsInView();
-        menu.updateMenuElements_IsInView_X();
     }
 
-    private static final class Control extends Button_InGameBox {
-        private final Runnable action;
-
-        Control(Runnable action) {
-            super("", -1, 0, 0, 1, action != null);
-            this.action = action;
+    public static void draw(SpriteBatch batch){
+        hits.clear();
+        Box ready=nativeReady,date=nativeDate;
+        nativeReady=nativeDate=null;
+        if(!MP.playing()||!CFG.menus.getInGameView()){
+            choosing=false;
+            slide=0;
+            lastReadySoundTurn=-1;
+            lastVoteSound=0;
+            return;
         }
+        float color=batch.getPackedColor();
+        try{
+            boolean canChoose=ready!=null&&MP.inputOrders()&&!MP.hasBattleReports()&&!KreyliTurns.hasSkipVote();
+            if(canChoose)drawReadyControls(batch,ready);
+            else choosing=false;
+            if(date!=null)drawNotice(batch,date);
+        }finally{batch.setPackedColor(color);}
+    }
 
-        void place(int x, int y, int width, String text, boolean visible) {
-            if (getVisibleE() != visible) {
-                setVisibleE(visible);
-                CFG.setRenderO(true);
+    private static void drawReadyControls(SpriteBatch batch,Box ready){
+        int gap=Math.max(3,CFG.PADD);
+        int width=Math.min(ready.width/2,ready.height*2/3);
+        if(ready.x<width||width<8)return;
+        Box arrow=new Box(ready.x-width,ready.y,width,ready.height);
+        button(batch,arrow,"",Action.OPEN);
+        int center=arrow.x+arrow.width/2,middle=arrow.y+arrow.height/2;
+        int size=Math.max(3,arrow.width/7);
+        for(int i=0;i<=size;i++){
+            fill(batch,center-i,middle-size/2+i,2,2,Color.WHITE);
+            fill(batch,center+i,middle-size/2+i,2,2,Color.WHITE);
+        }
+        if(!choosing)return;
+        int popupWidth=Math.min(ready.x+ready.width-gap,Math.max(ready.width+width,CFG.BUTTON_W*2));
+        int x=ready.x+ready.width-popupWidth;
+        int height=Math.max(ready.height/2,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
+        int y=Math.max(gap,ready.y-height*2-gap*4);
+        panel(batch,new Box(x,y,popupWidth,height*2+gap*3));
+        int innerWidth=popupWidth-gap*2;
+        int counterY=y+gap;
+        button(batch,new Box(x+gap,counterY,height,height),"-",Action.FEWER);
+        label(batch,new Box(x+gap+height,counterY,innerWidth-height*2,height),
+                t("Ходов: ","Turns: ")+KreyliTurns.selectedSkipCount()+" / "+KreyliSkipVote.MAX_TURNS,Color.WHITE);
+        button(batch,new Box(x+popupWidth-gap-height,counterY,height,height),"+",Action.MORE);
+        button(batch,new Box(x+gap,counterY+height+gap,innerWidth,height),t("Предложить","Propose"),Action.PROPOSE);
+    }
+
+    private static void drawNotice(SpriteBatch batch,Box date){
+        String readiness=KreyliTurns.readinessStatus();
+        String proposal=KreyliTurns.skipStatus();
+        boolean responding=KreyliTurns.skipCanRespond(),cancelling=KreyliTurns.skipCanCancel();
+        long vote=KreyliTurns.activeSkipId();
+        if(responding&&vote!=lastVoteSound){
+            lastVoteSound=vote;
+            chime();
+        }else if(!readiness.isEmpty()&&lastReadySoundTurn!=GameCalendar.TURNID){
+            lastReadySoundTurn=GameCalendar.TURNID;
+            chime();
+        }
+        boolean visible=!readiness.isEmpty()||!proposal.isEmpty();
+        if(visible){lastReadiness=readiness;lastProposal=proposal;}
+        float step=Math.min(0.3f,Gdx.graphics.getDeltaTime())*5;
+        slide=Math.max(0,Math.min(1,slide+(visible?step:-step)));
+        if(slide==0)return;
+        if(slide<1)CFG.setRenderO(true);
+        int gap=Math.max(4,CFG.PADD);
+        int width=Math.min(date.x-gap*2,Math.max(CFG.BUTTON_W*3,MP_UI.textWidth(lastProposal)+gap*4));
+        if(width<CFG.BUTTON_W)return;
+        int row=Math.max(24,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
+        int y=Math.max(gap,date.y);
+        int x=Math.max(gap,date.x-gap-width-Math.round((1-slide)*(1-slide)*row*2));
+        boolean voting=responding||cancelling;
+        int rows=(lastReadiness.isEmpty()?0:1)+(lastProposal.isEmpty()?0:1)+(voting?2:0);
+        panel(batch,new Box(x,y,width,rows*row+gap*2));
+        int textY=y+gap;
+        if(!lastReadiness.isEmpty()){
+            label(batch,new Box(x+gap,textY,width-gap*2,row),lastReadiness,Color.GOLD);
+            textY+=row;
+        }
+        if(voting){
+            label(batch,new Box(x+gap,textY,width-gap*2,row),t("Голосование за пропуск ходов","Vote to skip turns"),Color.GOLD);
+            textY+=row;
+        }
+        if(!lastProposal.isEmpty()){
+            label(batch,new Box(x+gap,textY,width-gap*2,row),lastProposal,Color.WHITE);
+            textY+=row;
+        }
+        if(responding){
+            int half=(width-gap*3)/2;
+            button(batch,new Box(x+gap,textY,half,row),t("Принять","Accept"),Action.ACCEPT);
+            button(batch,new Box(x+half+gap*2,textY,half,row),t("Отклонить","Decline"),Action.DECLINE);
+        }else if(cancelling){
+            button(batch,new Box(x+gap,textY,width-gap*2,row),t("Отменить предложение","Cancel proposal"),Action.CANCEL);
+        }
+    }
+
+    private static void chime(){
+        if(CFG.SFXManager!=null)CFG.SFXManager.playSound(SFXManager.SFX_EVENT);
+    }
+
+    private static void panel(SpriteBatch batch,Box box){
+        fill(batch,box.x,box.y,box.width,box.height,BORDER);
+        fill(batch,box.x+1,box.y+1,box.width-2,box.height-2,PANEL);
+    }
+
+    private static void fill(SpriteBatch batch,int x,int y,int width,int height,Color color){
+        batch.setColor(color);
+        Images.pix.draw(batch,x,y,width,height);
+    }
+
+    private static void label(SpriteBatch batch,Box box,String text,Color color){
+        if(text.isEmpty())return;
+        String fitted=MP_UI.fit(text,box.width-CFG.PADD*2);
+        batch.setColor(Color.WHITE);
+        Renderer.drawTextWithShadow(batch,MP_UI.font(),fitted,box.x+(box.width-MP_UI.textWidth(fitted))/2,
+                box.y+(box.height-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,color);
+    }
+
+    private static void button(SpriteBatch batch,Box box,String text,Action action){
+        hits.put(action,box);
+        boolean hovered=box.contains(Gdx.input.getX(),Gdx.input.getY());
+        if(action==Action.OPEN){
+            if(skin==null)skin=new Button_Game("",0,0,1,1,true);
+            skin.setWidthE(box.width);
+            skin.setHeightE(box.height);
+            skin.setIsHovered(hovered);
+            batch.setColor(Color.WHITE);
+            skin.drawButtonBGE(batch,box.x,box.y,action==pressed);
+        }else{
+            fill(batch,box.x,box.y,box.width,box.height,BORDER);
+            fill(batch,box.x+1,box.y+1,box.width-2,box.height-2,hovered||action==pressed?BUTTON_HOVER:BUTTON);
+        }
+        label(batch,box,text,Color.WHITE);
+    }
+
+    public static boolean touchDown(int x,int y,int pointer,int button){
+        if(pointer!=0||button!=Input.Buttons.LEFT||!MP.playing())return false;
+        pressed=null;
+        for(var hit:hits.entrySet())if(hit.getValue().contains(x,y)){pressed=hit.getKey();break;}
+        if(pressed!=null)CFG.setRenderO(true);
+        return pressed!=null;
+    }
+
+    public static boolean touchUp(int x,int y,int pointer,int button){
+        if(pointer!=0||pressed==null)return false;
+        Action action=pressed;
+        pressed=null;
+        Box box=hits.get(action);
+        if(button==Input.Buttons.LEFT&&MP.playing()&&box!=null&&box.contains(x,y)){
+            switch(action){
+                case OPEN -> choosing=!choosing;
+                case FEWER -> KreyliTurns.changeSkip(-1);
+                case MORE -> KreyliTurns.changeSkip(1);
+                case PROPOSE -> {choosing=false;KreyliTurns.proposeSkip();}
+                case ACCEPT -> KreyliTurns.acceptSkip();
+                case DECLINE -> KreyliTurns.rejectSkip();
+                case CANCEL -> KreyliTurns.cancelSkip();
             }
-            if (!visible) return;
-            setPosX(x);
-            setPosY(y);
-            setWidthE(width);
-            if (!text.equals(getTextE())) {
-                setTextE(text);
-                CFG.setRenderO(true);
-            }
         }
-
-        @Override public void actionElem(int index) {
-            if (action != null && getVisibleE()) action.run();
-        }
-
-        @Override public void drawTextE(SpriteBatch batch, int x, int y, boolean active) {
-            String text = getTextE();
-            int available = getWidthE() - CFG.PADD * 2;
-            int suffixAt = Math.max(text.lastIndexOf(KreyliText.t(" готов к ходу"," is ready")), text.indexOf(" · "));
-            String fitted;
-            if (action == null && suffixAt > 0 && MP_UI.textWidth(text) > available) {
-                String suffix = text.substring(suffixAt);
-                int prefixWidth = available - MP_UI.textWidth(suffix);
-                fitted = prefixWidth > MP_UI.textWidth("…")
-                        ? MP_UI.fit(text.substring(0, suffixAt), prefixWidth) + suffix
-                        : MP_UI.fit(suffix.stripLeading(), available);
-            } else {
-                fitted = MP_UI.fit(text, available);
-            }
-            Renderer.drawTextWithShadow(batch, MP_UI.font(), fitted,
-                    x + getPosXE() + (getWidthE() - MP_UI.textWidth(fitted)) / 2,
-                    y + getPosY() + (getHeightE() - CFG.TEXT_HEIGHT_DEFAULT_SMALL) / 2,
-                    action == null ? Color.GOLD : getColorE(active));
-        }
+        CFG.setRenderO(true);
+        return true;
     }
 }

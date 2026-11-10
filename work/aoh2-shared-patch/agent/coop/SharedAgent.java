@@ -14,9 +14,13 @@ public final class SharedAgent implements Opcodes {
         String workshop=root+"Z_Other/ST/sUM";
         String browserBar=P+"MP_Browser$Bar";
         String touch=root+"Touch",province=root+"Menus/Info/Menu_InGame_ProvInfo",profile=P+"KreyliProfileUi";
+        String hud=P+"KreyliTurnHud", readyButton=root+"Button/Game/Button_GameNextTurn";
+        String top=root+"Menus/ZRest/Menu_InGame_";
+        boolean topMenu=name.equals(top+"1")||name.equals(top+"2");
+        boolean speedButton=Set.of(top+"1$8",top+"1$14",top+"2$8",top+"2$14").contains(name);
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ";
-        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,
+        if(!speedButton&&!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,top+"1",top+"2",
                 root+"Save/SaveGameManager").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
@@ -44,7 +48,14 @@ public final class SharedAgent implements Opcodes {
                         if(name.equals(touch)&&d.equals("(IIII)V")&&(n.equals("actionDown")||n.equals("actionUp"))){
                             for(int i=1;i<=4;i++)super.visitVarInsn(ILOAD,i);
                             super.visitMethodInsn(INVOKESTATIC,profile,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
+                            Label hudInput=new Label();super.visitJumpInsn(IFEQ,hudInput);super.visitInsn(RETURN);super.visitLabel(hudInput);
+                            for(int i=1;i<=4;i++)super.visitVarInsn(ILOAD,i);
+                            super.visitMethodInsn(INVOKESTATIC,hud,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
                             Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);
+                        }
+                        if(name.equals(readyButton)&&n.equals("drawButtonBGE")){
+                            super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
+                            super.visitMethodInsn(INVOKESTATIC,hud,"anchorReady","(L"+root+"Button/MenuElemUI;II)V",false);
                         }
                         if(name.equals(browserBar)&&n.equals("actionEL")&&d.equals("(I)V")){
                             super.visitVarInsn(ILOAD,1);
@@ -52,6 +63,12 @@ public final class SharedAgent implements Opcodes {
                         }
                         if(name.equals(main)&&n.equals("actionEL")&&d.equals("(I)V")){super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"openSinglePlayer","(I)Z",false);Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);}
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
+                    }
+                    public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if((topMenu&&n.equals("draw")||speedButton&&n.equals("getVisibleE"))
+                                &&owner.equals(root+"RTS")&&method.equals("isEnabled")){
+                            super.visitInsn(ICONST_0);
+                        }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                     }
                     public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
                         super.visitFieldInsn(opcode,owner,field,descriptor);
@@ -75,7 +92,12 @@ public final class SharedAgent implements Opcodes {
                         if(name.equals(root+"Save/SaveGameManager")&&n.equals("saveGame_16")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);
                         if(name.equals(root+"MenuManager")&&n.equals("drawMM")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"drawFooter",d,false);
+                            super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,hud,"draw",d,false);
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,profile,"draw",d,false);
+                        }
+                        if(topMenu&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
+                            super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
+                            super.visitMethodInsn(INVOKESTATIC,hud,"anchorDate","(L"+root+"Menu;II)V",false);
                         }
                         if(name.equals(country)&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
@@ -227,7 +249,7 @@ public final class SharedAgent implements Opcodes {
                                 public void visitInsn(int opcode){
                                     if(name.equals(P+"MP_Save")&&method.equals("saveToDisk")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);
                                     if(name.equals(P+"MP_UI")&&method.equals("updateInGame")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","updateUi","()V",false);
-                                    if(name.equals(P+"MP_UI")&&method.equals("chatToggleMenu")&&opcode==ARETURN){found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurnHud","attach","(Lage/of/civilizations2/jakowski/lukasz/Menu;)Lage/of/civilizations2/jakowski/lukasz/Menu;",false);}
+                                    if(name.equals(P+"MP_UI")&&method.equals("chatToggleMenu")&&opcode==ARETURN){found.add(method);}
                                     if(name.equals(P+"MP_Net")&&method.equals("listServers")&&opcode==ARETURN){found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliBrowser","filter","(Ljava/util/List;)Ljava/util/List;",false);}
                                     if(name.equals(P+"MP_UI")&&method.equals("build")&&opcode==ARETURN){found.add(method);super.visitVarInsn(ALOAD,0);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","menus","([Lage/of/civilizations2/jakowski/lukasz/Menu;Lage/of/civilizations2/jakowski/lukasz/View;)[Lage/of/civilizations2/jakowski/lukasz/Menu;",false);}
                                     if(name.equals(P+"MP_UI$PlayersTable")&&method.equals("<init>")&&opcode==RETURN){found.add(method);super.visitVarInsn(ALOAD,0);super.visitMethodInsn(INVOKESTATIC,P+"KreyliMenus","appendInvite","(Lage/of/civilizations2/jakowski/lukasz/Menu;)V",false);}

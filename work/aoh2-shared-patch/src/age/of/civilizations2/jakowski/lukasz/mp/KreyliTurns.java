@@ -58,7 +58,8 @@ public final class KreyliTurns {
     }
     public static int selectedSkipCount(){return selected;}
     public static boolean blocksNativeAdvance(){return vote.id!=0&&!vote.waiting;}
-    public static boolean hasSkipVote(){return MP.isHost()?vote.id!=0:remoteId!=0;}
+    public static long activeSkipId(){return MP.isHost()?vote.id:remoteId;}
+    public static boolean hasSkipVote(){return activeSkipId()!=0;}
     public static boolean skipCanRespond(){return active()&&(MP.isHost()?vote.canVote(HOST):remoteCanVote);}
     public static boolean skipCanCancel(){return MP.isHost()?vote.id!=0&&vote.proposer==HOST&&vote.remaining==0:remoteCanCancel;}
     public static String incomingSkipStatus(){

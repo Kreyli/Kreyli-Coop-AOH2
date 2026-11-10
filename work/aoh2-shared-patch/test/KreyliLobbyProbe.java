@@ -63,7 +63,14 @@ public final class KreyliLobbyProbe {
                 }
                 if(phase==0&&frame>=300&&(host||Files.exists(channel.resolve("ready")))){
                     require(!KreyliProfile.steamLinked()&&KreyliProfile.nick().length()>=2,"Offline profile available without Steam");
-                    for(int i=0;i<5&&KreyliProfile.avatar()==null;i++)KreyliProfile.cycleAvatar();
+                    byte[] picture=new byte[128*128*4];
+                    for(int i=0;i<picture.length;i+=4){
+                        picture[i]=(byte)(host?224:80);
+                        picture[i+1]=(byte)(host?75:160);
+                        picture[i+2]=(byte)200;
+                        picture[i+3]=(byte)255;
+                    }
+                    KreyliProfile.selectAvatar(KreyliProfile.addAvatar(picture));
                     require(KreyliProfile.avatar()!=null,"Custom local avatar generated");
                     MP.nick=host?"KreyliHost":"KreyliGuest";MP.port=port;MP.password="test-only";MP.listInLobby=false;MP.hostDirect=true;
                     if(host){MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;KreyliTurns.saveWaitSetting(30);click(1);require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");Files.writeString(channel.resolve("ready"),"ok");}
@@ -74,7 +81,7 @@ public final class KreyliLobbyProbe {
                     if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.members.size()==1){
                         require(!KreyliLobby.gate.released,"No implicit start");initialShared=SharedSupport.shared;
                         Menu room=CFG.menus.getActiveMenu().get(0);
-                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==15,"Settings inside room without Apply or Region");
+                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==14,"Settings inside room without Apply or Region");
                         click(KreyliLobbyRoom.MODE);
                         require(SharedSupport.shared!=initialShared,"Country mode applies immediately");
                         click(KreyliLobbyRoom.TIMER);
@@ -91,7 +98,7 @@ public final class KreyliLobbyProbe {
                     }
                     if(phase==2&&KreyliLobby.gate.released){
                         require(CFG.menus.getInGamesMenu(),"Both-ready opens campaign selector");
-                        require(MP.clients.get(0).nick.equals("RenamedGuest")&&KreyliProfile.avatar("RenamedGuest")!=null,
+                        require(MP.clients.get(0).nick.equals("RenamedGuest")&&KreyliProfile.avatar("RenamedGuest")!=null&&KreyliProfile.avatar("RenamedGuest").getRegionWidth()==128,
                                 "Guest nickname and avatar propagated to host");
                         KreyliUiProbe.capture("kreyli-game-selector.png");Files.writeString(channel.resolve("released"),"ok");phase=3;
                     }
@@ -104,7 +111,7 @@ public final class KreyliLobbyProbe {
                 }else{
                     if(phase==1&&state("active")&&Files.exists(channel.resolve("host-ready"))){
                         require(MP_UI.inView(View.eMP_JOINING),"Guest lobby visible");
-                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");
+                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==10,"Guest room layout");
                         require(KreyliLobby.timerLabel(45).equals(KreyliLobby.timerLabel()),"Timer synchronized");
                         KreyliProfile.setNickname(KreyliLobby.hostDisplay());phase=4;return;
                     }

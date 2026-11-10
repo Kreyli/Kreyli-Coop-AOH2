@@ -9,6 +9,30 @@ import java.nio.file.*;
 /** Native diplomacy acceptance while ready, actual ready UI, and unanimous skip. */
 public final class KreyliTurnFeaturesProbe {
  static void require(boolean b,String message){if(!b)throw new AssertionError(message);}
+ static int[] hudControl(String action)throws Exception{
+  var field=KreyliTurnHud.class.getDeclaredField("hits");
+  field.setAccessible(true);
+  for(var entry:((java.util.Map<?,?>)field.get(null)).entrySet()){
+   if(!entry.getKey().toString().equals(action))continue;
+   Object box=entry.getValue();
+   int[] bounds=new int[4];
+   String[] names={"x","y","width","height"};
+   for(int i=0;i<bounds.length;i++){
+    var accessor=box.getClass().getDeclaredMethod(names[i]);
+    accessor.setAccessible(true);
+    bounds[i]=(Integer)accessor.invoke(box);
+   }
+   return bounds;
+  }
+  return null;
+ }
+ static void pressHud(String action)throws Exception{
+  int[] bounds=hudControl(action);
+  require(bounds!=null,"Missing HUD button: "+action);
+  int x=bounds[0]+bounds[2]/2,y=bounds[1]+bounds[3]/2;
+  require(KreyliTurnHud.touchDown(x,y,0,0)&&KreyliTurnHud.touchUp(x,y,0,0),"HUD consumes click: "+action);
+ }
+
  public static void main(String[] args)throws Exception{
   if(!Files.exists(Path.of(".coop-test-copy")))throw new IllegalStateException("Disposable copy required");
   boolean host=args[0].equals("host");Path channel=Path.of(args[1]);int port=Integer.parseInt(args[2]);
@@ -20,14 +44,6 @@ public final class KreyliTurnFeaturesProbe {
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
-   void pressHud(String text){
-    var menu=CFG.menus.getInGameMenu(CFG.menus.INGAME_MP_CHAT_TOGGLE);
-    for(int i=0;i<menu.getMenuElemsSize();i++){
-     var control=menu.getMenuElem(i);
-     if(control.getVisibleE()&&text.equals(control.getTextE())){menu.actionEL(i);return;}
-    }
-    throw new AssertionError("Missing HUD button: "+text);
-   }
    public void render(){try{super.render();frames++;
     if(frames%300==0)System.out.println("TURN_FEATURES "+(host?"host":"client")+" phase="+phase+" turn="+GameCalendar.TURNID);
     if(phase==0&&frames>300&&CFG.core.getCivsSize()>2&&(host||exists("ready"))){
@@ -43,7 +59,17 @@ public final class KreyliTurnFeaturesProbe {
       guestCiv=MP.clients.get(0).civ;guestGold=CFG.core.getCiv(guestCiv).getGold();senderGold=CFG.core.getCiv(hostCiv).getGold();
       GameManager.sendGift(guestCiv,hostCiv,10);require(CFG.core.getCiv(hostCiv).getGold()==senderGold-10,"Gift debited sender");MP.requestSync();signal("gift-sent",Long.toString(guestGold));phase=3;
      }
-     if(phase==3&&exists("accepted")&&CFG.core.getCiv(guestCiv).getGold()==guestGold+10){signal("gift-applied","ok");KreyliTurns.chooseSkip();KreyliTurns.proposeSkip();startTurn=GameCalendar.TURNID;phase=4;}
+     if(phase==3&&exists("accepted")&&CFG.core.getCiv(guestCiv).getGold()==guestGold+10&&hudControl("OPEN")!=null){
+      int[] arrow=hudControl("OPEN");
+      var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
+      require(arrow[3]==button.getHeightE()&&arrow[2]<button.getWidthE(),"Arrow is narrower and as high as native Ready");
+      pressHud("OPEN");phase=30;
+     }
+     if(phase==30&&hudControl("MORE")!=null){
+      KreyliUiProbe.capture("kreyli-skip-chooser.png");
+      pressHud("MORE");require(KreyliTurns.selectedSkipCount()==2,"Chooser changes the selected count");
+      pressHud("PROPOSE");signal("gift-applied","ok");startTurn=GameCalendar.TURNID;phase=4;
+     }
      if(phase==4&&exists("cancelled")&&KreyliTurns.vote.id==0){require(GameCalendar.TURNID==startTurn,"No turn with one vote");KreyliTurns.proposeSkip();signal("second-proposal","ok");phase=5;}
      if(phase==5&&GameCalendar.TURNID==startTurn+2&&playable()&&KreyliTurns.vote.id==0){signal("host-final",CFG.core.getCiv(guestCiv).getGold()+","+GameCalendar.TURNID);MP.endTurnPressed();phase=6;waitStart=0;}
      if(phase==6&&exists("stale-sent")){if(waitStart==0)waitStart=System.currentTimeMillis();if(System.currentTimeMillis()-waitStart>2000){require(GameCalendar.TURNID==startTurn+2&&!MP.clients.get(0).ready,"Stale prior-turn ready did not advance ready host");MP.endTurnPressed();signal("stale-rejected","ok");phase=7;}}
@@ -57,7 +83,23 @@ public final class KreyliTurnFeaturesProbe {
       MP.turnSeconds=90;MP.endTurnPressed();signal("early-ready","ok");phase=10;
      }
      if(phase==10&&GameCalendar.TURNID==startTurn+4&&playable()){signal("early-advanced","ok");phase=11;}
-     if(phase==11&&exists("client-pass")){MP.stop();System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout and early advance");Runtime.getRuntime().halt(0);}
+     if(phase==11&&exists("client-pass")){
+      MP.stop();
+      for(Menu top:new Menu[]{
+        new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),
+        new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_2()
+      }){
+       int hidden=0;
+       for(var item:top.menuElem){
+        String type=item.getClass().getName();
+        if(type.endsWith("$8")||type.endsWith("$14")){
+         require(!item.getVisibleE(),"Solo speed control hidden");
+         hidden++;
+        }
+       }
+       require(hidden==2,"Both solo speed controls verified");
+      }
+      System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout and early advance");Runtime.getRuntime().halt(0);}
     }else{
      if(phase==1&&MP.picking&&exists("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(read("ready"));civ=1;while(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;MP.pick(civ);phase=2;}
      if(phase==2&&MP.myCiv==civ&&!MP.picking&&playable()){
@@ -67,8 +109,8 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==3&&exists("gift-sent")){
       var box=CFG.core.getCiv(civ).getCivDiploGD().messageBox;for(int i=0;i<box.getMessagesSize();i++)if(box.getMessage(i) instanceof Message_Gift gift){require(MP.ready,"Recipient still ready when gift arrives");gift.onAccept(civ);require(!MP.ready,"Gift acceptance withdraws readiness");signal("accepted","ok");phase=4;break;}
      }
-     if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){pressHud(KreyliText.t("Отказать","Reject"));signal("cancelled","ok");phase=5;}}
-     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()){pressHud(KreyliText.t("Принять","Accept"));phase=6;}
+     if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){KreyliUiProbe.capture("kreyli-skip-notice.png");pressHud("DECLINE");signal("cancelled","ok");phase=5;}}
+     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()&&hudControl("ACCEPT")!=null){pressHud("ACCEPT");phase=6;}
      if(phase==6&&exists("host-final")&&playable()){String[] parts=read("host-final").split(",");if(GameCalendar.TURNID==Integer.parseInt(parts[1])){
       require(CFG.core.getCiv(civ).getGold()==Long.parseLong(parts[0]),"Final money agrees");
       var hostField=MP.class.getDeclaredField("host");hostField.setAccessible(true);var count=MP.class.getDeclaredField("sentCmds");count.setAccessible(true);
