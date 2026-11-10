@@ -100,10 +100,6 @@ public final class SharedAgent implements Opcodes {
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,hud,"draw",d,false);
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,profile,"draw",d,false);
                         }
-                        if(name.equals(ui)&&n.equals("drawChat")&&opcode==RETURN){
-                            for(int i=1;i<=3;i++)super.visitVarInsn(ILOAD,i);
-                            super.visitMethodInsn(INVOKESTATIC,hud,"anchorChat","(III)V",false);
-                        }
                         if(topMenu&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
                             super.visitMethodInsn(INVOKESTATIC,hud,"anchorDate","(L"+root+"Menu;II)V",false);

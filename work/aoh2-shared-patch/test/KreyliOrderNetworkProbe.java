@@ -57,7 +57,6 @@ public final class KreyliOrderNetworkProbe {
     if(host){
      if(phase==1&&MP.started&&playable()){put("ready",Integer.toString(civ));phase=2;}
      if(phase==2&&has("guest-in")){
-      MP.relayCode="KRY113";MP.chatOpen=true;
       guestCiv=MP.clients.get(0).civ;
       var treasury=CFG.core.getCiv(hostCiv);
       long balance=treasury.getGold(), earned=KreyliProfile.earned();
@@ -66,7 +65,7 @@ public final class KreyliOrderNetworkProbe {
       CFG.core.getCiv(hostCiv).setAlliance(0);CFG.core.getCiv(guestCiv).setAlliance(0);
       MP.requestSync();put("nonallied","ok");phase=3;
      }
-     if(phase==3&&has("nonallied-synced")){KreyliUiProbe.capture("kreyli-chat-code.png");MP.relayCode=null;KreyliPings.reset();ping();began=System.nanoTime();put("nonallied-ping","ok");phase=4;}
+     if(phase==3&&has("nonallied-synced")){KreyliPings.reset();ping();began=System.nanoTime();put("nonallied-ping","ok");phase=4;}
      if(phase==4&&has("nonallied-pass")){CFG.core.addAlliance("Probe alliance");int alliance=CFG.core.getAlliancesSize()-1;CFG.core.getCiv(hostCiv).setAlliance(alliance);CFG.core.getCiv(guestCiv).setAlliance(alliance);MP.requestSync();put("allied",Integer.toString(alliance));phase=5;}
      if(phase==5&&has("allied-synced")){KreyliPings.reset();pressAlt(com.badlogic.gdx.Input.Keys.ALT_RIGHT,640);check(KreyliPings.marks.isEmpty(),"Right Alt ignored");ping();var first=KreyliPings.marks.getFirst();pressAlt(com.badlogic.gdx.Input.Keys.ALT_LEFT,680);var last=KreyliPings.marks.getLast();check(KreyliPings.marks.size()==1&&last.x()!=first.x()&&last.until()>first.until(),"New Alt mark replaces old and renews lifetime");put("allied-ping",Integer.toString(last.x()));phase=6;}
      if(phase==6&&has("allied-pass")&&KreyliPings.marks.stream().anyMatch(p->!p.fromHost())){

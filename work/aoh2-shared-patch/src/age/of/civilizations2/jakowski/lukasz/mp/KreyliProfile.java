@@ -176,8 +176,8 @@ public final class KreyliProfile {
         }
         try{
             if(!isOriginalAvatar(data))pix.getPixels().put(data).rewind();
-            Texture texture=new Texture(pix);
-            texture.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);
+            Texture texture=new Texture(pix,true);
+            texture.setFilter(Texture.TextureFilter.MipMapLinearLinear,Texture.TextureFilter.Linear);
             TextureRegion region=new TextureRegion(texture);
             portraits.put(slot,new Portrait(data,region));
             return region;

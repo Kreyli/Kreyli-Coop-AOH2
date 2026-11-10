@@ -217,20 +217,21 @@ public final class KreyliProfileUi {
         if(players.isEmpty())return;
         int columns=players.size()>8?3:players.size()>4?2:1;
         int rows=(players.size()+columns-1)/columns;
-        int width=Math.min(CFG.GAMEWIDTH/(columns+2),Math.max(CFG.BUTTON_W,row()*4));
+        int portraitSize=Math.max(144,row()*5);
+        int width=Math.min(CFG.GAMEWIDTH/(columns+2),Math.max(CFG.BUTTON_W,portraitSize+CFG.PADD*4));
         int desiredX=menu.getPosX()+offsetX+CFG.PADD+menu.getWidthM();
         int startX=Math.max(CFG.PADD,Math.min(CFG.GAMEWIDTH-width*columns-CFG.PADD,desiredX));
         int startY=Math.max(CFG.PADD,menu.getPosY()+offsetY+CFG.PADD);
         float previous=batch.getPackedColor();
         try{
-            int height=Math.min(row()*5,(CFG.GAMEHEIGHT-startY-CFG.PADD)/rows);
+            int height=Math.min(portraitSize+row()+CFG.PADD*2,(CFG.GAMEHEIGHT-startY-CFG.PADD)/rows);
             if(height<row()*2)return;
             for(int i=0;i<players.size();i++){
                 var controller=players.get(i);
                 int x=startX+width*(i%columns),y=startY+height*(i/columns);
                 Box card=new Box(x,y,width,height-CFG.PADD);
                 fill(batch,card,PANEL);
-                int size=Math.min(width-CFG.PADD*4,height-row()*2);
+                int size=Math.min(width-CFG.PADD*4,height-row()-CFG.PADD*2);
                 if(size>0)drawAvatar(batch,x+(width-size)/2,y+CFG.PADD,size,controller.avatar());
                 String name=MP_UI.fit(controller.nick(),width-CFG.PADD*2);
                 text(batch,name,x+(width-MP_UI.textWidth(name))/2,y+height-row(),Color.WHITE);

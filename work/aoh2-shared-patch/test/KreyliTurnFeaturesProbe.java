@@ -64,10 +64,25 @@ public final class KreyliTurnFeaturesProbe {
       var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
       require(arrow[0]==CFG.menus.getInGameProvInfo().getMenuPosX()+button.getPosXE(),"Arrow stays inside Ready bounds");
       require(arrow[3]==button.getHeightE()&&arrow[2]<button.getWidthE(),"Arrow is narrower and as high as native Ready");
-      pressHud("OPEN");phase=30;
+      MP.relayCode="KRY114";pressHud("OPEN");phase=30;
      }
      if(phase==30&&hudControl("MORE")!=null){
       KreyliUiProbe.capture("kreyli-skip-chooser.png");
+      CFG.menus.setVisible_InGame_Options(true);
+      phase=31;return;
+     }
+     if(phase==31){
+      require(CFG.menus.getInGameView_Options()&&hudControl("OPEN")==null&&hudControl("MORE")==null,"Pause hides skip overlay");
+      KreyliUiProbe.capture("kreyli-skip-paused.png");
+      CFG.menus.setVisible_InGame_Options(false);
+      phase=32;return;
+     }
+     if(phase==32&&hudControl("OPEN")!=null){
+      require(hudControl("MORE")==null,"Closing pause does not reopen chooser");
+      pressHud("OPEN");phase=33;return;
+     }
+     if(phase==33&&hudControl("MORE")!=null){
+      MP.relayCode=null;
       pressHud("MORE");require(KreyliTurns.selectedSkipCount()==2,"Chooser changes the selected count");
       pressHud("PROPOSE");signal("gift-applied","ok");startTurn=GameCalendar.TURNID;phase=4;
      }
