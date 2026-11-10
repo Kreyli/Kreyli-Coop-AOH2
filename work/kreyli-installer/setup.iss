@@ -4,7 +4,7 @@
 [Setup]
 AppId=KreyliCoopAOH2
 AppName=Kreyli Coop AOH2
-AppVersion=1.1.10
+AppVersion=1.1.11
 AppPublisher=Kreyli
 DefaultDirName={localappdata}\Programs\Kreyli Coop AOH2
 DefaultGroupName=Kreyli Coop AOH2

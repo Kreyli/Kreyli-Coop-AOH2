@@ -23,6 +23,7 @@ public final class SharedAgent implements Opcodes {
         reader.accept(new ClassVisitor(ASM8,writer){
             public FieldVisitor visitField(int a,String n,String d,String sig,Object value){
                 if(name.equals(P+"MP")&&n.equals("MOD_VERSION"))value="1.0";
+                if(name.equals(P+"MP")&&n.equals("VERSION")&&value instanceof String version)value=version+"|kreyli-coop-4";
                 return super.visitField(a,n,d,sig,value);
             }
             public MethodVisitor visitMethod(int a,String n,String d,String sig,String[] ex){
@@ -76,9 +77,9 @@ public final class SharedAgent implements Opcodes {
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"drawFooter",d,false);
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,profile,"draw",d,false);
                         }
-                        if((name.equals(province)||name.equals(country))&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
+                        if(name.equals(country)&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
-                            super.visitMethodInsn(INVOKESTATIC,profile,name.equals(province)?"drawProvince":"drawCountry","(L"+root+"Menu;Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;II)V",false);
+                            super.visitMethodInsn(INVOKESTATIC,profile,"drawCountry","(L"+root+"Menu;Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;II)V",false);
                         }
                         if(name.equals(main)&&(n.equals("<init>")||n.equals("updateLang"))&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);super.visitMethodInsn(INVOKESTATIC,b,"mainMenu","(Lage/of/civilizations2/jakowski/lukasz/Menu;)V",false);
@@ -102,6 +103,14 @@ public final class SharedAgent implements Opcodes {
         reader.accept(new ClassVisitor(ASM8,writer){
             public MethodVisitor visitMethod(int access,String name,String descriptor,String signature,String[] exceptions){
                 MethodVisitor original=super.visitMethod(access,name,descriptor,signature,exceptions);
+                if(!gold&&name.equals("loadProvinceBG"))return new MethodVisitor(ASM8,original){
+                    public void visitMethodInsn(int opcode,String owner,String method,String desc,boolean itf){
+                        if(opcode==INVOKESTATIC&&owner.equals("com/badlogic/gdx/graphics/PixmapIO")
+                                &&method.equals("readCIM")&&desc.equals("(Lcom/badlogic/gdx/files/FileHandle;)Lcom/badlogic/gdx/graphics/Pixmap;")){
+                            super.visitMethodInsn(opcode,P+"KreyliTextureCache","read",desc,false);
+                        }else super.visitMethodInsn(opcode,owner,method,desc,itf);
+                    }
+                };
                 if(gold?!(name.equals("setGold")&&descriptor.equals("(J)V"))
                        :!(name.equals("setCivId")&&descriptor.equals("(IZZ)V")))return original;
                 return new MethodVisitor(ASM8,original){
@@ -159,6 +168,11 @@ public final class SharedAgent implements Opcodes {
                                     call(n,d);Label proceed=new Label();super.visitJumpInsn(IFEQ,proceed);super.visitInsn(RETURN);super.visitLabel(proceed);
                                 }
                                 public void visitCode(){super.visitCode();
+                                    if(name.equals(P+"MP_UI")&&method.equals("updateInGame")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"MP","isOn","()Z",false);
+                                        Label networked=new Label();super.visitJumpInsn(IFNE,networked);
+                                        super.visitInsn(RETURN);super.visitLabel(networked);
+                                    }
                                     if(name.equals(P+"MP_Net")&&method.equals("writeLine")){found.add(method);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliBrowser","advertise","(Ljava/lang/String;)Ljava/lang/String;",false);super.visitVarInsn(ASTORE,1);}
                                     if(name.equals(P+"MP_UI$PlayersTable")&&method.equals("actionEL")){
                                         found.add(method);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,1);
@@ -198,7 +212,17 @@ public final class SharedAgent implements Opcodes {
                                 }
                                 public void visitLdcInsn(Object v){
                                     if(launcher&&"Age of History 2: Definitive Edition Multiplayer".equals(v)){v="Kreyli Coop AOH2";found.add("title");}
-                                    if(v instanceof String s&&s.equals("AoH2DE-MP-2.2|2.01 Definitive Edition"))v=s+"|kreyli-coop-3";super.visitLdcInsn(v);
+                                    if(v instanceof String s&&s.equals("AoH2DE-MP-2.2|2.01 Definitive Edition"))v=s+"|kreyli-coop-4";super.visitLdcInsn(v);
+                                }
+                                public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                                    String config="com/badlogic/gdx/backends/lwjgl3/Lwjgl3ApplicationConfiguration";
+                                    if(launcher&&owner.equals(config)&&method.equals("setFullscreenMode")
+                                            &&descriptor.equals("(Lcom/badlogic/gdx/Graphics$DisplayMode;)V")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliWindow","borderless",
+                                                "(L"+config+";Lcom/badlogic/gdx/Graphics$DisplayMode;)V",false);
+                                        return;
+                                    }
+                                    super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                                 }
                                 public void visitInsn(int opcode){
                                     if(name.equals(P+"MP_Save")&&method.equals("saveToDisk")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);
@@ -210,7 +234,11 @@ public final class SharedAgent implements Opcodes {
                                     if(name.equals(P+"MP")){
                                         if(opcode==RETURN){if(method.equals("update")){super.visitMethodInsn(INVOKESTATIC,P+"KreyliOrderSync","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","tick","()V",false);}if(method.equals("onNewTurn"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","newTurn","()V",false);if(method.equals("onEnterInGame"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","restoreConnected","()V",false);}
                                         if(method.equals("loadSettings")&&opcode==RETURN){found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
-                                        if(method.equals("t")&&opcode==ARETURN){found.add(method);super.visitVarInsn(ALOAD,0);call("brandedText","(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");}
+                                        if(method.equals("t")&&opcode==ARETURN){
+                                            found.add(method);
+                                            super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitVarInsn(ALOAD,2);
+                                            call("brandedText","(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+                                        }
                                         if(method.equals("startHost")&&opcode==IRETURN){found.add(method);super.visitInsn(DUP);Label skip=new Label();super.visitJumpInsn(IFEQ,skip);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","hostStarted","()V",false);super.visitLabel(skip);}
                                         if(method.equals("onCmd")&&opcode==RETURN){found.add(method);call("afterCommand","()V");}
                                         if(method.equals("assign")&&opcode==RETURN){super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","assigned","("+C+"I)V",false);}

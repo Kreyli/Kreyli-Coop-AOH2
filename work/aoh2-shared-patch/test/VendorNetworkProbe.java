@@ -10,24 +10,6 @@ import java.util.*;
 
 /** Two-process upstream baseline. Coordination files contain only disposable test data. */
 public class VendorNetworkProbe {
-  static boolean capStarted;
-  static volatile boolean capPassed;
-  static void checkCapacity(int port){
-    capStarted=true;
-    Thread worker=new Thread(()->{
-      try(var socket=new java.net.Socket("127.0.0.1",port)){
-        socket.setSoTimeout(15000);
-        var out=new java.io.DataOutputStream(socket.getOutputStream());
-        byte[] data=MP_Net.encode("hello","AoH2DE-MP-2.2|2.01 Definitive Edition|kreyli-coop-3","ThirdBot",MP.password);
-        out.writeInt(data.length);out.write(data);out.flush();
-        var in=new java.io.DataInputStream(socket.getInputStream());int size=in.readInt();
-        if(size<1||size>65536)throw new AssertionError("Bad rejection frame");
-        Object[] reply=MP_Net.decode(in.readNBytes(size));
-        if(reply.length<2||!"reject".equals(reply[0])||!"Kreyli_LobbyFull".equals(reply[1]))throw new AssertionError("Third player accepted: "+Arrays.toString(reply));
-        capPassed=true;System.out.println("KREYLI_CAPACITY: PASS third player rejected by native host");
-      }catch(Throwable error){error.printStackTrace();Runtime.getRuntime().halt(9);}
-    },"capacity-probe");worker.setDaemon(true);worker.start();
-  }
   static Path channel; static boolean host;
   static void signal(String name,String data)throws Exception{Files.writeString(channel.resolve(name),data);}
   static boolean exists(String name){return Files.exists(channel.resolve(name));}
@@ -72,7 +54,6 @@ public class VendorNetworkProbe {
           phase=1;
         }
         if(host){
-          if(Boolean.getBoolean("coop.patch")&&!Boolean.getBoolean("coop.relay")&&!capStarted&&MP.clients.size()==1)checkCapacity(port);
           if(phase==1&&MP.started&&playable()){
             if(Boolean.getBoolean("coop.race"))CFG.core.getCiv(country).setGold(150);
             if(Boolean.getBoolean("coop.battle")){
@@ -122,7 +103,6 @@ public class VendorNetworkProbe {
             signal("host-next",CFG.core.getCiv(country).getGold()+","+GameCalendar.TURNID);phase=5;
           }
           if(phase==5&&exists("client-pass")&&(!Boolean.getBoolean("coop.shared")||MP.clients.isEmpty())){
-            if(Boolean.getBoolean("coop.patch")&&!Boolean.getBoolean("coop.relay")&&!capPassed)return;
             if(Boolean.getBoolean("coop.shared")&&!CFG.core.getCiv(country).getIsPlayer())throw new AssertionError("Guest departure disabled host country");
             System.out.println("VENDOR_NET: PASS host two-process investment and native turn; departing guest preserves host control");Runtime.getRuntime().halt(0);
           }

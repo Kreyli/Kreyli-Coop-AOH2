@@ -21,7 +21,7 @@ public final class KreyliLobbyRoom extends Menu {
         int gap=CFG.PADD*2;
         int width=Math.min(CFG.GAMEWIDTH-gap*4,Math.max(CFG.BUTTON_W*5,CFG.GAMEWIDTH*3/4));
         int row=Math.max(1,Math.min(CFG.BUTTON_H,(CFG.GAMEHEIGHT-CFG.BUTTON_H*3-gap*4)/9));
-        int height=row*(host?8:6)+gap*4;
+        int height=row*8+gap*4;
         int left=(width-gap*3)/2;
         int rightX=left+gap*2;
         int right=width-rightX-gap;
@@ -30,21 +30,21 @@ public final class KreyliLobbyRoom extends Menu {
         int quarter=(width-gap*5)/4;
         var elements=new ArrayList<MenuElemUI>();
 
-        elements.add(new RoomButton(()->"Игроки  "+(guestPresent()?"2 / 2":"1 / 2"),gap,gap,left,row,null));
-        elements.add(new RoomButton(()->player(true),gap,first,left,row,null));
-        elements.add(new RoomButton(()->player(false),gap,first+row,left,row,null));
-        elements.add(new RoomButton(this::status,gap,first+row*3,left,row,null));
-        elements.add(new RoomButton(()->"Настройки лобби",rightX,gap,right,row,null));
+        elements.add(new RoomButton(()->KreyliText.nativeLabel("Players","Players")+"  "+KreyliLobby.roster().size()+" / "+KreyliSteam.MAX_PLAYERS,gap,gap,left,row,null));
+        elements.add(new RoomButton(()->"",gap,first,left,row,null));
+        elements.add(new RoomButton(()->"",gap,first+row,left,row,null));
+        elements.add(new RoomButton(this::status,gap,bottom-row,left,row,null));
+        elements.add(new RoomButton(()->KreyliText.t("Настройки лобби","Lobby settings"),rightX,gap,right,row,null));
         elements.add(new RoomButton(this::readyText,gap*4+quarter*3,bottom,width-gap*5-quarter*3,row,KreyliLobby::toggleReady));
-        elements.add(new RoomButton(()->"Пригласить через Steam",gap*3+quarter*2,bottom,quarter,row,KreyliSteam::inviteFriends));
+        elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*3+quarter*2,bottom,quarter,row,KreyliSteam::inviteFriends));
         elements.add(new RoomButton(()->"Discord",gap*2+quarter,bottom,quarter,row,KreyliLobby::discord));
-        elements.add(new RoomButton(()->"Назад",gap,bottom,quarter,row,this::leave));
+        elements.add(new RoomButton(()->KreyliText.nativeLabel("Back","Back"),gap,bottom,quarter,row,this::leave));
 
         if(host){
             elements.add(new RoomButton(this::mode,rightX,first,right,row,()->change(MODE)));
             elements.add(new SettingInput(PASSWORD,rightX,first+row,right,row));
             elements.add(new RoomButton(this::timer,rightX,first+row*2,right,row,()->change(TIMER)));
-            elements.add(new RoomButton(()->"Публичный список: "+MP_Form.yesNo(MP.listInLobby),rightX,first+row*3,right,row,()->change(LISTED)));
+            elements.add(new RoomButton(()->KreyliText.t("Публичный список: ","Public listing: ")+MP_Form.yesNo(MP.listInLobby),rightX,first+row*3,right,row,()->change(LISTED)));
             elements.add(new RoomButton(this::connection,rightX,first+row*4,right,row,()->change(CONNECTION)));
             elements.add(new SettingInput(PORT,rightX,first+row*5,right,row));
         }else{
@@ -52,30 +52,23 @@ public final class KreyliLobbyRoom extends Menu {
             elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
         }
 
-        initMenu(MP_Form.titleBar("Мультиплеер · Лобби"),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
+        initMenu(MP_Form.titleBar(KreyliText.t("Мультиплеер · Лобби","Multiplayer · Lobby")),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
     }
 
-    private String mode(){return SharedSupport.shared?"Страны: общая страна":"Страны: разные страны";}
-    private String timer(){return "Ожидание второго игрока: "+KreyliLobby.timerLabel();}
+    private String mode(){return SharedSupport.shared?KreyliText.t("Страны: общая страна","Countries: shared country"):KreyliText.t("Страны: разные страны","Countries: separate countries");}
+    private String timer(){return KreyliText.t("Ожидание игроков: ","Wait for players: ")+KreyliLobby.timerLabel();}
     private String connection(){
-        return MP.hostDirect?"Подключение: LAN / VPN":"Код комнаты: "+MP.relayCode;
-    }
-    private boolean guestPresent(){return !KreyliLobby.guestDisplay().isEmpty();}
-    private String player(boolean organizer){
-        if(!organizer&&!guestPresent())return "Ожидаем второго игрока";
-        String name=organizer?KreyliLobby.hostDisplay():KreyliLobby.guestDisplay();
-        boolean ready=organizer?KreyliLobby.hostIsReady():KreyliLobby.guestIsReady();
-        return name+(organizer?" (хост)":"")+"  ·  "+(ready?"Готов":"Не готов");
+        return MP.hostDirect?KreyliText.t("Подключение: LAN / VPN","Connection: LAN / VPN"):KreyliText.t("Код комнаты: ","Room code: ")+MP.relayCode;
     }
     private String status(){
-        if(KreyliLobby.choosingGame())return "Хост выбирает кампанию";
-        if(KreyliLobby.countdown()>0)return "Старт через "+KreyliLobby.countdown()+" с";
-        int ready=(KreyliLobby.hostIsReady()?1:0)+(KreyliLobby.guestIsReady()?1:0);
-        return "Готовы: "+ready+" / "+(guestPresent()?2:1);
+        if(KreyliLobby.choosingGame())return KreyliText.t("Хост выбирает кампанию","Host is choosing a campaign");
+        if(KreyliLobby.countdown()>0)return KreyliText.t("Старт через ","Starting in ")+KreyliLobby.countdown()+KreyliText.t(" с"," s");
+        long ready=KreyliLobby.roster().stream().filter(KreyliLobby.Member::ready).count();
+        return KreyliText.t("Готовы: ","Ready: ")+ready+" / "+KreyliLobby.roster().size();
     }
     private String readyText(){
-        if(KreyliLobby.choosingGame())return host?"Выбрать игру":"Ожидаем хоста";
-        return (host?KreyliLobby.hostIsReady():KreyliLobby.guestIsReady())?"Отменить готовность":"Готов";
+        if(KreyliLobby.choosingGame())return host?KreyliText.t("Выбрать игру","Choose campaign"):KreyliText.t("Ожидаем хоста","Waiting for host");
+        return (host?KreyliLobby.hostIsReady():KreyliLobby.guestIsReady())?KreyliText.t("Отменить готовность","Cancel ready"):KreyliText.t("Готов","Ready");
     }
     private void leave(){Gdx.app.postRunnable(()->{MP.stop();MP_UI.open(View.eMP);});}
     @Override public void onBackPressed(){leave();}
@@ -120,7 +113,7 @@ public final class KreyliLobbyRoom extends Menu {
         }
         @Override public String getTextToDrawElem(){
             String value=getTextE();
-            return field==PASSWORD?"Пароль: "+(value.isEmpty()?"без пароля":"•".repeat(Math.min(20,value.length()))):"Порт LAN: "+value;
+            return field==PASSWORD?KreyliText.t("Пароль: ","Password: ")+(value.isEmpty()?KreyliText.t("без пароля","none"):"•".repeat(Math.min(20,value.length()))):KreyliText.t("Порт LAN: ","LAN port: ")+value;
         }
         @Override public boolean getIsClickable(){return field==PORT?canChangeEndpoint():canEdit();}
         @Override public void actionElem(int index){
@@ -164,6 +157,19 @@ public final class KreyliLobbyRoom extends Menu {
         @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
             if(action==null){
                 int index=menuElem.indexOf(this);
+                if(index==1){
+                    var members=KreyliLobby.roster();
+                    int width=(getWidthE()-CFG.PADD)/2;
+                    for(int i=0;i<members.size();i++){
+                        var member=members.get(i);
+                        String label=member.name()+" · "+(member.ready()?KreyliText.t("Готов","Ready"):KreyliText.t("Не готов","Not ready"));
+                        int row=i%5,column=i/5;
+                        Renderer.drawTextWithShadow(batch,MP_UI.font(),MP_UI.fit(label,width-CFG.PADD*2),
+                                x+getPosXE()+CFG.PADD+column*width,y+getPosY()+row*getHeightE(),
+                                member.ready()?MP.GOOD:Color.WHITE);
+                    }
+                    return;
+                }
                 Color color=switch(index){
                     case 0,4 -> CFG.COLOR_TEXT_CIV_INFO_TITLE;
                     case 1 -> KreyliLobby.hostIsReady()?MP.GOOD:Color.WHITE;
@@ -172,13 +178,6 @@ public final class KreyliLobbyRoom extends Menu {
                     default -> Color.WHITE;
                 };
                 int left=CFG.PADD;
-                if(index==1||index==2&&guestPresent()){
-                    String nick=index==1?KreyliLobby.hostDisplay():KreyliLobby.guestDisplay();
-                    int size=Math.max(12,Math.min(getHeightE()-CFG.PADD*2,CFG.BUTTON_H/2));
-                    KreyliProfileUi.drawAvatar(batch,x+getPosXE()+left,
-                            y+getPosY()+(getHeightE()-size)/2,size,KreyliProfile.avatar(nick));
-                    left+=size+CFG.PADD;
-                }
                 String value=MP_UI.fit(label.get(),getWidthE()-left-CFG.PADD);
                 Renderer.drawTextWithShadow(batch,MP_UI.font(),value,
                         x+getPosXE()+left,y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,color);

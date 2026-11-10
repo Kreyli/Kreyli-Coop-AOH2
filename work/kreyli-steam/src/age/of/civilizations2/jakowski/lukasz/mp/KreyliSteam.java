@@ -8,7 +8,8 @@ import java.util.ArrayList;
 
 /** Steam is a rendezvous/overlay layer; the game protocol remains authoritative. */
 public final class KreyliSteam {
-    static final String PROTOCOL="kreyli-aoh2-2.2-ready-3";
+    static final String PROTOCOL="kreyli-aoh2-2.2-ready-4";
+    public static final int MAX_PLAYERS=10;
     private static boolean overlayVisible;
     public static boolean overlayVisible(){return overlayVisible;}
     private static SteamFriends friends;
@@ -76,7 +77,7 @@ public final class KreyliSteam {
             if(startupLobby!=0){long id=startupLobby;startupLobby=0;requestJoin(SteamID.createFromNativeHandle(id));}
             if(hosting&&lobby!=null&&System.currentTimeMillis()-lastRefresh>1000){
                 lastRefresh=System.currentTimeMillis();
-                matchmaking.setLobbyJoinable(lobby,MP.isHost()&&MP.clients.size()<1);
+                matchmaking.setLobbyJoinable(lobby,MP.isHost()&&MP.clients.size()<MAX_PLAYERS-1);
                 if(MP.isHost()&&!MP.password.equals(matchmaking.getLobbyData(lobby,"password")))matchmaking.setLobbyData(lobby,"password",MP.password);
             }
         }catch(Throwable e){System.err.println("KREYLI_STEAM: callback error: "+e);status="Ошибка Steam — игра по IP доступна";}
@@ -86,8 +87,8 @@ public final class KreyliSteam {
         leaveSession();hosting=true;
         if(!validRoom(MP.relayCode)){status="LAN: друг подключается по вашему IP; Steam-приглашения доступны в режиме кода комнаты";return;}
         if(creating){status="Ожидание создания Steam-лобби…";return;}
-        creating=true;status="Создаётся лобби Steam (2 игрока)…";
-        matchmaking.createLobby(SteamMatchmaking.LobbyType.FriendsOnly,2);
+        creating=true;status="Создаётся лобби Steam…";
+        matchmaking.createLobby(SteamMatchmaking.LobbyType.FriendsOnly,MAX_PLAYERS);
     }
     public static void inviteFriends(){
         if(!available()){notice(status);return;}
@@ -103,14 +104,14 @@ public final class KreyliSteam {
                 SteamID id=(SteamID)a[1];creating=false;
                 if(a[0]!=SteamResult.OK){status="Не удалось создать Steam-лобби: "+a[0];invitePending=false;return;}
                 if(!hosting||!MP.isHost()||!validRoom(MP.relayCode)){matchmaking.leaveLobby(id);return;}
-                lobby=id;matchmaking.setLobbyMemberLimit(id,2);
+                lobby=id;matchmaking.setLobbyMemberLimit(id,MAX_PLAYERS);
                 matchmaking.setLobbyData(id,"kreyli_protocol",PROTOCOL);
                 matchmaking.setLobbyData(id,"name","Kreyli Coop AOH2");
                 matchmaking.setLobbyData(id,"room",MP.relayCode.toUpperCase(Locale.ROOT));
                 matchmaking.setLobbyData(id,"relay",MP.selectedRegion()[0]);
                 matchmaking.setLobbyData(id,"password",MP.password);
                 friends.setRichPresence("connect","+connect_lobby "+SteamNativeHandle.getNativeHandle(lobby));
-                status="Steam-лобби готово — максимум 2 игрока";
+                status="Steam-лобби готово — максимум "+MAX_PLAYERS+" игроков";
                 if(invitePending){invitePending=false;inviteFriends();}
             }
             case "onLobbyEnter" -> {

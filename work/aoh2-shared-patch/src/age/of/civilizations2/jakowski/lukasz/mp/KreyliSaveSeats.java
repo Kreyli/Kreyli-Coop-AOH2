@@ -70,6 +70,7 @@ public final class KreyliSaveSeats {
 
     public static boolean reservedForOther(int civ, MP_Net.Conn connection) {
         String identity = identities.get(connection);
+        if(Objects.equals(seats.get(identity),civ))return false;
         for (var seat : seats.entrySet()) {
             if (seat.getValue() == civ && !seat.getKey().equals(identity)) return true;
         }

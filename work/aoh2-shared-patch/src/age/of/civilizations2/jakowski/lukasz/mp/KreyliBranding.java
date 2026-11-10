@@ -18,7 +18,7 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.10");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.11");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static boolean requested;
@@ -36,13 +36,15 @@ public final class KreyliBranding {
     public static int addCredits(List<MenuElemUI> items,int y){
         int x=AoCGame.LEFT+CFG.BUTTON_W/2;
         y+=CFG.PADD*6;
-        String[] lines={"Kreyli Coop AOH2","Создатель мода: Kreyli","Тестеры: -lockdown (Pin) и SpaceBodik","Спасибо, что играете!"};
+        String[] lines={"Kreyli Coop AOH2",KreyliText.t("Создатель мода: Kreyli","Mod creator: Kreyli"),
+                KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"),
+                KreyliText.t("Спасибо, что играете!","Thanks for playing!")};
         for(int i=0;i<lines.length;i++){
             MenuElemUI line=new TextScale(lines[i],x,y,i==0?1f:.9f);
             items.add(line);
             y+=line.getHeightE()+CFG.PADD*2;
         }
-        MenuElemUI discord=new Button_InGameBox("Discord проекта",-1,x,y,CFG.BUTTON_W*2,true){
+        MenuElemUI discord=new Button_InGameBox(KreyliText.t("Discord проекта","Project Discord"),-1,x,y,CFG.BUTTON_W*2,true){
             @Override public void actionElem(int index){KreyliLobby.discord();}
         };
         items.add(discord);
@@ -53,7 +55,7 @@ public final class KreyliBranding {
         if(menu.menuElem.size()>1){
             var singlePlayer=menu.menuElem.get(1);
             singlePlayer.setVisibleE(true);
-            singlePlayer.setTextE("Одиночная игра");
+            singlePlayer.setTextE(KreyliText.t("Одиночная игра","Single player"));
             menu.updateMenuElements_IsInView();
         }
         // The website link is the last of the two upstream linkButton entries.
@@ -106,6 +108,7 @@ public final class KreyliBranding {
     }
 
     public static void drawFooter(SpriteBatch batch){
+        if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliTextureCache.finishStartup();
         KreyliPings.draw(batch);
         CFG.drawTextDefaultWithShadow(batch,LABEL,Math.max(6,CFG.PADD),Math.max(0,CFG.GAMEHEIGHT-CFG.TEXT_HEIGHT_DEFAULT-Math.max(6,CFG.PADD)),FOOTER_COLOR);
     }

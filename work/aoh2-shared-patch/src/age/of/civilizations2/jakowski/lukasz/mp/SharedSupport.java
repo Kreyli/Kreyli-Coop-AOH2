@@ -10,12 +10,17 @@ import java.util.concurrent.Future;
 public final class SharedSupport {
     public static final String BRAND="Kreyli Coop AOH2";
     public static boolean rejectExtraPlayer(MP_Net.Conn connection){
-        if(MP.clients.size()<1)return false;
-        connection.sendAndClose("reject","Kreyli_LobbyFull",BRAND+": максимум 2 игрока"," ");
+        if(MP.clients.size()<KreyliSteam.MAX_PLAYERS-1)return false;
+        connection.sendAndClose("reject","Kreyli_LobbyFull",BRAND+": максимум "+KreyliSteam.MAX_PLAYERS+" игроков"," ");
         return true;
     }
-    public static String brandedText(String text,String key){
-        return "MP_Multiplayer".equals(key)?BRAND:"MP_ServerBrowser".equals(key)?"Список серверов":text;
+    public static String brandedText(String text,String key,String fallback,Object[] args){
+        if("MP_Multiplayer".equals(key))return BRAND;
+        if("MP_ServerBrowser".equals(key))return KreyliText.t("Список серверов","Server list");
+        if(text!=null&&!text.isBlank())return text;
+        String result=fallback;
+        for(int i=0;i<args.length;i++)result=result.replace("{"+i+"}",String.valueOf(args[i]));
+        return result;
     }
     public static boolean shared = Boolean.getBoolean("coop.shared");
     private static boolean pending, militaryOnly;
@@ -58,7 +63,7 @@ public final class SharedSupport {
         MP.clients.remove(connection);expected.remove(connection);acknowledged.remove(connection);
         MP.toast(connection.nick+" left",false);return true;
     }
-    public static boolean keepLeader(int civ){return shared && MP.started && civ==CFG.core.getPlayer(0).getCivId();}
+    public static boolean keepLeader(int civ){return MP.isOn();}
     public static Map<String,Object> pieces(Map<String,Object> pieces){
         if(shared){pieces.put("coop_mode",true);pieces.put("coop_revision",++revision);pieces.put("coop_armies",SharedState.capture());}
         else pieces.put("coop_mode",false);
@@ -90,6 +95,9 @@ public final class SharedSupport {
         return true;
     }
     public static boolean canEnd(){
+        return !KreyliTurns.blocksNativeAdvance()&&synchronizedToAdvance();
+    }
+    static boolean synchronizedToAdvance(){
         if(!shared)return true;
         for(var c:MP.clients)if(c.civ>0&&(!expected.containsKey(c)||!Objects.equals(expected.get(c),acknowledged.get(c))))return false;
         return true;

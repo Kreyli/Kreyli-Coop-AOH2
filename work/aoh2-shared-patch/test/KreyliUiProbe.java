@@ -13,7 +13,7 @@ import java.net.ServerSocket;
 /** Runs only against a marked disposable game copy; never initializes Steam or sends an invite. */
 public final class KreyliUiProbe {
     static void require(boolean value,String message){if(!value)throw new AssertionError(message);}
-    static void verifyProfile(){
+    static void verifyProfile()throws Exception{
         MP_UI.open(View.eMAINMENU);
         String name=KreyliProfile.nick();
         require(!KreyliProfile.steamLinked()&&!name.isBlank()&&name.equals(KreyliProfile.nick()),
@@ -25,6 +25,37 @@ public final class KreyliUiProbe {
         touch.actionUp(x,y,0,Input.Buttons.LEFT);
         InputProcessor profile=Gdx.input.getInputProcessor();
         require(profile!=null&&profile!=previous,"Profile badge opens the profile overlay");
+        int row=Math.max(CFG.BUTTON_H/2,CFG.TEXT_HEIGHT_DEFAULT_SMALL+CFG.PADD*2);
+        int width=Math.min(CFG.GAMEWIDTH-CFG.PADD*4,Math.max(460,CFG.BUTTON_W*4));
+        int height=row*9+CFG.PADD*4,gap=CFG.PADD*2;
+        int buttonWidth=(width-gap*4)/3;
+        int buttonY=Math.max(CFG.PADD,(CFG.GAMEHEIGHT-height)/2)+height-row/2-gap;
+        int buttonX=(CFG.GAMEWIDTH-width)/2+gap+buttonWidth/2;
+        touch.actionDown(buttonX,buttonY,0,Input.Buttons.LEFT);
+        touch.actionUp(buttonX,buttonY,0,Input.Buttons.LEFT);
+        for(int i=0;i<name.length();i++)profile.keyDown(Input.Keys.BACKSPACE);
+        for(char c:"LocalEditorTest".toCharArray())profile.keyTyped(c);
+        require(profile.keyUp(Input.Keys.ENTER)&&KreyliProfile.nick().equals("LocalEditorTest"),
+                "Native profile input saves nickname in game");
+        KreyliProfile.setNickname(name);
+        touch.actionDown(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
+        touch.actionUp(buttonX+buttonWidth+gap,buttonY,0,Input.Buttons.LEFT);
+        require(profile.keyUp(Input.Keys.ESCAPE)&&Gdx.input.getInputProcessor()==profile,
+                "Avatar chooser returns to profile before closing");
+        Path image=Files.createTempFile(Path.of("."),"kreyli-avatar-test-",".png");
+        try{
+            var source=new java.awt.image.BufferedImage(64,32,java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            source.setRGB(32,16,0xffafde12);
+            javax.imageio.ImageIO.write(source,"PNG",image.toFile());
+            byte[] pixels=KreyliProfileUi.decodeAvatar(image.toFile());
+            require(pixels.length==4096,"Avatar is normalized to bounded RGBA");
+            int index=KreyliProfile.addAvatar(pixels);
+            require(KreyliProfile.addAvatar(pixels)==index,"Repeated upload keeps one history entry");
+            KreyliProfile.selectAvatar(index);
+            require(KreyliProfile.selectedAvatar()==index&&KreyliProfile.avatar()!=null,"Uploaded avatar can be selected");
+            KreyliProfile.selectAvatar(-1);
+            require(KreyliProfile.selectedAvatar()==-1&&KreyliProfile.avatar()==null,"Default restores offline question mark");
+        }finally{Files.deleteIfExists(image);}
         require(profile.keyUp(Input.Keys.ESCAPE),"Profile handles Escape");
         require(Gdx.input.getInputProcessor()==previous&&CFG.menus.getIn_MainMenu(),
                 "Closing the profile restores the native input and keeps the original view");
@@ -40,8 +71,10 @@ public final class KreyliUiProbe {
         MP_UI.open(View.eMAINMENU);
         CFG.menus.getActiveMenu().get(0).actionEL(6);
         var texts=CFG.menus.getActiveMenu().stream().flatMap(menu->menu.menuElem.stream()).map(item->item.getTextE()).toList();
-        require(texts.contains("Создатель мода: Kreyli")&&texts.contains("Тестеры: -lockdown (Pin) и SpaceBodik")
-                &&texts.contains("Спасибо, что играете!")&&texts.contains("Discord проекта"),"Main logo opens mod credits and Discord");
+        require(texts.contains(KreyliText.t("Создатель мода: Kreyli","Mod creator: Kreyli"))
+                &&texts.contains(KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"))
+                &&texts.contains(KreyliText.t("Спасибо, что играете!","Thanks for playing!"))
+                &&texts.contains(KreyliText.t("Discord проекта","Project Discord")),"Main logo opens mod credits and Discord");
     }
     static void capture(String name){
         var pixmap=ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getBackBufferWidth(),Gdx.graphics.getBackBufferHeight());

@@ -3,9 +3,39 @@ import age.of.civilizations2.jakowski.lukasz.*;
 import aoc.kingdoms.lukasz.jakowski.AA_Game;
 import com.badlogic.gdx.backends.lwjgl3.*;
 import java.nio.file.*;
+import java.io.*;
+import java.net.Socket;
+import java.util.ArrayList;
 
 /** Two disposable native clients exercise pregame readiness, transition and disconnect. */
 public final class KreyliLobbyProbe {
+    static volatile boolean capacityPassed;
+    static void verifyCapacity(int port)throws ReflectiveOperationException{
+        var versionField=MP.class.getDeclaredField("VERSION");
+        versionField.setAccessible(true);
+        String version=(String)versionField.get(null), password=MP.password;
+        var worker=new Thread(()->{
+            var sockets=new ArrayList<Socket>();
+            try{
+                for(int i=1;i<=KreyliSteam.MAX_PLAYERS;i++){
+                    var socket=new Socket("127.0.0.1",port);
+                    sockets.add(socket);socket.setSoTimeout(15000);
+                    byte[] hello=MP_Net.encode("hello",version,"Seat"+i,password);
+                    var out=new DataOutputStream(socket.getOutputStream());
+                    out.writeInt(hello.length);out.write(hello);out.flush();
+                    var in=new DataInputStream(socket.getInputStream());
+                    int size=in.readInt();
+                    require(size>0&&size<65536,"Valid handshake frame");
+                    Object[] reply=MP_Net.decode(in.readNBytes(size));
+                    if(i<KreyliSteam.MAX_PLAYERS)require("welcome".equals(reply[0]),"Host accepts guest "+i);
+                    else require("reject".equals(reply[0])&&"Kreyli_LobbyFull".equals(reply[1]),"Eleventh player rejected");
+                }
+                capacityPassed=true;
+            }catch(Throwable e){e.printStackTrace();Runtime.getRuntime().halt(9);}
+            finally{for(var socket:sockets)try{socket.close();}catch(IOException ignored){}}
+        },"lobby-capacity-probe");
+        worker.setDaemon(true);worker.start();
+    }
     static void require(boolean ok,String why){if(!ok)throw new AssertionError(why);}
     static boolean state(String name)throws Exception{var field=KreyliLobby.class.getDeclaredField(name);field.setAccessible(true);return field.getBoolean(null);}
     static void click(int index){
@@ -41,7 +71,7 @@ public final class KreyliLobbyProbe {
                     phase=1;
                 }
                 if(host){
-                    if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.guest!=null){
+                    if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.members.size()==1){
                         require(!KreyliLobby.gate.released,"No implicit start");initialShared=SharedSupport.shared;
                         Menu room=CFG.menus.getActiveMenu().get(0);
                         require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==15,"Settings inside room without Apply or Region");
@@ -65,16 +95,17 @@ public final class KreyliLobbyProbe {
                                 "Guest nickname and avatar propagated to host");
                         KreyliUiProbe.capture("kreyli-game-selector.png");Files.writeString(channel.resolve("released"),"ok");phase=3;
                     }
-                    if(phase==3&&MP.clients.isEmpty()&&KreyliLobby.gate.guest==null){
-                        require(!KreyliLobby.gate.released&&!KreyliLobby.gate.hostReady&&!KreyliLobby.gate.guestReady,"Departure reset");
+                    if(phase==3&&MP.clients.isEmpty()&&KreyliLobby.gate.members.isEmpty()){
+                        require(!KreyliLobby.gate.released&&!KreyliLobby.gate.hostReady&&KreyliLobby.gate.ready.isEmpty(),"Departure reset");
                         require(MP_UI.inView(View.eMP_HOST),"Departure returns host to lobby");
-                        MP.stop();System.out.println("KREYLI_LOBBY_NATIVE: PASS host ready barrier, selector and departure reset");Runtime.getRuntime().halt(0);
+                        verifyCapacity(port);phase=6;
                     }
+                    if(phase==6&&capacityPassed){MP.stop();System.out.println("KREYLI_LOBBY_NATIVE: PASS readiness, departure reset and ten-player capacity");Runtime.getRuntime().halt(0);}
                 }else{
                     if(phase==1&&state("active")&&Files.exists(channel.resolve("host-ready"))){
                         require(MP_UI.inView(View.eMP_JOINING),"Guest lobby visible");
                         require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");
-                        require("45 с".equals(KreyliLobby.timerLabel()),"Timer synchronized");
+                        require(KreyliLobby.timerLabel(45).equals(KreyliLobby.timerLabel()),"Timer synchronized");
                         KreyliProfile.setNickname(KreyliLobby.hostDisplay());phase=4;return;
                     }
                     if(phase==4&&frame%60==0){

@@ -67,14 +67,14 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==3&&exists("gift-sent")){
       var box=CFG.core.getCiv(civ).getCivDiploGD().messageBox;for(int i=0;i<box.getMessagesSize();i++)if(box.getMessage(i) instanceof Message_Gift gift){require(MP.ready,"Recipient still ready when gift arrives");gift.onAccept(civ);require(!MP.ready,"Gift acceptance withdraws readiness");signal("accepted","ok");phase=4;break;}
      }
-     if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){pressHud("Отказать");signal("cancelled","ok");phase=5;}}
-     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()){pressHud("Принять");phase=6;}
+     if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){pressHud(KreyliText.t("Отказать","Reject"));signal("cancelled","ok");phase=5;}}
+     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()){pressHud(KreyliText.t("Принять","Accept"));phase=6;}
      if(phase==6&&exists("host-final")&&playable()){String[] parts=read("host-final").split(",");if(GameCalendar.TURNID==Integer.parseInt(parts[1])){
       require(CFG.core.getCiv(civ).getGold()==Long.parseLong(parts[0]),"Final money agrees");
       var hostField=MP.class.getDeclaredField("host");hostField.setAccessible(true);var count=MP.class.getDeclaredField("sentCmds");count.setAccessible(true);
       ((MP_Net.Conn)hostField.get(null)).send("kreyli_ready",startTurn,count.getInt(null),999999L,true);signal("stale-sent","ok");phase=7;
      }}
-     if(phase==7&&exists("stale-rejected")&&KreyliTurns.readinessStatus().contains("SkipHost")&&KreyliTurns.readinessStatus().endsWith(" с")){signal("saw-countdown","ok");phase=8;}
+     if(phase==7&&exists("stale-rejected")&&KreyliTurns.readinessStatus().contains("SkipHost")&&KreyliTurns.readinessStatus().endsWith(KreyliText.t(" с"," s"))){signal("saw-countdown","ok");phase=8;}
      if(phase==8&&exists("early-ready")&&GameCalendar.TURNID==startTurn+3&&playable()){MP.endTurnPressed();phase=9;}
      if(phase==9&&exists("early-advanced")){signal("client-pass","ok");MP.stop();System.out.println("TURN_FEATURES PASS ready UI, gift acceptance, skip voting and host countdown");Runtime.getRuntime().halt(0);}
     }

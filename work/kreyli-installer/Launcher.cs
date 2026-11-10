@@ -14,14 +14,13 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 [assembly: AssemblyTitle("Kreyli Coop AOH2")]
 [assembly: AssemblyProduct("Kreyli Coop AOH2")]
-[assembly: AssemblyVersion("1.1.10.0")]
+[assembly: AssemblyVersion("1.1.11.0")]
 public sealed class UpdateFile { public string path,url,sha256; public long size; }
 public sealed class UpdateManifest { public string version; public UpdateFile[] files; }
 public sealed class Channel { public string manifestUrl; }
 public sealed class ReleaseEntry {
- public string tag_name,name,body;
+ public string tag_name,body;
  public bool draft,prerelease;
- public override string ToString(){return string.IsNullOrWhiteSpace(name)?tag_name:name;}
 }
 internal static class Launcher {
  static Launcher(){AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling",false);AppContext.SetSwitch("Switch.System.IO.BlockLongPaths",false);}
@@ -83,24 +82,25 @@ internal static class Launcher {
    }
   }throw new Exception("Слишком много перенаправлений загрузки");
  }
- internal static ReleaseEntry[] ReleaseHistory(){
-  const string url="https://api.github.com/repos/Kreyli/Kreyli-Coop-AOH2/releases?per_page=12";
+ internal static ReleaseEntry LatestRelease(){
+  const string url="https://api.github.com/repos/Kreyli/Kreyli-Coop-AOH2/releases/latest";
   string cache=Path.Combine(Root,"release-history.json");
   try{
    ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
    string json=Encoding.UTF8.GetString(DownloadCore(url,2097152,false)).TrimStart('\uFEFF');
-   var releases=ParseHistory(json);
-   if(releases.Length==0)throw new IOException("История обновлений пуста");
+   var release=ParseLatestRelease(json);
+   if(release==null)throw new IOException("Сведения об обновлении пусты");
    try{File.WriteAllText(cache,json);}catch(IOException){}catch(UnauthorizedAccessException){}
-   return releases;
+   return release;
   }catch{
-   try{return File.Exists(cache)?ParseHistory(File.ReadAllText(cache)):new ReleaseEntry[0];}
-   catch{return new ReleaseEntry[0];}
+   try{return File.Exists(cache)?ParseLatestRelease(File.ReadAllText(cache)):null;}
+   catch{return null;}
   }
  }
- static ReleaseEntry[] ParseHistory(string json){
-  return (Json.Deserialize<ReleaseEntry[]>(json)??new ReleaseEntry[0])
-   .Where(r=>r!=null&&!r.draft&&!r.prerelease&&!string.IsNullOrWhiteSpace(r.tag_name)).ToArray();
+ static ReleaseEntry ParseLatestRelease(string json){
+  var releases=json.TrimStart().StartsWith("[",StringComparison.Ordinal)
+   ?Json.Deserialize<ReleaseEntry[]>(json):new[]{Json.Deserialize<ReleaseEntry>(json)};
+  return (releases??new ReleaseEntry[0]).FirstOrDefault(r=>r!=null&&!r.draft&&!r.prerelease&&!string.IsNullOrWhiteSpace(r.tag_name));
  }
  internal static bool Configured(){string path=Path.Combine(Root,"update-channel.json");if(!File.Exists(path))return false;var channel=Json.Deserialize<Channel>(File.ReadAllText(path));return channel!=null&&!string.IsNullOrWhiteSpace(channel.manifestUrl);}
  internal static UpdateManifest CheckUpdate(){

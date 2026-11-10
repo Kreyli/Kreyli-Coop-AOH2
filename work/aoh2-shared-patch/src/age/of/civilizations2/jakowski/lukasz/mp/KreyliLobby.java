@@ -2,23 +2,30 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.*;
 import com.badlogic.gdx.Gdx;
+import java.util.*;
 
 /** Pregame readiness is deliberately separate from native end-turn readiness. */
 public final class KreyliLobby {
     public static final String DISCORD="https://discord.gg/zGdxgSvW4";
     static final class Gate {
-        boolean hostReady, guestReady, released;
-        Object guest;
+        boolean hostReady, released;
+        List<?> members=List.of();
+        final Set<Object> ready=Collections.newSetFromMap(new IdentityHashMap<>());
         long deadline;
         int seconds;
         void clearCountdown(){deadline=0;seconds=0;}
-        boolean member(Object next){
-            if(guest==next)return false;
-            guest=next;hostReady=false;guestReady=false;released=false;clearCountdown();return true;
+        boolean members(List<?> next){
+            if(members.equals(next))return false;
+            members=List.copyOf(next);
+            resetReady();
+            return true;
+        }
+        void resetReady(){
+            hostReady=false;ready.clear();released=false;clearCountdown();
         }
         boolean updateCountdown(long now){
             if(released)return false;
-            if(!hostReady||(guest!=null&&!guestReady)){
+            if(!hostReady||!ready.containsAll(members)){
                 boolean changed=seconds!=0;clearCountdown();return changed;
             }
             if(deadline==0)deadline=now+5_000_000_000L;
@@ -32,16 +39,16 @@ public final class KreyliLobby {
     }
     static Gate gate=new Gate();
     private static boolean active, choosing;
-    private static String hostName="",guestName="";
+    record Member(String name,boolean ready){}
+    private static List<Member> roster=List.of();
     private static boolean hostReady,guestReady;
     private static int guestTimer,guestCountdown;
     private KreyliLobby(){}
-    public static void reset(){gate=new Gate();active=false;choosing=false;hostName="";guestName="";hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
+    public static void reset(){gate=new Gate();active=false;choosing=false;roster=List.of();hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
     public static void tick(){
         if(!MP.isHost()||MP.started)return;
-        MP_Net.Conn member=MP.clients.isEmpty()?null:MP.clients.get(0);
         boolean wasReleased=gate.released;
-        if(gate.member(member)){
+        if(gate.members(MP.clients)){
             publish();
             if(wasReleased)MP_UI.open(View.eMP_HOST);
         }
@@ -50,9 +57,10 @@ public final class KreyliLobby {
     public static boolean hostMessage(MP_Net.Conn connection,Object[] message){
         if(message.length==0||!"kreyli_lobby_ready".equals(message[0]))return false;
         if(!MP.isHost()||MP.started||connection.nick==null||!MP.clients.contains(connection)||message.length!=2||!(message[1] instanceof Boolean value))return true;
-        gate.member(connection);
+        gate.members(MP.clients);
         if(gate.released)return true;
-        gate.guestReady=value;advance();return true;
+        if(value)gate.ready.add(connection);else gate.ready.remove(connection);
+        advance();return true;
     }
     public static boolean clientMessage(Object[] message){
         if(KreyliProfile.clientMessage(message))return true;
@@ -71,9 +79,15 @@ public final class KreyliLobby {
             return true;
         }
         if(!"kreyli_lobby_state".equals(message[0]))return false;
-        if(!MP.isClient()||message.length!=7||!(message[1] instanceof String h)||!(message[2] instanceof String g)||!(message[3] instanceof Boolean hr)||!(message[4] instanceof Boolean gr)||!(message[5] instanceof Boolean released)||!(message[6] instanceof Boolean shared))return true;
+        if(!MP.isClient()||message.length<6||message.length>4+2*KreyliSteam.MAX_PLAYERS||(message.length-4)%2!=0
+                ||!(message[1] instanceof Boolean gr)||!(message[2] instanceof Boolean released)||!(message[3] instanceof Boolean shared))return true;
+        var entries=new ArrayList<Member>();
+        for(int i=4;i<message.length;i+=2){
+            if(!(message[i] instanceof String name)||!(message[i+1] instanceof Boolean ready))return true;
+            entries.add(new Member(name,ready));
+        }
         boolean wasActive=active;
-        hostName=h;guestName=g;hostReady=hr;guestReady=gr;choosing=released;SharedSupport.shared=shared;active=true;
+        roster=List.copyOf(entries);hostReady=roster.getFirst().ready();guestReady=gr;choosing=released;SharedSupport.shared=shared;active=true;
         if(!wasActive)MP_UI.open(View.eMP_JOINING);
         return true;
     }
@@ -81,18 +95,27 @@ public final class KreyliLobby {
         return view==View.eMP_JOINING&&active?new Menu[]{room()}:original;
     }
     private static void publish(){
-        hostName=MP.nick;guestName=gate.guest instanceof MP_Net.Conn c?c.nick:"";
-        hostReady=gate.hostReady;guestReady=gate.guestReady;choosing=gate.released;
+        var entries=new ArrayList<Member>();
+        entries.add(new Member(MP.nick,gate.hostReady));
+        for(var client:MP.clients)if(client.nick!=null)entries.add(new Member(client.nick,gate.ready.contains(client)));
+        roster=List.copyOf(entries);
+        hostReady=gate.hostReady;choosing=gate.released;
+        Object[] packet=new Object[4+entries.size()*2];
+        packet[0]="kreyli_lobby_state";packet[2]=choosing;packet[3]=SharedSupport.shared;
+        for(int i=0;i<entries.size();i++){
+            packet[4+i*2]=entries.get(i).name();packet[5+i*2]=entries.get(i).ready();
+        }
         for(var c:MP.clients){
             c.send("kreyli_lobby_options",MP.turnSeconds);
             c.send("kreyli_lobby_countdown",gate.seconds);
-            c.send("kreyli_lobby_state",hostName,guestName,hostReady,guestReady,choosing,SharedSupport.shared);
+            packet[1]=gate.ready.contains(c);
+            c.send(packet.clone());
         }
     }
     static String timerLabel(){return timerLabel(MP.isHost()?MP.turnSeconds:guestTimer);}
-    static String timerLabel(int seconds){return seconds==0?"Без ограничения":seconds+" с";}
+    static String timerLabel(int seconds){return seconds==0?KreyliText.t("Без ограничения","No limit"):seconds+KreyliText.t(" с"," s");}
     static void settingsChanged(){
-        gate.hostReady=false;gate.guestReady=false;gate.released=false;gate.clearCountdown();publish();
+        gate.resetReady();publish();
     }
     static void profileChanged(){if(MP.isHost()&&!MP.started)publish();}
     private static void advance(){
@@ -100,27 +123,33 @@ public final class KreyliLobby {
     }
     private static void publishCountdown(){
         publish();
-        if(gate.released)MP_UI.open(View.eGAMES);
+        if(gate.released)openCampaigns();
+    }
+    private static void openCampaigns(){
+        MP_UI.open(View.eGAMES);
+        CFG.menus.setBackAnimation(false);
+        CFG.setRenderO(true);
     }
     static int countdown(){return MP.isHost()?gate.seconds:guestCountdown;}
     public static void toggleReady(){
         if(MP.isHost()){
-            gate.member(MP.clients.isEmpty()?null:MP.clients.get(0));
-            if(gate.released){MP_UI.open(View.eGAMES);return;}
+            gate.members(MP.clients);
+            if(gate.released){openCampaigns();return;}
             gate.hostReady=!gate.hostReady;advance();
         }else if(MP.isClient()&&!choosing){
             try{var field=MP.class.getDeclaredField("host");field.setAccessible(true);var host=(MP_Net.Conn)field.get(null);if(host!=null)host.send("kreyli_lobby_ready",!guestReady);}
             catch(ReflectiveOperationException error){throw new IllegalStateException(error);}
         }
     }
-    static String hostDisplay(){return hostName.isEmpty()?MP.nick:hostName;}
-    static String guestDisplay(){return guestName;}
+    static List<Member> roster(){return roster;}
+    static String hostDisplay(){return roster.isEmpty()?MP.nick:roster.getFirst().name();}
+    static String guestDisplay(){return roster.size()<2?"":roster.get(1).name();}
     static boolean hostIsReady(){return hostReady;}
     static boolean guestIsReady(){return guestReady;}
     static boolean choosingGame(){return choosing;}
     public static void discord(){Gdx.net.openURI(DISCORD);}
     public static Menu room(){
-        if(MP.isHost()){gate.member(MP.clients.isEmpty()?null:MP.clients.get(0));publish();}
+        if(MP.isHost()){gate.members(MP.clients);publish();}
         return new KreyliLobbyRoom();
     }
 }

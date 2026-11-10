@@ -7,7 +7,7 @@ $Patch=$true
 & (Join-Path $PSScriptRoot 'build.ps1') -GameJar (Join-Path $installations.host 'game.jar')
 New-Item -ItemType Directory -Force -Path $build | Out-Null
 $testSources=@(Get-ChildItem (Join-Path $PSScriptRoot 'test') -Filter '*.java' | ForEach-Object {$_.FullName})
-& javac -cp "$patchRoot/build;$($installations.host)/game.jar" -d $build @testSources
+& javac -encoding UTF-8 -cp "$patchRoot/build;$patchRoot/../kreyli-steam/build/kreyli-steam.jar;$($installations.host)/game.jar" -d $build @testSources
 if($LASTEXITCODE -ne 0){throw 'Test compile failed'}
 $channel=Join-Path $PSScriptRoot ('network-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $channel | Out-Null
@@ -17,7 +17,7 @@ function Start-Bot([string]$role){
  $install=$installations[$role]
  if(!(Test-Path (Join-Path $install '.coop-test-copy'))){throw 'Incomplete copy'}
  $arguments=@("-Duser.home=$install/test-home","-Djava.io.tmpdir=$install/test-tmp",'-cp',"$build;$install/game.jar",'age.of.civilizations2.jakowski.lukasz.mp.VendorNetworkProbe',$role,$channel,"$port")
- if($Patch){$arguments=@('--add-exports','java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED',"-javaagent:$patchRoot/build-agent/shared-agent.jar","-Dcoop.shared=$($Shared.ToString().ToLowerInvariant())","-Duser.home=$install/test-home","-Djava.io.tmpdir=$install/test-tmp",'-cp',"$build;$patchRoot/build;$patchRoot/../kreyli-steam/build-final/kreyli-steam.jar;$patchRoot/../kreyli-steam/vendor/steamworks4j-1.9.0.jar;$install/game.jar",'age.of.civilizations2.jakowski.lukasz.mp.VendorNetworkProbe',$role,$channel,"$port")}
+ if($Patch){$arguments=@('--add-exports','java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED',"-javaagent:$patchRoot/build-agent/shared-agent.jar","-Dcoop.shared=$($Shared.ToString().ToLowerInvariant())","-Duser.home=$install/test-home","-Djava.io.tmpdir=$install/test-tmp",'-cp',"$build;$patchRoot/build;$patchRoot/../kreyli-steam/build/kreyli-steam.jar;$patchRoot/../kreyli-steam/vendor/steamworks4j-1.9.0.jar;$install/game.jar",'age.of.civilizations2.jakowski.lukasz.mp.VendorNetworkProbe',$role,$channel,"$port")}
  if($Patch){$arguments=@('-Dkreyli.steam.disabled=true','-Dkreyli.discovery.disabled=true','-Dcoop.patch=true',"-Dcoop.army=$($Army.ToString().ToLowerInvariant())","-Dcoop.race=$($Race.ToString().ToLowerInvariant())","-Dcoop.battle=$($Battle.ToString().ToLowerInvariant())","-Dcoop.relay=$($Relay.ToString().ToLowerInvariant())")+$arguments}
  $quoted=($arguments|ForEach-Object{'"'+$_+'"'}) -join ' '
  Start-Process (Get-Command java).Source -ArgumentList $quoted -WorkingDirectory $install -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $install 'vendor-network.out.log') -RedirectStandardError (Join-Path $install 'vendor-network.err.log')

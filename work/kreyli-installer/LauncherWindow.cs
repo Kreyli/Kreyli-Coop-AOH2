@@ -7,9 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 internal sealed class LauncherWindow:Form {
- readonly Label status=new Label(),detail=new Label(),historyStatus=new Label();
- readonly ListBox history=new ListBox();
- readonly TextBox historyNotes=new TextBox();
+ readonly Label status=new Label(),detail=new Label(),releaseVersion=new Label(),releaseNotes=new Label();
  readonly Button play=new KreyliButton{LeadingIcon="play"},menu=new KreyliButton{LeadingIcon="chevron"};readonly KreyliProgress progress=new KreyliProgress();
  readonly string[] gameArgs;readonly Timer autoTimer=new Timer(),revealTimer=new Timer(),pollTimer=new Timer();readonly ToolTip hints=new ToolTip();
  ContextMenuStrip actions;Image backdrop,logo;bool busy,gameRunning,transfer,closingForUpdate,checkingUpdates;UpdateManifest pending;DateTime lastProgress=DateTime.MinValue;
@@ -23,53 +21,62 @@ internal sealed class LauncherWindow:Form {
   LabelAt("AGE OF HISTORY II",48,340,650,48,28,FontStyle.Bold,Color.FromArgb(245,242,239));
   LabelAt("DEFINITIVE EDITION  /  CO-OP",50,392,590,25,11,FontStyle.Regular,Color.FromArgb(208,170,145));
   var console=new KreyliCard{Fill=Color.FromArgb(19,22,29),Line=Color.FromArgb(49,54,66),Radius=18};console.SetBounds(32,531,1136,124);Controls.Add(console);
-  AddLabel(console,"ПРОФИЛЬ ИГРОКА",23,26,310,24,11,FontStyle.Bold,Color.FromArgb(238,240,247));
-  AddLabel(console,"Имя и аватар можно настроить в игре",23,57,340,23,9,FontStyle.Regular,Muted);
-  AddReleaseHistory();
-  ButtonAt(play,"Играть",425,561,326,62,Red);play.Font=new Font("Segoe UI Semibold",20,FontStyle.Bold);play.Click+=async(s1,e)=>await Primary();play.BringToFront();
-  ButtonAt(menu,"",761,561,56,62,Color.FromArgb(38,42,53));menu.AccessibleName="Действия с игрой";hints.SetToolTip(menu,"Обновления, проверка файлов и удаление");
+  AddLatestRelease();
+  ButtonAt(play,"Играть",56,561,620,62,Red);play.Font=new Font("Segoe UI Semibold",20,FontStyle.Bold);play.Click+=async(s1,e)=>await Primary();play.BringToFront();
+  ButtonAt(menu,"",692,561,60,62,Color.FromArgb(38,42,53));menu.AccessibleName="Действия с игрой";hints.SetToolTip(menu,"Обновления, проверка файлов и удаление");
   actions=new ContextMenuStrip{BackColor=Color.FromArgb(24,27,35),ForeColor=Color.FromArgb(229,233,241),ShowImageMargin=false,Font=new Font("Segoe UI",10),Padding=new Padding(6),Renderer=new KreyliMenuRenderer()};
   actions.Items.Add("Проверить обновления",null,async(s1,e)=>await CheckUpdates(false));
   actions.Items.Add("Проверить целостность файлов",null,async(s1,e)=>await FileOperation(()=>GameInstall.Verify(Progress),false));
   actions.Items.Add(new ToolStripSeparator());actions.Items.Add("Удалить игру",null,async(s1,e)=>await RemoveGame());
   foreach(ToolStripItem item in actions.Items)item.Padding=new Padding(10,7,10,7);
   menu.Click+=(s1,e)=>actions.Show(menu,new Point(0,-actions.PreferredSize.Height-8));
-  var discord=new KreyliButton{LeadingIcon="discord"};ButtonAt(discord,"Discord",847,561,286,62,Color.FromArgb(41,45,73));discord.Click+=(s1,e)=>{try{System.Diagnostics.Process.Start("https://discord.gg/zGdxgSvW4");}catch(Exception ex){Status(ex.Message);}};hints.SetToolTip(discord,"Открыть сообщество Kreyli");
+  var discord=new KreyliButton{LeadingIcon="discord"};ButtonAt(discord,"Discord",768,561,365,62,Color.FromArgb(41,45,73));discord.Click+=(s1,e)=>{try{System.Diagnostics.Process.Start("https://discord.gg/zGdxgSvW4");}catch(Exception ex){Status(ex.Message);}};hints.SetToolTip(discord,"Открыть сообщество Kreyli");
   progress.SetBounds(425,635,708,4);progress.Visible=false;Controls.Add(progress);progress.BringToFront();
   detail.SetBounds(56,634,335,18);detail.ForeColor=Color.FromArgb(117,128,147);detail.BackColor=console.Fill;detail.Font=new Font("Segoe UI",7.5f,FontStyle.Bold);Controls.Add(detail);detail.BringToFront();
   status.SetBounds(43,668,1109,23);status.Font=new Font("Segoe UI",9);status.ForeColor=Muted;status.BackColor=Color.Transparent;status.AutoEllipsis=true;Controls.Add(status);hints.SetToolTip(status,"Состояние игры и обновлений");
   autoTimer.Interval=1500;autoTimer.Tick+=async(s1,e)=>{autoTimer.Stop();if(pending!=null&&!busy&&!gameRunning)await UpdateFiles();};
   pollTimer.Interval=15000;pollTimer.Tick+=async(s1,e)=>await CheckUpdates(true);
   revealTimer.Interval=16;revealTimer.Tick+=(s1,e)=>{Opacity=Math.Min(1,Opacity+0.10);if(Opacity>=1)revealTimer.Stop();};
-  Shown+=async(s1,e)=>{if(SystemInformation.IsMenuAnimationEnabled){Opacity=0.15;revealTimer.Start();}RefreshState();pollTimer.Start();await Task.WhenAll(CheckUpdates(true),LoadReleaseHistory());};
+  Shown+=async(s1,e)=>{if(SystemInformation.IsMenuAnimationEnabled){Opacity=0.15;revealTimer.Start();}RefreshState();pollTimer.Start();await Task.WhenAll(CheckUpdates(true),LoadLatestRelease());};
   FormClosing+=(s1,e)=>{if((busy||gameRunning)&&!closingForUpdate){e.Cancel=true;Status(gameRunning?"Сначала завершите игру.":"Дождитесь окончания операции; загрузку можно поставить на паузу.");}};
   foreach(Control control in new Control[]{play,menu,discord,progress,detail}){int x=control.Left-console.Left,y=control.Top-console.Top;console.Controls.Add(control);control.Location=new Point(x,y);control.BringToFront();}
   RefreshState();
  }
- void AddReleaseHistory(){
+ void AddLatestRelease(){
   var card=new KreyliCard{Fill=Color.FromArgb(19,22,29),Line=Color.FromArgb(49,54,66),Radius=18};
-  card.SetBounds(727,119,425,378);Controls.Add(card);
-  AddLabel(card,"Обновления игры",21,17,385,31,15,FontStyle.Bold,Color.White);
-  historyStatus.Text="Загрузка истории…";historyStatus.ForeColor=Muted;historyStatus.BackColor=Color.Transparent;
-  historyStatus.Font=new Font("Segoe UI",9);historyStatus.SetBounds(21,53,381,24);card.Controls.Add(historyStatus);
-  var panel=Color.FromArgb(12,15,21);
-  history.SetBounds(21,53,383,90);history.IntegralHeight=false;history.BackColor=panel;
-  history.ForeColor=Color.White;history.BorderStyle=BorderStyle.FixedSingle;history.Visible=false;
-  history.AccessibleName="Версии игры";card.Controls.Add(history);
-  historyNotes.SetBounds(21,158,383,196);historyNotes.Multiline=true;historyNotes.ReadOnly=true;historyNotes.ScrollBars=ScrollBars.Vertical;
-  historyNotes.BackColor=panel;historyNotes.ForeColor=Color.FromArgb(222,226,237);historyNotes.BorderStyle=BorderStyle.FixedSingle;
-  historyNotes.Font=new Font("Segoe UI",10);historyNotes.Visible=false;historyNotes.AccessibleName="Описание обновления";card.Controls.Add(historyNotes);
-  history.SelectedIndexChanged+=(s,e)=>{
-   var release=history.SelectedItem as ReleaseEntry;
-   historyNotes.Text=release==null?"":string.IsNullOrWhiteSpace(release.body)?"У этого обновления нет описания.":release.body.Replace("\r\n","\n").Replace("\n",Environment.NewLine);
-  };
+  card.SetBounds(727,119,425,236);Controls.Add(card);
+  releaseVersion.Text="Последнее обновление";releaseVersion.Font=new Font("Segoe UI",17,FontStyle.Bold);
+  releaseVersion.ForeColor=Red;releaseVersion.BackColor=Color.Transparent;releaseVersion.UseMnemonic=false;
+  releaseVersion.SetBounds(21,18,383,35);card.Controls.Add(releaseVersion);
+  AddLabel(card,"Что добавили",21,61,383,24,10,FontStyle.Bold,Color.White);
+  releaseNotes.Text="Загрузка описания…";releaseNotes.Font=new Font("Segoe UI",10);
+  releaseNotes.ForeColor=Color.White;releaseNotes.BackColor=Color.Transparent;
+  releaseNotes.AutoEllipsis=true;releaseNotes.UseMnemonic=false;
+  releaseNotes.SetBounds(21,93,383,123);card.Controls.Add(releaseNotes);
  }
- async Task LoadReleaseHistory(){
-  var releases=await Task.Run(()=>Launcher.ReleaseHistory());
+ async Task LoadLatestRelease(){
+  var release=await Task.Run(()=>Launcher.LatestRelease());
   if(IsDisposed||closingForUpdate)return;
-  if(releases.Length==0){historyStatus.Text="История обновлений недоступна";return;}
-  historyStatus.Visible=false;history.Visible=historyNotes.Visible=true;
-  history.Items.AddRange(releases);history.SelectedIndex=0;
+  if(release==null){releaseNotes.Text="Описание обновления пока недоступно.";return;}
+  releaseVersion.Text="Версия "+release.tag_name.TrimStart('v','V');
+  releaseNotes.Text=ShortReleaseNotes(release.body);
+ }
+ static string ShortReleaseNotes(string body){
+  if(string.IsNullOrWhiteSpace(body))return "У этого обновления нет описания.";
+  var lines=new System.Collections.Generic.List<string>();
+  foreach(string raw in body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries)){
+   string line=raw.Trim();
+   if(line.StartsWith("#",StringComparison.Ordinal))continue;
+   if(line.StartsWith("- ",StringComparison.Ordinal)||line.StartsWith("* ",StringComparison.Ordinal))line="• "+line.Substring(2);
+   lines.Add(line.Replace("**","").Replace("`",""));
+   if(lines.Count==3)break;
+  }
+  string summary=string.Join(Environment.NewLine,lines);
+  if(summary.Length==0)return "У этого обновления нет описания.";
+  const int max=280;
+  if(summary.Length<=max)return summary;
+  int boundary=summary.LastIndexOf(' ',max);
+  return summary.Substring(0,boundary>max-35?boundary:max).TrimEnd()+"…";
  }
  static Image Asset(string name){using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream(name)){if(stream==null)return null;using(var image=Image.FromStream(stream))return new Bitmap(image);}}
  [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool ReleaseCapture();

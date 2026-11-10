@@ -6,16 +6,19 @@ import java.lang.reflect.*;
 import java.util.*;
 import java.util.Map;
 
-/** Consent and presentation for two-player turns. All mutations run on the game thread. */
+/** Host-owned turn readiness and skip votes. All mutations run on the game thread. */
 public final class KreyliTurns {
     static final KreyliSkipVote vote=new KreyliSkipVote();
-    private static int selected=1,remoteCount,remoteRemaining,remoteTurn,observedTurn=-1,ackTurn=-1;
-    private static long serial,remoteId;
-    private static long lastAckId;private static int loadedTurn=-1,lastAckTurn=-1;
-    private static boolean remoteHost,remoteGuest,lastHost,lastGuest;
-    private static Object observedGuest;
+    private static int selected=1,remoteCount,remoteRemaining,observedTurn=-1,remoteSecondsLeft,remoteYes,remoteThreshold;
+    private static long serial,remoteId,outcomeUntil;
+    private static String remoteProposer="",outcome="";
+    private static boolean remoteCanVote,remoteCanCancel,lastHost;
+    private static int lastVoteSeconds=-1;
+    private static final Object HOST=new Object();
+    private static final Set<MP_Net.Conn> lastReady=Collections.newSetFromMap(new IdentityHashMap<>());
     private static long readySequence;
     private static long waitDeadline;
+    private static Object waitInitiator;
     private static int shownSeconds=-1, remoteReadyTurn=-1, remoteSeconds=-1;
     private static String readyPlayer="", remoteReadyPlayer="";
     static int waitSetting(){
@@ -30,7 +33,11 @@ public final class KreyliTurns {
     private static final Map<MP_Net.Conn,ReadyRequest> readyRequests=new IdentityHashMap<>();
     private static Object field(String name){try{Field f=MP.class.getDeclaredField(name);f.setAccessible(true);return f.get(null);}catch(Exception e){throw new IllegalStateException(e);}}
     private static void field(String name,Object value){try{Field f=MP.class.getDeclaredField(name);f.setAccessible(true);f.set(null,value);}catch(Exception e){throw new IllegalStateException(e);}}
-    private static MP_Net.Conn guest(){return MP.clients.size()==1?MP.clients.get(0):null;}
+    private static List<Object> voters(){
+        List<Object> result=new ArrayList<>();result.add(HOST);
+        for(var c:MP.clients)if(c.civ>0&&!MP.eliminated(c.civ))result.add(c);
+        return result;
+    }
     private static MP_Net.Conn host(){return (MP_Net.Conn)field("host");}
     private static boolean active(){return MP.playing()&&MP.inputOrders()&&MP.myCiv>0||MP.isHost()&&MP.started&&MP.inputOrders();}
     private static void send(Object...data){for(var c:MP.clients)c.send(data);}
@@ -42,65 +49,88 @@ public final class KreyliTurns {
         if(data.length==0)return false;
         if("ready".equals(data[0]))return true; // legacy packets cannot bypass turn identity
         if(!"kreyli_ready".equals(data[0]))return false;
-        if(!MP.isHost()||!MP.started||!MP.inputOrders()||conn!=guest()||conn.civ<=0||data.length!=5||!(data[1] instanceof Integer turn)||!(data[2] instanceof Integer commands)||!(data[3] instanceof Long sequence)||!(data[4] instanceof Boolean ready))return true;
+        if(!MP.isHost()||!MP.started||!MP.inputOrders()||!MP.clients.contains(conn)||conn.civ<=0||data.length!=5||!(data[1] instanceof Integer turn)||!(data[2] instanceof Integer commands)||!(data[3] instanceof Long sequence)||!(data[4] instanceof Boolean ready))return true;
         long last=readySequences.getOrDefault(conn,0L);
         if(!KreyliReadyVote.valid(GameCalendar.TURNID,turn,conn.cmds,commands,last,sequence))return true;
         readySequences.put(conn,sequence);readyRequests.remove(conn);conn.ready=false;
         if(ready){if(commands==conn.cmds)conn.ready=true;else readyRequests.put(conn,new ReadyRequest(turn,commands,sequence));}
         return true;
     }
-    public static String skipChoice(){return "Пропуск ходов: "+selected+" (изменить)";}
     public static int selectedSkipCount(){return selected;}
-    public static boolean hasSkipVote(){return MP.isHost()?vote.id!=0:remoteId!=0&&remoteTurn==GameCalendar.TURNID;}
-    public static boolean skipCanRespond(){
-        return active()&&hasSkipVote()&&(MP.isHost()?vote.remaining==0&&!vote.hostYes&&vote.guestYes:remoteRemaining==0&&!remoteGuest&&remoteHost);
-    }
+    public static boolean blocksNativeAdvance(){return vote.id!=0&&!vote.waiting;}
+    public static boolean hasSkipVote(){return MP.isHost()?vote.id!=0:remoteId!=0;}
+    public static boolean skipCanRespond(){return active()&&(MP.isHost()?vote.canVote(HOST):remoteCanVote);}
+    public static boolean skipCanCancel(){return MP.isHost()?vote.id!=0&&vote.proposer==HOST&&vote.remaining==0:remoteCanCancel;}
     public static String incomingSkipStatus(){
         if(!skipCanRespond())return "";
-        String name=MP.isHost()?guest().nick:MP.rosterNicks.length>0?MP.rosterNicks[0]:"Хост";
-        return name+" предлагает пропустить: "+(MP.isHost()?vote.count:remoteCount);
+        return (MP.isHost()?name(vote.proposer):remoteProposer)+KreyliText.t(" предлагает пропустить: "," proposes to skip: ")+(MP.isHost()?vote.count:remoteCount);
     }
+    private static String name(Object who){return who==HOST?MP.nick:who instanceof MP_Net.Conn c?c.nick:"";}
+    public static String voteOutcome(){return System.nanoTime()<outcomeUntil?outcome:"";}
     public static String readinessStatus(){
         if(!active())return "";
         boolean host=MP.isHost();
         String name=host?readyPlayer:remoteReadyTurn==GameCalendar.TURNID?remoteReadyPlayer:"";
         if(name.isEmpty())return "";
         int seconds=host?shownSeconds:remoteSeconds;
-        return name+" готов к ходу"+(seconds<0?"":" · "+seconds+" с");
+        return name+KreyliText.t(" готов к ходу"," is ready")+(seconds<0?"":" · "+seconds+KreyliText.t(" с"," s"));
     }
     public static String skipStatus(){
-        long id=MP.isHost()?vote.id:remoteId;int count=MP.isHost()?vote.count:remoteCount,remaining=MP.isHost()?vote.remaining:remoteRemaining;
-        boolean localAccepted=MP.isHost()?vote.hostYes:remoteGuest;
-        return id==0?"Предложить пропуск ходов":remaining>0?"Пропускаем: осталось "+remaining:localAccepted?"Ожидаем второго игрока: "+count+" ходов":"Принять пропуск "+count+" ходов";
+        boolean host=MP.isHost();
+        int remaining=host?vote.remaining:remoteRemaining;
+        if(remaining>0){
+            int count=host?vote.count:remoteCount;
+            return KreyliText.t("Пропущено ходов: ","Turns skipped: ")+(count-remaining)+" / "+count;
+        }
+        if(!hasSkipVote())return voteOutcome();
+        return (host?name(vote.proposer):remoteProposer)+" · "+(host?vote.count:remoteCount)+KreyliText.t(" ход. · "," turns · ")+(host?lastVoteSeconds:remoteSecondsLeft)+KreyliText.t(" с · "," s · ")+(host?vote.yes():remoteYes)+"/"+(host?vote.threshold():remoteThreshold);
     }
-    public static void chooseSkip(){selected=selected%5+1;MP.toast(skipChoice(),false);}
+    public static void chooseSkip(){changeSkip(1);}
+    public static void changeSkip(int change){selected=Math.max(1,Math.min(KreyliSkipVote.MAX_TURNS,selected+change));}
     public static void proposeSkip(){
         if(!active())return;
-        if(MP.isHost())propose(selected,true);else if(MP.isClient()&&host()!=null)host().send("kreyli_skip_propose",GameCalendar.TURNID,selected);
+        if(MP.isHost())propose(selected,HOST);else if(MP.isClient()&&host()!=null)host().send("kreyli_skip_propose",GameCalendar.TURNID,selected);
     }
-    public static void acceptSkip(){
-        if(!active())return;
-        if(MP.isHost()){if(vote.accept(vote.id,GameCalendar.TURNID,guest(),true))publish();}
-        else if(remoteId!=0&&host()!=null)host().send("kreyli_skip_accept",remoteId,GameCalendar.TURNID);
+    public static void acceptSkip(){respond(true);}
+    public static void rejectSkip(){respond(false);}
+    private static void respond(boolean yes){
+        if(!skipCanRespond())return;
+        if(MP.isHost())cast(vote.id,GameCalendar.TURNID,HOST,yes);
+        else if(host()!=null)host().send("kreyli_skip_vote",remoteId,GameCalendar.TURNID,yes);
     }
-    public static void voteAction(){if((MP.isHost()?vote.id:remoteId)==0)proposeSkip();else acceptSkip();}
     public static void cancelSkip(){
-        if(MP.isHost()){vote.clear();publish();}else if(MP.isClient()&&host()!=null)host().send("kreyli_skip_cancel",remoteId,GameCalendar.TURNID);
+        if(!skipCanCancel())return;
+        if(MP.isHost())finish(KreyliText.t("Предложение отменено","Proposal cancelled"));
+        else if(host()!=null)host().send("kreyli_skip_cancel",remoteId,GameCalendar.TURNID);
     }
-    private static void propose(int count,boolean byHost){
-        if(!MP.isHost()||!active()||guest()==null||guest().civ<=0||count<1||count>5)return;
-        vote.propose(++serial,GameCalendar.TURNID,count,guest(),byHost);ackTurn=GameCalendar.TURNID;publish();notice((byHost?MP.nick:guest().nick)+" предлагает пропустить "+count+" ходов");
+    private static void propose(int count,Object sender){
+        if(!active()||!vote.propose(++serial,GameCalendar.TURNID,count,voters(),sender,System.nanoTime()))return;
+        clearWait();send("kreyli_ready_state",GameCalendar.TURNID,"",-1);
+        lastVoteSeconds=30;outcome="";publish();
     }
-    private static void publish(){send("kreyli_skip_state",vote.id,GameCalendar.TURNID,vote.count,vote.remaining,vote.hostYes,vote.guestYes);}
+    private static void cast(long id,int turn,Object sender,boolean yes){
+        long now=System.nanoTime();
+        if(vote.vote(id,turn,sender,yes,now)){
+            if(vote.failed(now))finish(KreyliText.t("Предложение отклонено","Proposal rejected"));
+            else publish();
+        }
+    }
+    private static void publish(){
+        for(var c:MP.clients)c.send("kreyli_skip_state_v2",vote.id,vote.count,vote.remaining,lastVoteSeconds,
+                vote.yes(),vote.threshold(),name(vote.proposer),vote.canVote(c),vote.id!=0&&vote.remaining==0&&vote.proposer==c);
+    }
+    private static void finish(String result){
+        vote.clear();publish();showOutcome(result);send("kreyli_skip_result",result);
+    }
+    private static void showOutcome(String result){outcome=result;outcomeUntil=System.nanoTime()+4_000_000_000L;}
     public static boolean hostMessage(MP_Net.Conn conn,Object[] data){
         if(readyMessage(conn,data))return true;
         if(data.length==0||!(data[0] instanceof String op)||!op.startsWith("kreyli_skip_"))return false;
-        if(!MP.isHost()||conn!=guest()||conn.nick==null||conn.civ<=0)return true;
+        if(!MP.isHost()||!MP.clients.contains(conn)||conn.nick==null||conn.civ<=0)return true;
         switch(op){
-            case "kreyli_skip_propose"->{if(data.length==3&&data[1] instanceof Integer t&&t==GameCalendar.TURNID&&data[2] instanceof Integer n)propose(n,false);}
-            case "kreyli_skip_accept"->{if(data.length==3&&data[1] instanceof Long id&&data[2] instanceof Integer t&&t==GameCalendar.TURNID&&vote.accept(id,t,conn,false))publish();}
-            case "kreyli_skip_cancel"->{if(data.length==3&&data[1] instanceof Long id&&id==vote.id&&data[2] instanceof Integer t&&t==GameCalendar.TURNID){vote.clear();publish();}}
-            case "kreyli_skip_ack"->{if(data.length==3&&data[1] instanceof Long id&&id==vote.id&&data[2] instanceof Integer t&&t==GameCalendar.TURNID)ackTurn=t;}
+            case "kreyli_skip_propose"->{if(data.length==3&&data[1] instanceof Integer t&&t==GameCalendar.TURNID&&data[2] instanceof Integer n)propose(n,conn);}
+            case "kreyli_skip_vote"->{if(data.length==4&&data[1] instanceof Long id&&data[2] instanceof Integer t&&data[3] instanceof Boolean yes&&t==GameCalendar.TURNID)cast(id,t,conn,yes);}
+            case "kreyli_skip_cancel"->{if(data.length==3&&data[1] instanceof Long id&&id==vote.id&&data[2] instanceof Integer t&&t==GameCalendar.TURNID&&vote.remaining==0&&vote.proposer==conn)finish(KreyliText.t("Предложение отменено","Proposal cancelled"));}
         }
         return true;
     }
@@ -112,82 +142,102 @@ public final class KreyliTurns {
             return true;
         }
         if(data.length==2&&"kreyli_turn_notice".equals(data[0])&&data[1] instanceof String text){MP.toast(text,false);return true;}
-        if(data.length==0||!"kreyli_skip_state".equals(data[0]))return false;
-        if(MP.isClient()&&data.length==7&&data[1] instanceof Long id&&data[2] instanceof Integer t&&data[3] instanceof Integer count&&count>=0&&count<=5&&data[4] instanceof Integer remaining&&remaining>=0&&remaining<=5&&data[5] instanceof Boolean hy&&data[6] instanceof Boolean gy){remoteId=id;remoteTurn=t;remoteCount=count;remoteRemaining=remaining;remoteHost=hy;remoteGuest=gy;}
+        if(data.length==2&&"kreyli_skip_result".equals(data[0])&&data[1] instanceof String result){showOutcome(result);return true;}
+        if(data.length==0||!"kreyli_skip_state_v2".equals(data[0]))return false;
+        if(MP.isClient()&&data.length==10&&data[1] instanceof Long id&&data[2] instanceof Integer count&&data[3] instanceof Integer remaining&&data[4] instanceof Integer seconds&&data[5] instanceof Integer yes&&data[6] instanceof Integer threshold&&data[7] instanceof String proposer&&data[8] instanceof Boolean respond&&data[9] instanceof Boolean cancel){
+            remoteId=id;remoteCount=count;remoteRemaining=remaining;remoteSecondsLeft=seconds;remoteYes=yes;remoteThreshold=threshold;
+            remoteProposer=proposer;remoteCanVote=respond;remoteCanCancel=cancel;
+        }
         return true;
     }
-    private static void acknowledge(){if(MP.isClient()&&remoteId!=0&&host()!=null&&remoteTurn==loadedTurn&&loadedTurn==GameCalendar.TURNID&&(lastAckId!=remoteId||lastAckTurn!=loadedTurn)){host().send("kreyli_skip_ack",remoteId,loadedTurn);lastAckId=remoteId;lastAckTurn=loadedTurn;}}
     public static void afterSnapshot(){
         int camX=CFG.map!=null&&CFG.map.getMpC()!=null?CFG.map.getMpC().getPX():0;
         int camY=CFG.map!=null&&CFG.map.getMpC()!=null?CFG.map.getMpC().getPY():0;
-        loadedTurn=GameCalendar.TURNID;acknowledge();
         if(CFG.map!=null&&CFG.map.getMpC()!=null){CFG.map.getMpC().setNewPosX(camX);CFG.map.getMpC().setNewPosY(camY);}
     }
     /** Call only for a genuine local or accepted remote command during INPUT_ORDERS. */
-    public static void order(){if(MP.isHost()&&vote.id!=0){vote.clear();publish();}else if(MP.isClient()&&remoteId!=0)cancelSkip();}
+    public static void order(){
+        if(MP.isHost()&&vote.remaining>0)finish(KreyliText.t("Пропуск прерван новым приказом","Skip interrupted by a new order"));
+    }
     public static void newTurn(){
         if(!MP.isHost())return;
         clearWait();
-        // Deferred votes belong to the completed input phase, never to this one.
         readyRequests.clear();
         for(var connection:MP.clients)connection.ready=false;
-        if(vote.id!=0){vote.completed(GameCalendar.TURNID);ackTurn=-1;publish();}
+        if(vote.id!=0){
+            boolean wasSkipping=vote.waiting;
+            vote.completed(GameCalendar.TURNID);
+            if(vote.id==0)finish(wasSkipping?KreyliText.t("Пропуск завершён","Skip completed"):KreyliText.t("Предложение закрыто","Proposal closed"));else publish();
+        }
     }
     private static void clearWait(){
-        waitDeadline=0;shownSeconds=-1;readyPlayer="";
+        waitDeadline=0;waitInitiator=null;shownSeconds=-1;readyPlayer="";
     }
-    private static void advance(MP_Net.Conn guest){
-        field("hostReady",true);guest.ready=true;
+    private static void advance(){
+        field("hostReady",true);
+        for(var client:MP.clients)if(client.civ>0)client.ready=true;
         try{
             Method method=MP.class.getDeclaredMethod("tryEndTurn");method.setAccessible(true);method.invoke(null);
         }catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
     }
-    private static void updateWait(MP_Net.Conn guest,int turn,boolean hostReady,boolean guestReady,boolean forcePublish){
+    private static void updateWait(int turn,boolean hostReady,List<MP_Net.Conn> players,boolean forcePublish){
         String oldPlayer=readyPlayer;
         int oldSeconds=shownSeconds;
-        if(guest==null||guest.civ<=0||!active()||hostReady==guestReady){
+        long readyCount=players.stream().filter(c->c.ready).count()+(hostReady?1:0);
+        if(players.isEmpty()||readyCount==0||readyCount==players.size()+1||!active()){
             clearWait();
         }else{
             long now=System.nanoTime();
-            readyPlayer=hostReady?MP.nick:guest.nick;
+            if(!(waitInitiator==HOST?hostReady:waitInitiator instanceof MP_Net.Conn c&&players.contains(c)&&c.ready)){
+                waitInitiator=hostReady?HOST:players.stream().filter(c->c.ready).findFirst().orElseThrow();
+                readyPlayer=name(waitInitiator);waitDeadline=0;
+            }
             if(MP.turnSeconds>0){
-                if(waitDeadline==0||!readyPlayer.equals(oldPlayer))waitDeadline=now+MP.turnSeconds*1_000_000_000L;
+                if(waitDeadline==0)waitDeadline=now+MP.turnSeconds*1_000_000_000L;
                 shownSeconds=(int)Math.max(0,(waitDeadline-now+999_999_999L)/1_000_000_000L);
             }
         }
         if(forcePublish||!oldPlayer.equals(readyPlayer)||oldSeconds!=shownSeconds)send("kreyli_ready_state",turn,readyPlayer,shownSeconds);
-        if(waitDeadline!=0&&shownSeconds==0&&SharedSupport.canEnd())advance(guest);
+        if(waitDeadline!=0&&shownSeconds==0&&SharedSupport.canEnd())advance();
     }
     public static void tick(){
-        if(MP.isClient()){acknowledge();return;}
         if(!MP.isHost()||!MP.started)return;
-        var guest=guest();int turn=GameCalendar.TURNID;
-        for(var iterator=readyRequests.entrySet().iterator();iterator.hasNext();){var entry=iterator.next();var conn=entry.getKey();var request=entry.getValue();
-            if(conn!=guest||request.turn!=turn||conn.cmds>request.commands){iterator.remove();continue;}
+        int turn=GameCalendar.TURNID;
+        for(var iterator=readyRequests.entrySet().iterator();iterator.hasNext();){
+            var entry=iterator.next();var conn=entry.getKey();var request=entry.getValue();
+            if(!MP.clients.contains(conn)||request.turn!=turn||conn.cmds>request.commands){iterator.remove();continue;}
             if(conn.cmds==request.commands){conn.ready=true;iterator.remove();}
         }
-        if(vote.id!=0&&!vote.waiting&&vote.turn!=turn){vote.clear();publish();}
-        boolean changedGuest=observedGuest!=guest, changedTurn=observedTurn!=turn;
-        if(changedGuest){clearWait();if(vote.id!=0){vote.clear();publish();}readySequences.keySet().removeIf(c->c!=guest);readyRequests.keySet().removeIf(c->c!=guest);observedGuest=guest;lastGuest=false;}
-        if(changedTurn){clearWait();observedTurn=turn;lastHost=false;lastGuest=false;}
-        boolean h=Boolean.TRUE.equals(field("hostReady")),g=guest!=null&&guest.ready;
-        if(vote.id!=0&&((lastHost&&!h)||(lastGuest&&!g))){vote.clear();publish();}
-        if(h!=lastHost){lastHost=h;notice(MP.nick+(h?" готов к следующему ходу":" отменил готовность"));}
-        if(g!=lastGuest){lastGuest=g;notice(guest.nick+(g?" готов к следующему ходу":" отменил готовность"));}
-        if(active()&&guest!=null&&vote.mayAdvance(turn,guest)&&SharedSupport.canEnd()){
-            vote.started();advance(guest);
-        }else{
-            updateWait(guest,turn,h,g,changedGuest||changedTurn);
+        readySequences.keySet().retainAll(MP.clients);
+        var players=MP.clients.stream().filter(c->c.civ>0&&!MP.eliminated(c.civ)).toList();
+        boolean changedTurn=observedTurn!=turn;
+        if(changedTurn){clearWait();observedTurn=turn;lastHost=false;lastReady.clear();}
+        boolean hostReady=Boolean.TRUE.equals(field("hostReady"));
+        if(hostReady!=lastHost){lastHost=hostReady;notice(MP.nick+(hostReady?KreyliText.t(" готов к следующему ходу"," is ready for the next turn"):KreyliText.t(" отменил готовность"," is no longer ready")));}
+        lastReady.retainAll(players);
+        for(var c:players){
+            if(c.ready&&lastReady.add(c))notice(c.nick+KreyliText.t(" готов к следующему ходу"," is ready for the next turn"));
+            else if(!c.ready&&lastReady.remove(c))notice(c.nick+KreyliText.t(" отменил готовность"," is no longer ready"));
         }
+        if(vote.id!=0){
+            long now=System.nanoTime();
+            if(!vote.sameRoster(voters()))finish(KreyliText.t("Состав игроков изменился","Player roster changed"));
+            else if(vote.failed(now))finish(KreyliText.t("Большинство не набрано","Majority not reached"));
+            else if(vote.mayAdvance(turn)&&active()&&SharedSupport.synchronizedToAdvance()){vote.started();advance();}
+            else if(vote.remaining==0){
+                int seconds=(int)Math.max(0,(vote.deadline-now+999_999_999L)/1_000_000_000L);
+                if(seconds!=lastVoteSeconds){lastVoteSeconds=seconds;publish();}
+            }
+        }else updateWait(turn,hostReady,players,changedTurn);
     }
     public static void updateUi(){
         KreyliTurnHud.update();
         if(!MP.playing()||!MP.inputOrders()||MP.hasBattleReports())return;
         var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
         boolean ready=MP.isHost()?Boolean.TRUE.equals(field("hostReady")):MP.ready;
-        button.setTextE(ready?"Отменить готовность":"Готов");button.setClickable(true);
+        button.setTextE(ready?KreyliText.t("Отменить готовность","Cancel readiness"):KreyliText.t("Готов","Ready"));button.setClickable(true);
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=lastAckId=readySequence=0;readySequences.clear();readyRequests.clear();remoteCount=remoteRemaining=0;remoteHost=remoteGuest=lastHost=lastGuest=false;observedGuest=null;observedTurn=ackTurn=loadedTurn=lastAckTurn=-1;}
+    public static void reset(){clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }

@@ -30,7 +30,7 @@ public final class KreyliMenus {
         menu.updateScrollable();
         menu.updateMenuElements_IsInView();
         menu.updateMenuElements_IsInView_X();
-        menu.getTitleM().setText("Kreyli Coop AOH2 | Игроки: "+MP.rosterNicks.length+" / 2");
+        menu.getTitleM().setText("Kreyli Coop AOH2 | "+CFG.lang.get("Players")+": "+MP.rosterNicks.length+" / "+KreyliSteam.MAX_PLAYERS);
     }
 
     private static void fitPlayerColumns(Menu menu){
