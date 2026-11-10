@@ -8,7 +8,7 @@ import java.util.ArrayList;
 
 /** Steam is a rendezvous/overlay layer; the game protocol remains authoritative. */
 public final class KreyliSteam {
-    static final String PROTOCOL="kreyli-aoh2-2.2-ready-4";
+    static final String PROTOCOL="kreyli-aoh2-2.2-ready-5";
     public static final int MAX_PLAYERS=10;
     private static boolean overlayVisible;
     public static boolean overlayVisible(){return overlayVisible;}

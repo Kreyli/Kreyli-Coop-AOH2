@@ -117,7 +117,13 @@ public final class KreyliTurnFeaturesProbe {
       }
       System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout and early advance");Runtime.getRuntime().halt(0);}
     }else{
-     if(phase==1&&MP.picking&&exists("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(read("ready"));civ=1;while(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;MP.pick(civ);phase=2;}
+     if(phase==1&&MP.picking&&exists("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(read("ready"));civ=1;while(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;var previous=com.badlogic.gdx.Gdx.input.getInputProcessor();
+      MP.pick(civ);
+      var chooser=com.badlogic.gdx.Gdx.input.getInputProcessor();
+      require(chooser!=previous,"Country confirmation dialog opens");
+      chooser.keyDown(com.badlogic.gdx.Input.Keys.ENTER);
+      require(MP.pickPending()&&com.badlogic.gdx.Gdx.input.getInputProcessor()==previous,"Country confirmation sends the pick");
+      phase=2;}
      if(phase==2&&MP.myCiv==civ&&!MP.picking&&playable()){
       startTurn=GameCalendar.TURNID;CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(true);CFG.menus.getInGameProvInfo().actionEL(0);require(MP.ready,"Actual ready button bypasses no-orders prompt");phase=20;
      }

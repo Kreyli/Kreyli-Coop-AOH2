@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 /** A native AoH2 room with a roster, live settings and multiplayer actions. */
 public final class KreyliLobbyRoom extends Menu {
     public static final int READY=4, INVITE=5, DISCORD=6, LEAVE=7;
-    public static final int MODE=8, PASSWORD=9, TIMER=10, LISTED=11, CONNECTION=12, PORT=13;
+    public static final int PASSWORD=8, TIMER=9, LISTED=10, CONNECTION=11, PORT=12;
     private static final int[] TIMERS={0,10,20,30,45,60,90};
     private final boolean host=MP.isHost();
 
@@ -32,7 +32,7 @@ public final class KreyliLobbyRoom extends Menu {
 
         elements.add(new RoomButton(()->KreyliText.nativeLabel("Players","Players")+"  "+KreyliLobby.roster().size()+" / "+KreyliSteam.MAX_PLAYERS,gap,gap,left,row,null));
         elements.add(new RosterTable(gap,first,left,bottom-row-first));
-        elements.add(new RoomButton(this::status,gap,bottom-row,left,row,null));
+        elements.add(new RoomButton(this::status,gap,bottom-row,quarter,row,null));
         elements.add(new RoomButton(()->KreyliText.t("Настройки лобби","Lobby settings"),rightX,gap,right,row,null));
         elements.add(new RoomButton(this::readyText,gap*4+quarter*3,bottom,width-gap*5-quarter*3,row,KreyliLobby::toggleReady));
         elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*3+quarter*2,bottom,quarter,row,KreyliSteam::inviteFriends));
@@ -40,24 +40,24 @@ public final class KreyliLobbyRoom extends Menu {
         elements.add(new RoomButton(()->KreyliText.nativeLabel("Back","Back"),gap,bottom,quarter,row,this::leave));
 
         if(host){
-            elements.add(new RoomButton(this::mode,rightX,first,right,row,()->change(MODE)));
-            elements.add(new SettingInput(PASSWORD,rightX,first+row,right,row));
-            elements.add(new RoomButton(this::timer,rightX,first+row*2,right,row,()->change(TIMER)));
-            elements.add(new RoomButton(()->KreyliText.t("Публичный список: ","Public listing: ")+MP_Form.yesNo(MP.listInLobby),rightX,first+row*3,right,row,()->change(LISTED)));
-            elements.add(new RoomButton(this::connection,rightX,first+row*4,right,row,()->change(CONNECTION)));
-            elements.add(new SettingInput(PORT,rightX,first+row*5,right,row));
+            elements.add(new SettingInput(PASSWORD,rightX,first,right,row));
+            elements.add(new RoomButton(this::timer,rightX,first+row,right,row,()->change(TIMER)));
+            elements.add(new RoomButton(()->KreyliText.t("Публичный список: ","Public listing: ")+MP_Form.yesNo(MP.listInLobby),rightX,first+row*2,right,row,()->change(LISTED)));
+            elements.add(new RoomButton(this::connection,rightX,first+row*3,right,row,()->change(CONNECTION)));
+            elements.add(new SettingInput(PORT,rightX,first+row*4,right,row));
         }else{
-            elements.add(new RoomButton(this::mode,rightX,first,right,row,null));
+            elements.add(new RoomButton(this::connection,rightX,first,right,row,null));
             elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
         }
+        elements.add(new RoomCode((width-quarter*2-gap)/2,bottom-row,quarter*2+gap,row));
 
         initMenu(MP_Form.titleBar(KreyliText.t("Мультиплеер · Лобби","Multiplayer · Lobby")),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
     }
 
-    private String mode(){return SharedSupport.shared?KreyliText.t("Страны: общая страна","Countries: shared country"):KreyliText.t("Страны: разные страны","Countries: separate countries");}
     private String timer(){return KreyliText.t("Ожидание игроков: ","Wait for players: ")+KreyliLobby.timerLabel();}
     private String connection(){
-        return MP.hostDirect?KreyliText.t("Подключение: LAN / VPN","Connection: LAN / VPN"):KreyliText.t("Код комнаты: ","Room code: ")+MP.relayCode;
+        boolean lan=host?MP.hostDirect:MP.roomCode()==null;
+        return lan?KreyliText.t("Подключение: LAN / VPN","Connection: LAN / VPN"):KreyliText.t("Подключение: Steam","Connection: Steam");
     }
     private String status(){
         if(KreyliLobby.choosingGame())return KreyliText.t("Хост выбирает кампанию","Host is choosing a campaign");
@@ -86,11 +86,10 @@ public final class KreyliLobbyRoom extends Menu {
     private boolean canChangeEndpoint(){return canEdit()&&MP.clients.isEmpty();}
     private void change(int action){
         if(!canEdit())return;
-        boolean shared=SharedSupport.shared, listed=MP.listInLobby, direct=MP.hostDirect;
+        boolean listed=MP.listInLobby, direct=MP.hostDirect;
         int seconds=MP.turnSeconds;
         String region=MP.selectedRegion()[1];
         switch(action){
-            case MODE -> shared=!shared;
             case TIMER -> {
                 int index=0;
                 for(int i=0;i<TIMERS.length;i++)if(TIMERS[i]==seconds)index=i;
@@ -100,7 +99,7 @@ public final class KreyliLobbyRoom extends Menu {
             case CONNECTION -> direct=!direct;
             default -> {return;}
         }
-        SharedHostForm.apply(shared,MP.password,seconds,listed,direct,MP.port,region);
+        SharedHostForm.apply(MP.password,seconds,listed,direct,MP.port,region);
     }
 
     private final class SettingInput extends Button_In_Game_Box_Special {
@@ -114,7 +113,8 @@ public final class KreyliLobbyRoom extends Menu {
             String value=getTextE();
             return field==PASSWORD?KreyliText.t("Пароль: ","Password: ")+(value.isEmpty()?KreyliText.t("без пароля","none"):"•".repeat(Math.min(20,value.length()))):KreyliText.t("Порт LAN: ","LAN port: ")+value;
         }
-        @Override public boolean getIsClickable(){return field==PORT?canChangeEndpoint():canEdit();}
+        @Override public boolean getVisibleE(){return super.getVisibleE()&&(field!=PORT||MP.hostDirect);}
+        @Override public boolean getIsClickable(){return field==PORT?MP.hostDirect&&canChangeEndpoint():canEdit();}
         @Override public void actionElem(int index){
             if(!getIsClickable())return;
             CFG.showKeyboard(field);
@@ -140,8 +140,27 @@ public final class KreyliLobbyRoom extends Menu {
                     return;
                 }
             }
-            SharedHostForm.apply(SharedSupport.shared,password,MP.turnSeconds,MP.listInLobby,MP.hostDirect,port,MP.selectedRegion()[1]);
+            SharedHostForm.apply(password,MP.turnSeconds,MP.listInLobby,MP.hostDirect,port,MP.selectedRegion()[1]);
             setTextE(field==PASSWORD?MP.password:Integer.toString(MP.port));
+        }
+    }
+
+    private static final class RoomCode extends Button_InGameBox {
+        RoomCode(int x,int y,int width,int height){super("",-1,x,y,width,height,true);}
+        private static String code(){return MP.roomCode();}
+        @Override public boolean getVisibleE(){return code()!=null&&!code().isBlank();}
+        @Override public boolean getIsClickable(){return getVisibleE();}
+        @Override public void drawButtonBGE(SpriteBatch batch,int x,int y,boolean active){}
+        @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
+            if(!getVisibleE())return;
+            String text=MP_UI.fit(MP.t("MP_Code","Code: {0}",code()),getWidthE()-CFG.PADD*2);
+            Renderer.drawTextWithShadow(batch,MP_UI.font(),text,x+getPosXE()+(getWidthE()-MP_UI.textWidth(text))/2,
+                    y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,getIsHovered()?Color.WHITE:Color.GOLD);
+        }
+        @Override public void actionElem(int index){
+            if(!getIsClickable())return;
+            Gdx.app.getClipboard().setContents(code());
+            MP.toast(KreyliText.t("Код комнаты скопирован","Room code copied"),true);
         }
     }
 
@@ -257,7 +276,7 @@ public final class KreyliLobbyRoom extends Menu {
             int index=menuElem.indexOf(this);
             if(index==READY)return host||!KreyliLobby.choosingGame();
             if(index==CONNECTION||(index==LISTED&&MP.hostDirect&&!MP.listInLobby))return canChangeEndpoint();
-            return index<MODE||canEdit();
+            return index<PASSWORD||canEdit();
         }
         @Override public void actionElem(int index){if(getIsClickable())action.run();}
     }

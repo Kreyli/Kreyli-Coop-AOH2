@@ -96,7 +96,7 @@ public final class KreyliSeatSecurityProbe {
     } else {
      if (phase == 1 && MP.picking && exists("host-ready")) {
       hostCiv = Integer.parseInt(read("host-ready")); guestCiv = 1; while (guestCiv == hostCiv || !MP.pickable(guestCiv)) guestCiv++;
-      MP.pick(guestCiv); phase = 2;
+      KreyliCountrySeats.submit(guestCiv,1); phase = 2;
      }
      if (phase == 2 && MP.myCiv == guestCiv && playable()) {
       signal("picked", Integer.toString(guestCiv));
@@ -122,7 +122,7 @@ public final class KreyliSeatSecurityProbe {
        require(MP.myCiv != guestCiv, "Nickname improperly restored the saved country");
        if (MP.picking && frames >= joinedFrame + 45) {
         if (mode.equals("stranger")) {
-         MP.pick(guestCiv);
+         KreyliCountrySeats.submit(guestCiv,1);
          require(MP.pickPending(), "Manual pick was sent");
          phase = 6;
         } else {

@@ -37,26 +37,19 @@ public final class SharedSupport {
         // In particular, accepting diplomacy must not silently discard its mutation.
         if(!MP.applying&&MP.playing()&&MP.inputOrders()&&
            (MP.isClient()?civ==MP.myCiv:MP.isHost()&&civ==CFG.core.getPlayer(0).getCivId()))cancelReady();
-        if(shared && MP.isClient() && !MP.applying && civ==MP.myCiv && MP.playing() && MP.inputOrders()){
+        if(KreyliCountrySeats.sharedCountry(civ) && MP.isClient() && !MP.applying && civ==MP.myCiv && MP.playing() && MP.inputOrders()){
             if(pending || MP.ready) return true;
             int before=(Integer)get("sentCmds");
             boolean result=(Boolean)call("coopOriginalCmd",new Class[]{String.class,int.class,Object[].class},op,civ,args);
             if((Integer)get("sentCmds")>before){KreyliTurns.order();pendingRequest=(Integer)get("sentCmds");pending=true;return true;}
             return result;
         }
-        if(shared && MP.isHost() && !MP.applying && MP.started && MP.inputOrders()&&!militaryOnly) MP.requestSync();
+        if(KreyliCountrySeats.anyShared() && MP.isHost() && !MP.applying && MP.started && MP.inputOrders()&&!militaryOnly) MP.requestSync();
         return (Boolean)call("coopOriginalCmd",new Class[]{String.class,int.class,Object[].class},op,civ,args);
     }
-    public static void afterCommand(){KreyliOrderSync.mark();KreyliTurns.order();if(shared && MP.isHost()&&!militaryOnly)MP.requestSync();}
-    public static int free(int civ){return shared ? (civ==CFG.core.getPlayer(0).getCivId()?1:0) : -1;}
-    public static boolean pick(int civ){
-        if(!shared)return false;
-        if(!MP.isClient()||!MP.picking||!MP.pickable(civ))return true;
-        if(MP.rosterCivs.length==0||civ!=MP.rosterCivs[0]){MP.toast("Choose the host's country for shared control",false);return true;}
-        set("pickPending",true);((MP_Net.Conn)get("host")).send("pick",civ);return true;
-    }
+    public static void afterCommand(){KreyliOrderSync.mark();KreyliTurns.order();if(KreyliCountrySeats.anyShared() && MP.isHost()&&!militaryOnly)MP.requestSync();}
     public static boolean leave(MP_Net.Conn connection){
-        if(!shared || !MP.validCiv(connection.civ))return false;
+        if(!MP.validCiv(connection.civ))return false;
         boolean remaining=connection.civ==CFG.core.getPlayer(0).getCivId();
         for(var other:MP.clients)if(other!=connection&&other.civ==connection.civ)remaining=true;
         if(!remaining)return false;
@@ -65,24 +58,28 @@ public final class SharedSupport {
     }
     public static boolean keepLeader(int civ){return MP.isOn();}
     public static Map<String,Object> pieces(Map<String,Object> pieces){
-        if(shared){pieces.put("coop_mode",true);pieces.put("coop_revision",++revision);pieces.put("coop_armies",SharedState.capture());}
+        pieces.put("coop_limits",KreyliCountrySeats.encode());
+        pieces.put("coop_legacy",shared);
+        if(KreyliCountrySeats.anyShared()){pieces.put("coop_mode",true);pieces.put("coop_revision",++revision);pieces.put("coop_armies",SharedState.capture());}
         else pieces.put("coop_mode",false);
         return pieces;
     }
-    public static Future<?> built(Future<?> future){if(shared && future!=null){futures.clear();futures.put(future,revision);}return future;}
+    public static Future<?> built(Future<?> future){if(KreyliCountrySeats.anyShared() && future!=null){futures.clear();futures.put(future,revision);}return future;}
     public static void sending(MP_Net.Conn connection,Future<?> future){
-        if(shared && connection.civ>0){Long rev=futures.get(future);if(rev==null)throw new IllegalStateException("Missing snapshot revision");expected.put(connection,rev);}
+        if(KreyliCountrySeats.sharedCountry(connection.civ)){Long rev=futures.get(future);if(rev==null)throw new IllegalStateException("Missing snapshot revision");expected.put(connection,rev);}
     }
     public static void loaded(Object data){
         if(!(data instanceof Map<?,?> map))return;
-        shared=Boolean.TRUE.equals(map.get("coop_mode"));
+        if(map.get("coop_limits") instanceof String limits)KreyliCountrySeats.decode(limits);
+        shared=Boolean.TRUE.equals(map.get("coop_legacy"));
         KreyliInputRecovery.afterSnapshot();KreyliTurns.afterSnapshot();KreyliOrderSync.request();
-        if(!shared)return;
+        if(!Boolean.TRUE.equals(map.get("coop_mode")))return;
         if(!(map.get("coop_revision") instanceof Long rev)||!(map.get("coop_armies") instanceof String state))throw new IllegalStateException("Shared snapshot missing state");
         SharedState.restore(state);if(snapshotCommands>=pendingRequest)pending=false;
-        if(MP.myCiv>0)((MP_Net.Conn)get("host")).send("coop_ack",rev);
+        if(KreyliCountrySeats.sharedCountry(MP.myCiv))((MP_Net.Conn)get("host")).send("coop_ack",rev);
     }
     public static boolean message(MP_Net.Conn connection,Object[] message){
+        if(KreyliCountrySeats.hostMessage(connection,message))return true;
         if(KreyliProfile.hostMessage(connection,message))return true;
         if(KreyliOrderSync.hostMessage(connection,message))return true;
         if(KreyliTurns.hostMessage(connection,message))return true;
@@ -90,7 +87,7 @@ public final class SharedSupport {
         if(KreyliLobby.hostMessage(connection,message))return true;
         if(KreyliSaveSeats.hostMessage(connection,message))return true;
         if(message.length==0||!"coop_ack".equals(message[0]))return false;
-        if(!shared||message.length!=2||!(message[1] instanceof Long rev))return true;
+        if(!KreyliCountrySeats.sharedCountry(connection.civ)||message.length!=2||!(message[1] instanceof Long rev))return true;
         if(Objects.equals(expected.get(connection),rev))acknowledged.put(connection,rev);
         return true;
     }
@@ -98,8 +95,7 @@ public final class SharedSupport {
         return !KreyliTurns.blocksNativeAdvance()&&synchronizedToAdvance();
     }
     static boolean synchronizedToAdvance(){
-        if(!shared)return true;
-        for(var c:MP.clients)if(c.civ>0&&(!expected.containsKey(c)||!Objects.equals(expected.get(c),acknowledged.get(c))))return false;
+        for(var c:MP.clients)if(KreyliCountrySeats.sharedCountry(c.civ)&&(!expected.containsKey(c)||!Objects.equals(expected.get(c),acknowledged.get(c))))return false;
         return true;
     }
     public static void incoming(Object[] message){
@@ -109,7 +105,7 @@ public final class SharedSupport {
         }
         if(message.length>9&&"snap".equals(message[0])&&message[9] instanceof Integer count)snapshotCommands=count;
     }
-    public static boolean waitBeforeReady(){return shared && MP.isClient() && pending;}
+    public static boolean waitBeforeReady(){return KreyliCountrySeats.sharedCountry(MP.myCiv) && MP.isClient() && pending;}
     /** A second press withdraws only the local player's vote, before turn processing. */
     public static boolean cancelReady(){
         if(!MP.playing()||!MP.inputOrders()||!((java.util.List<?>)get("reportsToShow")).isEmpty())return false;
@@ -122,7 +118,7 @@ public final class SharedSupport {
     }
     public static boolean lightSync(String op){if(MP.isHost()&&MP.playing()&&(op.equals("ma")||op.equals("mtp"))){KreyliOrderSync.mark();return true;}return false;}
     public static void ordersAcknowledged(int count){if(count>=pendingRequest)pending=false;}
-    public static void reset(){KreyliOrderSync.reset();KreyliTurns.reset();KreyliPings.reset();pending=false;pendingRequest=0;snapshotCommands=0;revision=0;futures.clear();expected.clear();acknowledged.clear();}
+    public static void reset(){KreyliCountrySeats.reset();KreyliOrderSync.reset();KreyliTurns.reset();KreyliPings.reset();pending=false;pendingRequest=0;snapshotCommands=0;revision=0;futures.clear();expected.clear();acknowledged.clear();}
 }
 
 

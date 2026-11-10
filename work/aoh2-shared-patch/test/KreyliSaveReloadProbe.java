@@ -57,7 +57,7 @@ public final class KreyliSaveReloadProbe {
      if(phase==6&&GameCalendar.TURNID==turn+1&&playable()){signal("host-next",CFG.core.getCiv(guestCiv).getGold()+","+GameCalendar.TURNID);phase=7;}
      if(phase==7&&exists("pass")){MP.stop();System.out.println("RELOAD: PASS actual save load, host country and guest rejoin assignment, late readiness");Runtime.getRuntime().halt(0);}
     }else{
-     if(phase==1&&MP.picking&&exists("host-ready")){hostCiv=Integer.parseInt(read("host-ready"));guestCiv=1;while(guestCiv==hostCiv||!MP.pickable(guestCiv))guestCiv++;MP.pick(guestCiv);phase=2;}
+     if(phase==1&&MP.picking&&exists("host-ready")){hostCiv=Integer.parseInt(read("host-ready"));guestCiv=1;while(guestCiv==hostCiv||!MP.pickable(guestCiv))guestCiv++;KreyliCountrySeats.submit(guestCiv,1);phase=2;}
      if(phase==2&&MP.myCiv==guestCiv&&playable()){
       signal("picked",Integer.toString(guestCiv));
       if(exists("saved")){MP.stop();signal("left","ok");phase=3;}

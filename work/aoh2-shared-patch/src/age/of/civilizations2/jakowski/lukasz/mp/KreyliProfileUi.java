@@ -40,6 +40,8 @@ public final class KreyliProfileUi {
     private static int selectedAvatar=-1;
     private static final Map<Box,String> countryPortraits=new LinkedHashMap<>();
     private static String viewedPlayer;
+    private static Box countryNext;
+    private static int countryCiv=-1,countryPage;
     private static InputProcessor previousInput;
     private static InputMultiplexer modalInput;
 
@@ -50,7 +52,7 @@ public final class KreyliProfileUi {
     }
 
     private static boolean countryVisible(){
-        if(CFG.menus==null||Menu_InGame_Civ.hideAnimation)return false;
+        if(CFG.menus==null||Menu_InGame_Civ.hideAnimation||CFG.menus.getInGameView_Options())return false;
         return CFG.menus.getIn_Game_CivilizationView()||
                 CFG.menus.getInGameView()&&CFG.menus.getInGame_Civ_Info().getVisibleM();
     }
@@ -207,35 +209,62 @@ public final class KreyliProfileUi {
         }
     }
 
-    /** A separate portrait panel beside the native country details and flag. */
+    private static int countryRowHeight(){return row()*2+CFG.PADD;}
+
+    public static void reserveCountryPlayers(Menu menu){
+        int bottom=menu.getHeightM();
+        for(var element:menu.menuElem)bottom=Math.max(bottom,element.getPosY()+element.getHeightE()+CFG.PADD*2);
+        // The native stats menu also paints two lower rows outside its element bounds.
+        int nativeSummaryHeight=row()*2+CFG.PADD;
+        menu.setHeight(bottom+nativeSummaryHeight+countryRowHeight()+CFG.PADD);
+    }
+
+    /** Player section immediately below the native country statistics. */
     public static void drawCountry(Menu menu,SpriteBatch batch,int offsetX,int offsetY){
         countryPortraits.clear();
-        if(open||!menu.getVisibleM()||Menu_InGame_Civ.hideAnimation)return;
+        countryNext=null;
+        if(!menu.getVisibleM()||Menu_InGame_Civ.hideAnimation)return;
         int civ=CFG.getActiveCivInfoId();
         if(civ<=0)return;
         var players=KreyliProfile.player(civ);
-        if(players.isEmpty())return;
-        int columns=players.size()>8?3:players.size()>4?2:1;
-        int rows=(players.size()+columns-1)/columns;
-        int portraitSize=Math.max(144,row()*5);
-        int width=Math.min(CFG.GAMEWIDTH/(columns+2),Math.max(CFG.BUTTON_W,portraitSize+CFG.PADD*4));
-        int desiredX=menu.getPosX()+offsetX+CFG.PADD+menu.getWidthM();
-        int startX=Math.max(CFG.PADD,Math.min(CFG.GAMEWIDTH-width*columns-CFG.PADD,desiredX));
-        int startY=Math.max(CFG.PADD,menu.getPosY()+offsetY+CFG.PADD);
+        int height=countryRowHeight(),padding=Math.max(3,CFG.PADD);
+        int x=menu.getPosX()+offsetX,y=menu.getPosY()+offsetY+menu.getHeightM()-height;
+        int width=menu.getWidthM();
+        if(players.isEmpty()){
+            float previous=batch.getPackedColor();
+            try{
+                fill(batch,new Box(x,y,width,height),PANEL);
+                text(batch,t("Игрок: —","Player: —"),x+padding,y+padding,MUTED);
+            }finally{batch.setPackedColor(previous);}
+            return;
+        }
+        int pageSize=players.size()>1?2:1;
+        if(countryCiv!=civ){countryCiv=civ;countryPage=0;}
+        int lastPage=(players.size()-1)/pageSize;
+        countryPage=Math.min(countryPage,lastPage);
         float previous=batch.getPackedColor();
         try{
-            int height=Math.min(portraitSize+row()+CFG.PADD*2,(CFG.GAMEHEIGHT-startY-CFG.PADD)/rows);
-            if(height<row()*2)return;
-            for(int i=0;i<players.size();i++){
-                var controller=players.get(i);
-                int x=startX+width*(i%columns),y=startY+height*(i/columns);
-                Box card=new Box(x,y,width,height-CFG.PADD);
-                fill(batch,card,PANEL);
-                int size=Math.min(width-CFG.PADD*4,height-row()-CFG.PADD*2);
-                if(size>0)drawAvatar(batch,x+(width-size)/2,y+CFG.PADD,size,controller.avatar());
-                String name=MP_UI.fit(controller.nick(),width-CFG.PADD*2);
-                text(batch,name,x+(width-MP_UI.textWidth(name))/2,y+height-row(),Color.WHITE);
+            fill(batch,new Box(x,y,width,height),PANEL);
+            fill(batch,new Box(x,y,width,1),CONTROL);
+            String title=players.size()==1?t("Игрок:","Player:"):t("Игроки:","Players:");
+            if(lastPage>0)title+=" "+(countryPage+1)+"/"+(lastPage+1);
+            text(batch,title,x+padding,y+padding,Color.GOLD);
+            int top=y+padding+CFG.TEXT_HEIGHT_DEFAULT_SMALL+2;
+            int itemHeight=height-(top-y)-padding;
+            int nextWidth=lastPage>0?Math.max(itemHeight,28):0;
+            int itemWidth=(width-padding*(pageSize+1)-nextWidth)/pageSize;
+            for(int column=0;column<pageSize;column++){
+                int index=countryPage*pageSize+column;
+                if(index>=players.size())break;
+                var controller=players.get(index);
+                int left=x+padding+(itemWidth+padding)*column;
+                Box card=new Box(left,top,itemWidth,itemHeight);
+                player(batch,card,controller.nick(),controller.avatar());
                 countryPortraits.put(card,controller.nick());
+            }
+            if(lastPage>0){
+                countryNext=new Box(x+width-padding-nextWidth,top,nextWidth,itemHeight);
+                button(batch,countryNext,">");
             }
         }finally{batch.setPackedColor(previous);}
     }
@@ -246,9 +275,11 @@ public final class KreyliProfileUi {
         return null;
     }
 
+    private static boolean countryNextAt(int x,int y){return countryVisible()&&countryNext!=null&&countryNext.contains(x,y);}
+
     public static boolean touchDown(int x,int y,int pointer,int button){
         if(pointer!=0||!visible())return false;
-        captured=open||(button==Input.Buttons.LEFT&&profileTarget(x,y)!=null);
+        captured=open||(button==Input.Buttons.LEFT&&(profileTarget(x,y)!=null||countryNextAt(x,y)));
         return captured;
     }
     public static boolean touchUp(int x,int y,int pointer,int button){
@@ -258,6 +289,10 @@ public final class KreyliProfileUi {
         if(!open){
             String target=profileTarget(x,y);
             if(target!=null)open(target);
+            else if(countryNextAt(x,y)){
+                int pages=(KreyliProfile.player(countryCiv).size()+1)/2;
+                countryPage=pages>0?(countryPage+1)%pages:0;
+            }
         }
         else click(x,y);
         CFG.setRenderO(true);

@@ -63,6 +63,7 @@ public final class KreyliLobby {
         advance();return true;
     }
     public static boolean clientMessage(Object[] message){
+        if(KreyliCountrySeats.clientMessage(message))return true;
         if(KreyliProfile.clientMessage(message))return true;
         if(KreyliIdentity.clientMessage(message))return true;
         if(KreyliOrderSync.receive(message))return true;

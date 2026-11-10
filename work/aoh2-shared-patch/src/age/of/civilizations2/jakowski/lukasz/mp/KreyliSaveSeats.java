@@ -68,13 +68,15 @@ public final class KreyliSaveSeats {
         return true;
     }
 
-    public static boolean reservedForOther(int civ, MP_Net.Conn connection) {
-        String identity = identities.get(connection);
-        if(Objects.equals(seats.get(identity),civ))return false;
-        for (var seat : seats.entrySet()) {
-            if (seat.getValue() == civ && !seat.getKey().equals(identity)) return true;
+    static int unoccupiedReservations(int civ,MP_Net.Conn claimant){
+        String claimantId=identities.get(claimant);
+        int count=0;
+        for(var seat:seats.entrySet()){
+            String identity=seat.getKey();
+            if(seat.getValue()==civ&&!identity.equals(claimantId)
+                    &&MP.clients.stream().noneMatch(guest->guest.civ==civ&&identity.equals(identities.get(guest))))count++;
         }
-        return false;
+        return count;
     }
 
     public static void assigned(MP_Net.Conn connection, int civ) {
@@ -113,6 +115,7 @@ public final class KreyliSaveSeats {
         if (!MP.isHost() || !MP.started || SaveGameManager.saveTag == null) return;
         Properties data = new Properties();
         data.setProperty("shared", Boolean.toString(SharedSupport.shared));
+        data.setProperty("capacities",KreyliCountrySeats.encode());
         data.setProperty("hostCiv", Integer.toString(CFG.core.getPlayer(0).getCivId()));
         for (var seat : seats.entrySet()) {
             if (MP.pickable(seat.getValue())) data.setProperty("seat." + seat.getKey(), seat.getValue().toString());
@@ -147,6 +150,7 @@ public final class KreyliSaveSeats {
             int host = country(data.getProperty("hostCiv", data.getProperty(hostKey)));
             if (MP.pickable(host)) CFG.core.getPlayer(0).setCivId(host);
             SharedSupport.shared = Boolean.parseBoolean(data.getProperty("shared", "false"));
+            KreyliCountrySeats.decode(data.getProperty("capacities",""));
             for (String key : data.stringPropertyNames()) {
                 if (key.equals(hostKey) || !key.matches("seat\\.reconnect:[0-9a-f]{64}")) continue;
                 int civ = country(data.getProperty(key));

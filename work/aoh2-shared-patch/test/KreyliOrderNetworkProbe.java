@@ -1,6 +1,8 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
 import age.of.civilizations2.jakowski.lukasz.*;
 import age.of.civilizations2.jakowski.lukasz.Menus.NewGame.Menu_CreateNewGame;
+import age.of.civilizations2.jakowski.lukasz.Menus.Civilization.Menu_InGame_Civ;
+import age.of.civilizations2.jakowski.lukasz.GameValues.GameValues;
 import aoc.kingdoms.lukasz.jakowski.AA_Game;
 import com.badlogic.gdx.backends.lwjgl3.*;
 import java.nio.file.*;
@@ -32,6 +34,7 @@ public final class KreyliOrderNetworkProbe {
    boolean has(String key){return Files.exists(channel.resolve(key));}void put(String key,String value)throws Exception{Files.writeString(channel.resolve(key),value);}String get(String key)throws Exception{return Files.readString(channel.resolve(key));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
    boolean openRemoteProfile()throws Exception{
+    if(System.currentTimeMillis()-Menu_InGame_Civ.lTime<GameValues.gvInGame.MENUS_ANIMATION_TIME)return false;
     var field=KreyliProfileUi.class.getDeclaredField("countryPortraits");field.setAccessible(true);
     for(var item:((java.util.Map<?,?>)field.get(null)).entrySet()){
      if(!"OrdersHost".equals(item.getValue()))continue;
@@ -39,6 +42,12 @@ public final class KreyliOrderNetworkProbe {
      var x=box.getClass().getDeclaredMethod("x");x.setAccessible(true);
      var y=box.getClass().getDeclaredMethod("y");y.setAccessible(true);
      int px=(Integer)x.invoke(box)+CFG.PADD,py=(Integer)y.invoke(box)+CFG.PADD;
+     Menu sidebar=CFG.menus.getInGameMenu(CFG.menus.INGAME_CIV_INFO_STATS);
+     Menu diplomacy=CFG.menus.getInGame_Civ_Info_Diplomacy();
+     int bottom=sidebar.getPosY()+sidebar.getHeightM();
+     check(px>=sidebar.getPosX()&&px<sidebar.getPosX()+sidebar.getWidthM(),"Player card stays inside country sidebar width");
+     check(py>=sidebar.getPosY()&&py<bottom&&bottom<=diplomacy.getPosY(),"Player section is inside country stats, before diplomacy");
+     KreyliUiProbe.capture("kreyli-country-player-section.png");
      Touch touch=new Touch();
      touch.actionDown(px,py,0,0);
      touch.actionUp(px,py,0,0);
@@ -51,7 +60,7 @@ public final class KreyliOrderNetworkProbe {
    }
    public void render(){try{super.render();frame++;
     if(phase==0&&frame>300&&CFG.core.getCivsSize()>2&&(host||has("ready"))){MP.nick=host?"OrdersHost":"OrdersGuest";MP.password="test";MP.hostDirect=true;MP.listInLobby=false;MP.port=port;MP.turnSeconds=0;
-     if(host){SharedSupport.shared=shared;check(MP.startHost(),"Host start");civ=1;while(CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;hostCiv=civ;CFG.core.getPlayer(0).setCivId(civ);Menu_CreateNewGame.newGame();}
+     if(host){check(MP.startHost(),"Host start");civ=1;while(CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;hostCiv=civ;CFG.core.getPlayer(0).setCivId(civ);KreyliCountrySeats.configureHost(civ,shared?2:1);Menu_CreateNewGame.newGame();}
      else{MP.address="127.0.0.1:"+port;MP.join();}phase=1;
     }
     if(host){
@@ -75,7 +84,7 @@ public final class KreyliOrderNetworkProbe {
      if(phase==7&&has("fixture-ready")){CFG.gameAction.moveArmyAction(from,to,10,hostCiv,false,true);put("moved","ok");phase=8;}
      if(phase==8&&has("client-pass")){MP.stop();System.out.println("ORDER_NETWORK PASS host lightweight move and bidirectional allied ping shared="+shared);Runtime.getRuntime().halt(0);}
     }else{
-     if(phase==1&&MP.picking&&has("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(get("ready"));civ=shared?hostCiv:1;while(!shared&&(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0))civ++;MP.pick(civ);phase=2;}
+     if(phase==1&&MP.picking&&has("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(get("ready"));civ=shared?hostCiv:1;while(!shared&&(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0))civ++;KreyliCountrySeats.submit(civ,1);phase=2;}
      if(phase==2&&MP.myCiv==civ&&!MP.picking&&playable()){put("guest-in","ok");phase=3;}
      if(phase==3&&has("nonallied")&&CFG.core.getCiv(hostCiv).getAlliance()==0&&CFG.core.getCiv(civ).getAlliance()==0){KreyliPings.reset();put("nonallied-synced","ok");phase=4;}
      if(phase==4&&has("nonallied-ping")){if(began==0)began=System.nanoTime();if(System.nanoTime()-began>1_000_000_000L){if(!shared)check(!marked(hostCiv),"Nonallied ping leaked");put("nonallied-pass","ok");phase=5;}}

@@ -65,7 +65,7 @@ public final class KreyliUiProbe {
         require(Gdx.input.getInputProcessor()==previous&&CFG.menus.getIn_MainMenu(),
                 "Closing the profile restores the native input and keeps the original view");
     }
-    static void verifyBranding(){
+    static void verifyBranding()throws Exception{
         MP_UI.open(View.eMP);
         Menu entry=CFG.menus.getActiveMenu().get(0);
         require(entry.getMenuElemsSize()==5,"Multiplayer menu contains only actions");
@@ -74,6 +74,8 @@ public final class KreyliUiProbe {
                 .filter(menu->menu.getClass().getName().endsWith("MP_Browser$Bar")).findFirst().orElseThrow();
         require(!bar.getMenuElem(0).getVisibleE()&&!bar.getMenuElem(0).getIsClickable(),"Server browser nickname editor disabled");
         require(bar.getMenuElemsSize()==5&&MP.browseAll,"Server browser shows all regions without a region button");
+        bar.onBackPressed();
+        require(MP_UI.inView(View.eMP),"Server browser Back opens multiplayer menu");
         bar.actionEL(5);
         require(MP.browseAll,"Removed region action cannot change the server filter");
         MP_UI.open(View.eMAINMENU);
@@ -83,6 +85,51 @@ public final class KreyliUiProbe {
                 &&texts.contains(KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"))
                 &&texts.contains(KreyliText.t("Спасибо, что играете!","Thanks for playing!"))
                 &&texts.contains(KreyliText.t("Discord проекта","Project Discord")),"Main logo opens mod credits and Discord");
+        verifyCreditsSound();
+    }
+    static void verifyCreditsSound()throws Exception{
+        var about=CFG.menus.getActiveMenu().stream()
+                .filter(menu->menu.menuElem.stream().anyMatch(e->"Kreyli Coop AOH2".equals(e.getTextE())))
+                .findFirst().orElseThrow();
+        int index=0;
+        while(!"Kreyli Coop AOH2".equals(about.getMenuElem(index).getTextE()))index++;
+        require(about.getMenuElem(index).getIsClickable(),"Credits title is clickable");
+        var original=Gdx.audio;
+        int[] plays={0};
+        var listener=new com.badlogic.gdx.audio.Music.OnCompletionListener[1];
+        var music=(com.badlogic.gdx.audio.Music)java.lang.reflect.Proxy.newProxyInstance(
+                KreyliUiProbe.class.getClassLoader(),new Class<?>[]{com.badlogic.gdx.audio.Music.class},(proxy,method,args)->{
+                    switch(method.getName()){
+                        case "play" -> plays[0]++;
+                        case "setOnCompletionListener" -> listener[0]=(com.badlogic.gdx.audio.Music.OnCompletionListener)args[0];
+                        case "isPlaying" -> {return true;}
+                    }
+                    return null;
+                });
+        Gdx.audio=(Audio)java.lang.reflect.Proxy.newProxyInstance(
+                KreyliUiProbe.class.getClassLoader(),new Class<?>[]{Audio.class},(proxy,method,args)->{
+                    if(!method.getName().equals("newMusic"))throw new AssertionError(method.getName());
+                    var asset=(com.badlogic.gdx.files.FileHandle)args[0];
+                    require(asset.readBytes().length>44,"Credits WAV packaged on classpath");
+                    return music;
+                });
+        try{
+            for(int i=0;i<9;i++)about.actionEL(index);
+            require(plays[0]==0,"Nine clicks do not play audio");
+            about.actionEL(index);
+            require(plays[0]==1,"Tenth click plays once");
+            for(int i=0;i<20;i++)about.actionEL(index);
+            require(plays[0]==1,"Clicks during playback never overlap");
+            listener[0].onCompletion(music);
+            require(plays[0]==2,"One repeat plays after completion");
+            listener[0].onCompletion(music);
+            require(plays[0]==2,"Only one repeat is queued");
+        }finally{
+            Gdx.audio=original;
+            var cached=KreyliBranding.class.getDeclaredField("creditsMusic");
+            cached.setAccessible(true);
+            cached.set(null,null);
+        }
     }
     static void capture(String name){
         var pixmap=ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getBackBufferWidth(),Gdx.graphics.getBackBufferHeight());

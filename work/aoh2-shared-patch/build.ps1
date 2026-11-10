@@ -12,5 +12,7 @@ if($LASTEXITCODE -ne 0){throw 'Agent compile failed'}
 "Premain-Class: coop.SharedAgent`n`n" | Set-Content -Encoding ascii (Join-Path $agent 'MANIFEST.MF')
 & jar "-J-Djava.io.tmpdir=$agent" cfm (Join-Path $agent 'shared-agent.jar') (Join-Path $agent 'MANIFEST.MF') -C $agent coop
 if($LASTEXITCODE -ne 0){throw 'Jar build failed'}
-& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age
+$resources=Join-Path $PSScriptRoot 'resources'
+Copy-Item -LiteralPath (Join-Path $resources 'kreyli-credits.wav') -Destination $build -Force
+& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age -C $build 'kreyli-credits.wav'
 if($LASTEXITCODE -ne 0){throw 'Support jar build failed'}

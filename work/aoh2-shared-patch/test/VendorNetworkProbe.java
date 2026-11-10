@@ -41,15 +41,10 @@ public class VendorNetworkProbe {
             MP.regions=MP.parseRegions(Files.readAllLines(channel.resolve("relay-config.txt")).get(0).split(";")[0]);
             MP.regionName=MP.regions.get(0)[1];MP.hostDirect=false;
           }
-          if(host&&Boolean.getBoolean("coop.patch")){
-            var method=MP_UI.class.getDeclaredMethod("host");method.setAccessible(true);MP_Form form=(MP_Form)method.invoke(null);
-            boolean original=SharedSupport.shared;form.onRow(0);if(SharedSupport.shared==original)throw new AssertionError("Mode toggle failed");form.onRow(0);
-            System.out.println("VENDOR_NET: PASS native host form mode toggle");
-          }
           if(host){
             if(!MP.startHost())throw new IllegalStateException("Host failed");
             country=1;while(CFG.core.getCiv(country).getNumOfProvs()==0)country++;
-            CFG.core.getPlayer(0).setCivId(country);Menu_CreateNewGame.newGame();
+            CFG.core.getPlayer(0).setCivId(country);if(Boolean.getBoolean("coop.patch"))KreyliCountrySeats.configureHost(country,Boolean.getBoolean("coop.shared")?2:1);Menu_CreateNewGame.newGame();
           }else{MP.address=Boolean.getBoolean("coop.relay")?read("relay-room"):"127.0.0.1:"+port;MP.join();}
           phase=1;
         }
@@ -110,8 +105,7 @@ public class VendorNetworkProbe {
           if(phase==1&&MP.picking&&CFG.core.getCivsSize()>2&&!MP.pickPending()){
             country=1;int hostCiv=Integer.parseInt(read("host-ready"));while(country==hostCiv||CFG.core.getCiv(country).getNumOfProvs()==0)country++;
             if(Boolean.getBoolean("coop.shared"))country=hostCiv;
-            if(Boolean.getBoolean("coop.patch")&&SharedSupport.shared!=Boolean.getBoolean("coop.shared"))throw new AssertionError("Host mode not received");
-            MP.pick(country);phase=2;
+            if(Boolean.getBoolean("coop.patch"))KreyliCountrySeats.submit(country,1);else MP.pick(country);phase=2;
           }
           if(phase==2&&MP.myCiv==country&&playable()&&!MP.picking){
             turn=GameCalendar.TURNID;gold=CFG.core.getCiv(country).getGold();province=-1;

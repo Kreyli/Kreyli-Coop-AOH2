@@ -6,6 +6,8 @@ import age.of.civilizations2.jakowski.lukasz.AoCGame;
 import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
 import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
 import age.of.civilizations2.jakowski.lukasz.TextB.Texts.TextScale;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.net.HttpURLConnection;
@@ -18,9 +20,12 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.14");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.15");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
+    private static int creditsClicks;
+    private static Music creditsMusic;
+    private static boolean creditsPlaying,creditsQueued;
     private static boolean requested;
     private static volatile List<String[]> arrived;
     private KreyliBranding(){}
@@ -51,7 +56,13 @@ public final class KreyliBranding {
                 KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"),
                 KreyliText.t("Спасибо, что играете!","Thanks for playing!")};
         for(int i=0;i<lines.length;i++){
-            MenuElemUI line=new TextScale(lines[i],x,y,i==0?1f:.9f);
+            MenuElemUI line;
+            if(i==0){
+                line=new TextScale(lines[i],x,y,1f){
+                    @Override public void actionElem(int index){creditsClicked();}
+                };
+                line.setClickable(true);
+            }else line=new TextScale(lines[i],x,y,.9f);
             items.add(line);
             y+=line.getHeightE()+CFG.PADD*2;
         }
@@ -60,6 +71,36 @@ public final class KreyliBranding {
         };
         items.add(discord);
         return y+discord.getHeightE()+CFG.PADD*2;
+    }
+
+    private static void creditsClicked(){
+        if(++creditsClicks<10)return;
+        creditsClicks=0;
+        if(creditsPlaying){creditsQueued=true;return;}
+        playCredits();
+    }
+
+    private static void playCredits(){
+        try{
+            if(creditsMusic==null){
+                creditsMusic=Gdx.audio.newMusic(Gdx.files.classpath("kreyli-credits.wav"));
+                creditsMusic.setOnCompletionListener(clip->{
+                    creditsPlaying=false;
+                    if(creditsQueued){
+                        creditsQueued=false;
+                        playCredits();
+                    }
+                });
+            }
+            float volume=CFG.SFXManager==null?1f:CFG.SFXManager.getMasterVolume()*CFG.SFXManager.getSoundsVolume();
+            creditsMusic.setVolume(volume);
+            creditsPlaying=true;
+            creditsMusic.play();
+            if(!creditsMusic.isPlaying())creditsPlaying=false;
+        }catch(RuntimeException error){
+            creditsPlaying=false;
+            Gdx.app.error("Kreyli Coop AOH2","Could not play credits audio",error);
+        }
     }
 
     public static void mainMenu(Menu menu){
