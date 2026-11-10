@@ -14,5 +14,6 @@ if($LASTEXITCODE -ne 0){throw 'Agent compile failed'}
 if($LASTEXITCODE -ne 0){throw 'Jar build failed'}
 $resources=Join-Path $PSScriptRoot 'resources'
 Copy-Item -LiteralPath (Join-Path $resources 'kreyli-credits.wav') -Destination $build -Force
-& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age -C $build 'kreyli-credits.wav'
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../kreyli-installer/branding/project-logo.png') -Destination (Join-Path $build 'kreyli-splash.png') -Force
+& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age -C $build 'kreyli-credits.wav' -C $build 'kreyli-splash.png'
 if($LASTEXITCODE -ne 0){throw 'Support jar build failed'}

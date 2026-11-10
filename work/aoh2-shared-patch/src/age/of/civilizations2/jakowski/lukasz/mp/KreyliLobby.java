@@ -38,13 +38,13 @@ public final class KreyliLobby {
         }
     }
     static Gate gate=new Gate();
-    private static boolean active, choosing;
+    private static boolean active, choosing, realTime;
     record Member(String name,boolean ready){}
     private static List<Member> roster=List.of();
     private static boolean hostReady,guestReady;
     private static int guestTimer,guestCountdown;
     private KreyliLobby(){}
-    public static void reset(){gate=new Gate();active=false;choosing=false;roster=List.of();hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
+    public static void reset(){gate=new Gate();active=false;choosing=false;realTime=false;roster=List.of();hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
     public static void tick(){
         if(!MP.isHost()||MP.started)return;
         boolean wasReleased=gate.released;
@@ -72,7 +72,11 @@ public final class KreyliLobby {
         if(message.length==0)return false;
         if("snap".equals(message[0])){active=false;return false;}
         if("kreyli_lobby_options".equals(message[0])){
-            if(MP.isClient()&&message.length==2&&message[1] instanceof Integer seconds)guestTimer=seconds;
+            if(MP.isClient()&&message.length>=2&&message[1] instanceof Integer seconds){
+                guestTimer=seconds;
+                if(message.length==3&&message[2] instanceof Boolean mode)realTime=mode;
+                CFG.setRenderO(true);
+            }
             return true;
         }
         if("kreyli_lobby_countdown".equals(message[0])){
@@ -107,7 +111,7 @@ public final class KreyliLobby {
             packet[4+i*2]=entries.get(i).name();packet[5+i*2]=entries.get(i).ready();
         }
         for(var c:MP.clients){
-            c.send("kreyli_lobby_options",MP.turnSeconds);
+            c.send("kreyli_lobby_options",MP.turnSeconds,realTime);
             c.send("kreyli_lobby_countdown",gate.seconds);
             packet[1]=gate.ready.contains(c);
             c.send(packet.clone());
@@ -115,6 +119,14 @@ public final class KreyliLobby {
     }
     static String timerLabel(){return timerLabel(MP.isHost()?MP.turnSeconds:guestTimer);}
     static String timerLabel(int seconds){return seconds==0?KreyliText.t("Без ограничения","No limit"):seconds+KreyliText.t(" с"," s");}
+    static boolean realTime(){return realTime;}
+    static void readMode(boolean mode){realTime=mode;}
+    static void toggleMode(){
+        if(!MP.isHost()||MP.started)return;
+        realTime=!realTime;
+        settingsChanged();
+        CFG.setRenderO(true);
+    }
     static void settingsChanged(){
         gate.resetReady();publish();
     }

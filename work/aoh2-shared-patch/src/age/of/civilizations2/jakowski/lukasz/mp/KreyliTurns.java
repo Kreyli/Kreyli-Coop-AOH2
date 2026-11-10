@@ -201,8 +201,22 @@ public final class KreyliTurns {
         if(forcePublish||!oldPlayer.equals(readyPlayer)||oldSeconds!=shownSeconds)send("kreyli_ready_state",turn,readyPlayer,shownSeconds);
         if(waitDeadline!=0&&shownSeconds==0&&SharedSupport.canEnd())advance();
     }
+    private static long automaticTurn;
+    private static void tickAutomaticTurn(){
+        if(!active()){
+            automaticTurn=0;
+            return;
+        }
+        long now=System.nanoTime();
+        if(automaticTurn==0)automaticTurn=now+5_000_000_000L;
+        if(now>=automaticTurn&&SharedSupport.canEnd()){
+            automaticTurn=now+5_000_000_000L;
+            advance();
+        }
+    }
     public static void tick(){
         if(!MP.isHost()||!MP.started)return;
+        if(KreyliLobby.realTime()){tickAutomaticTurn();return;}
         int turn=GameCalendar.TURNID;
         for(var iterator=readyRequests.entrySet().iterator();iterator.hasNext();){
             var entry=iterator.next();var conn=entry.getKey();var request=entry.getValue();
@@ -235,10 +249,15 @@ public final class KreyliTurns {
         KreyliTurnHud.update();
         if(!MP.playing()||!MP.inputOrders()||MP.hasBattleReports())return;
         var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
+        if(KreyliLobby.realTime()){
+            button.setTextE(KreyliText.t("Автоход","Auto turn"));
+            button.setClickable(false);
+            return;
+        }
         boolean ready=MP.isHost()?Boolean.TRUE.equals(field("hostReady")):MP.ready;
         button.setTextE(ready?KreyliText.t("Отменить готовность","Cancel readiness"):KreyliText.t("Готов","Ready"));button.setClickable(true);
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
+    public static void reset(){automaticTurn=0;clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }

@@ -58,6 +58,7 @@ public final class SharedSupport {
     }
     public static boolean keepLeader(int civ){return MP.isOn();}
     public static Map<String,Object> pieces(Map<String,Object> pieces){
+        pieces.put("coop_realtime",KreyliLobby.realTime());
         pieces.put("coop_limits",KreyliCountrySeats.encode());
         pieces.put("coop_legacy",shared);
         if(KreyliCountrySeats.anyShared()){pieces.put("coop_mode",true);pieces.put("coop_revision",++revision);pieces.put("coop_armies",SharedState.capture());}
@@ -70,6 +71,7 @@ public final class SharedSupport {
     }
     public static void loaded(Object data){
         if(!(data instanceof Map<?,?> map))return;
+        if(map.get("coop_realtime") instanceof Boolean mode)KreyliLobby.readMode(mode);
         if(map.get("coop_limits") instanceof String limits)KreyliCountrySeats.decode(limits);
         shared=Boolean.TRUE.equals(map.get("coop_legacy"));
         KreyliInputRecovery.afterSnapshot();KreyliTurns.afterSnapshot();KreyliOrderSync.request();
@@ -108,6 +110,7 @@ public final class SharedSupport {
     public static boolean waitBeforeReady(){return KreyliCountrySeats.sharedCountry(MP.myCiv) && MP.isClient() && pending;}
     /** A second press withdraws only the local player's vote, before turn processing. */
     public static boolean cancelReady(){
+        if(KreyliLobby.realTime()&&MP.playing())return true;
         if(!MP.playing()||!MP.inputOrders()||!((java.util.List<?>)get("reportsToShow")).isEmpty())return false;
         if(MP.isHost()&&Boolean.TRUE.equals(get("hostReady"))){set("hostReady",false);KreyliTurns.cancelSkip();MP.toast(MP.nick+": готовность отменена",false);return true;}
         if(MP.isClient()&&MP.ready){

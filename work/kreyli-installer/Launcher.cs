@@ -14,7 +14,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 [assembly: AssemblyTitle("Kreyli Coop AOH2")]
 [assembly: AssemblyProduct("Kreyli Coop AOH2")]
-[assembly: AssemblyVersion("1.1.15.0")]
+[assembly: AssemblyVersion("1.1.16.0")]
 public sealed class UpdateFile { public string path,url,sha256; public long size; }
 public sealed class UpdateManifest { public string version; public UpdateFile[] files; }
 public sealed class Channel { public string manifestUrl; }
@@ -39,17 +39,41 @@ internal static class Launcher {
    using(var gate=new Mutex(true,MutexName(Root),out acquired)){
     if(!acquired){MessageBox.Show("Лаунчер уже открыт.",Brand);return 0;}
     if(args.Contains("--check")){CheckGame();File.WriteAllText("launcher-check.txt","PASS: bundled runtime, required archives and pinned game hash\r\n");return 0;}
-    Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);Application.Run(new LauncherWindow(args));
+    Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+    string sessionStatus=null;
+    while(true){
+     using(var window=new LauncherWindow(sessionStatus)){
+      Application.Run(window);
+      if(!window.LaunchRequested)break;
+     }
+     try{RunGame(args);sessionStatus="Игра завершена";}
+     catch(Exception ex){sessionStatus=ex.Message;}
+    }
    }return 0;
   }catch(Exception ex){try{File.WriteAllText(Path.Combine(Root,"launcher-error.txt"),ex.ToString());}catch{}if(!args.Contains("--check"))MessageBox.Show(ex.Message,Brand,MessageBoxButtons.OK,MessageBoxIcon.Error);return 1;}
  }
  internal static void CheckGame(bool verifyHash=true){foreach(string f in new[]{"runtime/bin/javaw.exe","shared-support.jar","shared-agent.jar","kreyli-steam.jar","lib/steamworks4j-1.9.0.jar"})if(!File.Exists(Path.Combine(Root,f)))throw new Exception("Не найден "+f+". Повторите установку.");if(verifyHash&&Hash(Path.Combine(GameInstall.DirectoryPath,"game.jar"))!=GameHash)throw new Exception("Версия game.jar не соответствует этой сборке.");}
+ static string PrepareWindowIcon(string gameRoot){
+  string source=Path.Combine(Root,"kreyli.ico");
+  if(!File.Exists(source))return null;
+  string target=Path.Combine(gameRoot,"coop-tmp","kreyli-window-icon.png");
+  try{
+   using(var icon=new Icon(source,64,64))
+   using(var bitmap=icon.ToBitmap())
+   using(var stream=File.Create(GameInstall.IOPath(target)))bitmap.Save(stream,System.Drawing.Imaging.ImageFormat.Png);
+   return target;
+  }catch(IOException){return null;}
+   catch(UnauthorizedAccessException){return null;}
+   catch(ArgumentException){return null;}
+   catch(System.Runtime.InteropServices.ExternalException){return null;}
+ }
  internal static void RunGame(string[] args){
   // The Java agent validates the pinned archive before the game loads.
   CheckGame(false);string gameRoot=GameInstall.DirectoryPath;foreach(string dir in new[]{"coop-home","coop-tmp","saves"})Directory.CreateDirectory(GameInstall.IOPath(Path.Combine(gameRoot,dir)));
-  var options=new[]{"--add-exports","java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED","-javaagent:"+Path.Combine(Root,"shared-agent.jar"),"-Dkreyli.version="+typeof(Launcher).Assembly.GetName().Version.ToString(3),"-Duser.home="+Path.Combine(gameRoot,"coop-home"),"-Djava.io.tmpdir="+Path.Combine(gameRoot,"coop-tmp"),"-cp",string.Join(";",new[]{Path.Combine(Root,"kreyli-steam.jar"),Path.Combine(Root,"shared-support.jar"),Path.Combine(Root,"lib/steamworks4j-1.9.0.jar"),Path.Combine(gameRoot,"game.jar")}),"age.of.civilizations2.jakowski.lukasz.mp.KreyliBootstrap"};
+  string icon=PrepareWindowIcon(gameRoot);
+  var options=new[]{"--add-exports","java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED","-javaagent:"+Path.Combine(Root,"shared-agent.jar"),"-Dkreyli.version="+typeof(Launcher).Assembly.GetName().Version.ToString(3),"-Duser.home="+Path.Combine(gameRoot,"coop-home"),"-Djava.io.tmpdir="+Path.Combine(gameRoot,"coop-tmp"),icon==null?null:"-Dkreyli.window.icon="+icon,"-cp",string.Join(";",new[]{Path.Combine(Root,"kreyli-steam.jar"),Path.Combine(Root,"shared-support.jar"),Path.Combine(Root,"lib/steamworks4j-1.9.0.jar"),Path.Combine(gameRoot,"game.jar")}),"age.of.civilizations2.jakowski.lukasz.mp.KreyliBootstrap"};
   File.WriteAllText(GameInstall.IOPath(Path.Combine(gameRoot,"steam_appid.txt")),"480");
-  var info=new ProcessStartInfo(Path.Combine(Root,"runtime/bin/javaw.exe"),string.Join(" ",options.Concat(args).Select(Quote))){WorkingDirectory=gameRoot,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+  var info=new ProcessStartInfo(Path.Combine(Root,"runtime/bin/javaw.exe"),string.Join(" ",options.Where(option=>option!=null).Concat(args).Select(Quote))){WorkingDirectory=gameRoot,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
   using(var output=new StreamWriter(Path.Combine(Root,"kreyli.out.log"),false))using(var error=new StreamWriter(Path.Combine(Root,"kreyli.err.log"),false))using(var game=new Process()){
    output.AutoFlush=true;error.AutoFlush=true;game.StartInfo=info;game.OutputDataReceived+=(s,e)=>{if(e.Data!=null)lock(output)output.WriteLine(e.Data);};game.ErrorDataReceived+=(s,e)=>{if(e.Data!=null)lock(error)error.WriteLine(e.Data);};game.Start();game.BeginOutputReadLine();game.BeginErrorReadLine();game.WaitForExit();if(game.ExitCode!=0)throw new Exception("Игра завершилась с кодом "+game.ExitCode+". Подробности: kreyli.err.log");
   }

@@ -116,6 +116,7 @@ public final class KreyliLobbyProbe {
         new Lwjgl3Application(new AA_Game(){int frame,phase;int[] testCountries;
             @Override public void render(){try{
                 super.render();frame++;
+                if(frame==4&&host)KreyliUiProbe.capture("kreyli-startup.png");
                 if(frame==299&&host){
                     KreyliUiProbe.verifyProfile();
                     KreyliUiProbe.verifyBranding();
@@ -149,7 +150,7 @@ public final class KreyliLobbyProbe {
                     if(phase==1&&MP.clients.size()==1&&KreyliLobby.gate.members.size()==1){
                         require(!KreyliLobby.gate.released,"No implicit start");
                         Menu room=CFG.menus.getActiveMenu().get(0);
-                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==14,"Settings inside room without Apply or Region");
+                        require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==15,"Settings inside room without Apply or Region");
                         require(room.getMenuElem(KreyliLobbyRoom.PORT).getVisibleE(),"LAN port visible in LAN room");
                         MP.hostDirect=false;
                         require(!room.getMenuElem(KreyliLobbyRoom.PORT).getVisibleE(),"LAN port hidden in Steam room");
@@ -157,6 +158,10 @@ public final class KreyliLobbyProbe {
                         require(room.getMenuElem(13).getIsClickable(),"Room code can be clicked");
                         MP.relayCode=null;
                         MP.hostDirect=true;
+                        KreyliLobby.toggleMode();
+                        require(KreyliLobby.realTime(),"Real-time prototype toggles on");
+                        KreyliLobby.toggleMode();
+                        require(!KreyliLobby.realTime(),"Turn mode restores waiting settings");
                         click(KreyliLobbyRoom.TIMER);
                         require(MP.turnSeconds==45,"Timer applies immediately");
                         click(KreyliLobbyRoom.PASSWORD);
@@ -202,7 +207,7 @@ public final class KreyliLobbyProbe {
                 }else{
                     if(phase==1&&state("active")&&Files.exists(channel.resolve("host-ready"))){
                         require(MP_UI.inView(View.eMP_JOINING),"Guest lobby visible");
-                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==11,"Guest room layout");
+                        require(CFG.menus.getActiveMenu().get(0).getMenuElemsSize()==12,"Guest room layout");
                         require(KreyliLobby.timerLabel(45).equals(KreyliLobby.timerLabel()),"Timer synchronized");
                         KreyliProfile.setNickname(KreyliLobby.hostDisplay());phase=4;return;
                     }

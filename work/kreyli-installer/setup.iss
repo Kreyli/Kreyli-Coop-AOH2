@@ -4,7 +4,7 @@
 [Setup]
 AppId=KreyliCoopAOH2
 AppName=Kreyli Coop AOH2
-AppVersion=1.1.15
+AppVersion=1.1.16
 AppPublisher=Kreyli
 DefaultDirName={localappdata}\Programs\Kreyli Coop AOH2
 DefaultGroupName=Kreyli Coop AOH2
@@ -38,8 +38,8 @@ Name: "{app}\saves"
 Name: "{app}\coop-home"
 Name: "{app}\coop-tmp"
 [Icons]
-Name: "{autodesktop}\Kreyli Coop AOH2 — Лаунчер"; Filename: "{app}\Kreyli Coop AOH2.exe"; WorkingDir: "{app}"; Tasks: desktopicon; Check: not IsTest
-Name: "{autoprograms}\Kreyli Coop AOH2"; Filename: "{app}\Kreyli Coop AOH2.exe"; WorkingDir: "{app}"; Check: not IsTest
+Name: "{autodesktop}\Kreyli Coop AOH2 — Лаунчер"; Filename: "{app}\Kreyli Coop AOH2.exe"; WorkingDir: "{app}"; IconFilename: "{app}\kreyli.ico"; Tasks: desktopicon; Check: not IsTest
+Name: "{autoprograms}\Kreyli Coop AOH2"; Filename: "{app}\Kreyli Coop AOH2.exe"; WorkingDir: "{app}"; IconFilename: "{app}\kreyli.ico"; Check: not IsTest
 [Run]
 Filename: "{app}\Kreyli Coop AOH2.exe"; Description: Запустить Kreyli Coop AOH2; Flags: postinstall nowait skipifsilent
 [Code]

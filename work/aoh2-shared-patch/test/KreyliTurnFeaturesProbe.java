@@ -99,7 +99,12 @@ public final class KreyliTurnFeaturesProbe {
       MP.turnSeconds=90;MP.endTurnPressed();signal("early-ready","ok");phase=10;
      }
      if(phase==10&&GameCalendar.TURNID==startTurn+4&&playable()){signal("early-advanced","ok");phase=11;}
-     if(phase==11&&exists("client-pass")){
+     if(phase==11&&exists("client-pass")&&MP.clients.isEmpty()){
+      KreyliLobby.readMode(true);
+      startTurn=GameCalendar.TURNID;
+      phase=12;
+     }
+     if(phase==12&&GameCalendar.TURNID>startTurn&&playable()){
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),

@@ -50,13 +50,19 @@ public final class KreyliLobbyRoom extends Menu {
             elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
         }
         elements.add(new RoomCode((width-quarter*2-gap)/2,bottom-row,quarter*2+gap,row));
+        elements.add(new RoomButton(this::mode,rightX,first+row*(host?5:2),right,row,host?KreyliLobby::toggleMode:null));
 
         initMenu(MP_Form.titleBar(KreyliText.t("Мультиплеер · Лобби","Multiplayer · Lobby")),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
     }
 
+    private String mode(){
+        return KreyliLobby.realTime()?KreyliText.t("Режим: реальное время (прототип)","Mode: real time (prototype)")
+                :KreyliText.t("Режим: по ходам","Mode: turn-based");
+    }
     private String timer(){return KreyliText.t("Ожидание игроков: ","Wait for players: ")+KreyliLobby.timerLabel();}
+    private boolean lan(){return host?MP.hostDirect:MP.roomCode()==null;}
     private String connection(){
-        boolean lan=host?MP.hostDirect:MP.roomCode()==null;
+        boolean lan=lan();
         return lan?KreyliText.t("Подключение: LAN / VPN","Connection: LAN / VPN"):KreyliText.t("Подключение: Steam","Connection: Steam");
     }
     private String status(){
@@ -77,6 +83,10 @@ public final class KreyliLobbyRoom extends Menu {
     }
     @Override public void draw(SpriteBatch batch,int offsetX,int offsetY,boolean active){
         float color=batch.getPackedColor();
+        var waitButton=getMenuElem(host?TIMER:9);
+        waitButton.setVisibleE(!KreyliLobby.realTime());
+        getMenuElem(INVITE).setVisibleE(!lan());
+        getMenuElem(INVITE).setClickable(!lan());
         batch.setColor(Color.WHITE);
         MP_Form.drawFrame(this,batch,offsetX,offsetY);
         super.draw(batch,offsetX,offsetY,active);
@@ -85,7 +95,7 @@ public final class KreyliLobbyRoom extends Menu {
     private boolean canEdit(){return MP.isHost()&&!MP.started;}
     private boolean canChangeEndpoint(){return canEdit()&&MP.clients.isEmpty();}
     private void change(int action){
-        if(!canEdit())return;
+        if(!canEdit()||action==TIMER&&KreyliLobby.realTime())return;
         boolean listed=MP.listInLobby, direct=MP.hostDirect;
         int seconds=MP.turnSeconds;
         String region=MP.selectedRegion()[1];

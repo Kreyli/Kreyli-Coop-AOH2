@@ -82,7 +82,7 @@ public final class KreyliUiProbe {
         CFG.menus.getActiveMenu().get(0).actionEL(6);
         var texts=CFG.menus.getActiveMenu().stream().flatMap(menu->menu.menuElem.stream()).map(item->item.getTextE()).toList();
         require(texts.contains(KreyliText.t("Создатель мода: Kreyli","Mod creator: Kreyli"))
-                &&texts.contains(KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"))
+                &&texts.contains("-lockdown (Pin)")&&texts.contains("SpaceBodik")
                 &&texts.contains(KreyliText.t("Спасибо, что играете!","Thanks for playing!"))
                 &&texts.contains(KreyliText.t("Discord проекта","Project Discord")),"Main logo opens mod credits and Discord");
         verifyCreditsSound();
@@ -92,16 +92,15 @@ public final class KreyliUiProbe {
                 .filter(menu->menu.menuElem.stream().anyMatch(e->"Kreyli Coop AOH2".equals(e.getTextE())))
                 .findFirst().orElseThrow();
         int index=0;
-        while(!"Kreyli Coop AOH2".equals(about.getMenuElem(index).getTextE()))index++;
-        require(about.getMenuElem(index).getIsClickable(),"Credits title is clickable");
+        while(!"-lockdown (Pin)".equals(about.getMenuElem(index).getTextE()))index++;
+        require(about.getMenuElem(index).getIsClickable(),"Tester name is clickable");
         var original=Gdx.audio;
-        int[] plays={0};
-        var listener=new com.badlogic.gdx.audio.Music.OnCompletionListener[1];
+        int[] plays={0},stops={0};
         var music=(com.badlogic.gdx.audio.Music)java.lang.reflect.Proxy.newProxyInstance(
                 KreyliUiProbe.class.getClassLoader(),new Class<?>[]{com.badlogic.gdx.audio.Music.class},(proxy,method,args)->{
                     switch(method.getName()){
                         case "play" -> plays[0]++;
-                        case "setOnCompletionListener" -> listener[0]=(com.badlogic.gdx.audio.Music.OnCompletionListener)args[0];
+                        case "stop" -> stops[0]++;
                         case "isPlaying" -> {return true;}
                     }
                     return null;
@@ -118,12 +117,10 @@ public final class KreyliUiProbe {
             require(plays[0]==0,"Nine clicks do not play audio");
             about.actionEL(index);
             require(plays[0]==1,"Tenth click plays once");
-            for(int i=0;i<20;i++)about.actionEL(index);
-            require(plays[0]==1,"Clicks during playback never overlap");
-            listener[0].onCompletion(music);
-            require(plays[0]==2,"One repeat plays after completion");
-            listener[0].onCompletion(music);
-            require(plays[0]==2,"Only one repeat is queued");
+            for(int i=0;i<10;i++)about.actionEL(index);
+            require(plays[0]==2&&stops[0]==2,"Repeat stops the current sound and restarts it");
+            KreyliBranding.closeCredits();
+            require(stops[0]==3,"Leaving credits stops the sound");
         }finally{
             Gdx.audio=original;
             var cached=KreyliBranding.class.getDeclaredField("creditsMusic");

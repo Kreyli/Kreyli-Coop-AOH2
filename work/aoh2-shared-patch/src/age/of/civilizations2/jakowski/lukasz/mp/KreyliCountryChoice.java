@@ -4,9 +4,9 @@ import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Images;
 import age.of.civilizations2.jakowski.lukasz.Renderer;
 import com.badlogic.gdx.Gdx;
+import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
-import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -15,16 +15,18 @@ import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 
 /** Confirmation dialog for the map's country-selection action. */
 public final class KreyliCountryChoice {
-    private static final Color PANEL=new Color(0x111c2cf9), BUTTON=new Color(0x26374cff), SHADE=new Color(0,0,0,.5f);
+    private static final Color PANEL=new Color(0x111c2cf9), SHADE=new Color(0,0,0,.5f);
     private static final int SOLO=0,SHARED=1,LESS=2,MORE=3,CONFIRM=4,BACK=5;
     private static int target=-1,selected=1,pressed=-1;
     private static boolean hostChoice;
     private static InputProcessor previousInput,modalInput;
+    private static Button_InGameBox skin;
 
     private KreyliCountryChoice(){}
     static void open(int civ,boolean isHost){
         close();
         target=civ;hostChoice=isHost;selected=1;
+        CFG.map.getMpSl().stopScrollingTheMap();
         previousInput=Gdx.input.getInputProcessor();
         InputAdapter keys=new InputAdapter(){
             @Override public boolean keyDown(int key){
@@ -33,8 +35,13 @@ public final class KreyliCountryChoice {
                 return true;
             }
             @Override public boolean keyUp(int key){return true;}
+            @Override public boolean touchDown(int x,int y,int pointer,int button){return KreyliCountryChoice.touchDown(x,y,pointer,button);}
+            @Override public boolean touchUp(int x,int y,int pointer,int button){return KreyliCountryChoice.touchUp(x,y,pointer,button);}
+            @Override public boolean touchDragged(int x,int y,int pointer){return true;}
+            @Override public boolean scrolled(float x,float y){return true;}
+            @Override public boolean mouseMoved(int x,int y){CFG.setRenderO(true);return true;}
         };
-        modalInput=previousInput==null?keys:new InputMultiplexer(keys,previousInput);
+        modalInput=keys;
         Gdx.input.setInputProcessor(modalInput);
         CFG.setRenderO(true);
     }
@@ -44,6 +51,14 @@ public final class KreyliCountryChoice {
         if(Gdx.input!=null&&Gdx.input.getInputProcessor()==modalInput)Gdx.input.setInputProcessor(previousInput);
         previousInput=modalInput=null;
         CFG.setRenderO(true);
+    }
+    public static void limitGuestControls(age.of.civilizations2.jakowski.lukasz.Menu menu){
+        boolean guestPicking=MP.isClient()&&MP.lobbyScreen();
+        for(int index:new int[]{1,3}){
+            var item=menu.getMenuElem(index);
+            item.setVisibleE(!guestPicking);
+            item.setClickable(!guestPicking);
+        }
     }
     private static boolean existing(){return !hostChoice&&(KreyliCountrySeats.configured(target)||KreyliCountrySeats.remoteOccupied(target)>0);}
     private static void activate(int action){
@@ -126,7 +141,12 @@ public final class KreyliCountryChoice {
         }finally{batch.setPackedColor(color);}
     }
     private static void button(SpriteBatch batch,int index,String label,boolean selected){
-        Box b=control(index);fill(batch,b,BUTTON);
+        Box b=control(index);
+        if(skin==null)skin=new Button_InGameBox("",-1,0,0,1,1,true);
+        skin.setWidthE(b.w);skin.setHeightE(b.h);
+        skin.setIsHovered(b.contains(Gdx.input.getX(),Gdx.input.getY()));
+        batch.setColor(Color.WHITE);
+        skin.drawButtonBGE(batch,b.x,b.y,selected||pressed==index);
         text(batch,b,label,selected?Color.GOLD:Color.WHITE);
     }
     private static void text(SpriteBatch batch,Box b,String label,Color color){

@@ -18,10 +18,10 @@ public final class SharedAgent implements Opcodes {
         String hud=P+"KreyliTurnHud", readyButton=root+"Button/Game/Button_GameNextTurn";
         String top=root+"Menus/ZRest/Menu_InGame_";
         boolean topMenu=name.equals(top+"1")||name.equals(top+"2");
-        String buttonText=root+"Button/ButtonM";
+        String buttonText=root+"Button/ButtonM", startup=root+"Menus/Menu_InitGame";
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
-        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,newGame,top+"1",top+"2",
+        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,top+"1",top+"2",
                 root+"Save/SaveGameManager").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
@@ -35,6 +35,15 @@ public final class SharedAgent implements Opcodes {
                 var mv=super.visitMethod(a,n,d,sig,ex);
                 if(name.equals(root+"CFG")&&(n.equals("drawVersion_LEFT_BOT")||n.equals("drawVersionLB"))){
                     mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
+                }
+                if(name.equals(ui)&&n.equals("togglePlayers")){
+                    return new MethodVisitor(ASM8,mv){
+                        public void visitCode(){super.visitCode();
+                            super.visitMethodInsn(INVOKESTATIC,P+"MP","lobbyScreen","()Z",false);
+                            Label normal=new Label();super.visitJumpInsn(IFEQ,normal);
+                            super.visitInsn(RETURN);super.visitLabel(normal);
+                        }
+                    };
                 }
                 if(name.equals(ui)&&n.equals("drawRoomCode")){
                     mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
@@ -60,6 +69,10 @@ public final class SharedAgent implements Opcodes {
                             super.visitMethodInsn(INVOKESTATIC,hud,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
                             Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);
                         }
+                        if(name.equals(newGame)&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitMethodInsn(INVOKESTATIC,countryChoice,"limitGuestControls","(L"+root+"Menu;)V",false);
+                        }
                         if(name.equals(newGame)&&n.equals("newGame")&&d.equals("()V")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliCountrySeats","beforeNewGame","()Z",false);
                             Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);
@@ -82,6 +95,11 @@ public final class SharedAgent implements Opcodes {
                         }
                         if(name.equals(main)&&n.equals("actionEL")&&d.equals("(I)V")){super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"openSinglePlayer","(I)Z",false);Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);}
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
+                    }
+                    public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(startup)&&n.equals("draw")&&owner.equals(root+"CFG")&&method.equals("drawJakowskiGamesRIGHT_BOT")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliSplash","draw",descriptor,false);
+                        }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                     }
                     public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
                         if(name.equals(browserBar)&&n.equals("onBackPressed")&&opcode==GETSTATIC
@@ -266,6 +284,10 @@ public final class SharedAgent implements Opcodes {
                                         return;
                                     }
                                     String config="com/badlogic/gdx/backends/lwjgl3/Lwjgl3ApplicationConfiguration";
+                                    if(launcher&&owner.equals(config)&&method.equals("setWindowIcon")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliWindow","icon","(L"+config+";Lcom/badlogic/gdx/Files$FileType;[Ljava/lang/String;)V",false);
+                                        return;
+                                    }
                                     if(launcher&&owner.equals(config)&&method.equals("setFullscreenMode")
                                             &&descriptor.equals("(Lcom/badlogic/gdx/Graphics$DisplayMode;)V")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliWindow","borderless",

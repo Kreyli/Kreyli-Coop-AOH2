@@ -212,11 +212,11 @@ public final class KreyliProfileUi {
     private static int countryRowHeight(){return row()*2+CFG.PADD;}
 
     public static void reserveCountryPlayers(Menu menu){
-        int bottom=menu.getHeightM();
-        for(var element:menu.menuElem)bottom=Math.max(bottom,element.getPosY()+element.getHeightE()+CFG.PADD*2);
-        // The native stats menu paints summary tiles outside its element bounds.
-        int nativeSummaryHeight=row()*4+CFG.PADD;
-        menu.setHeight(bottom+nativeSummaryHeight+countryRowHeight()+CFG.PADD);
+        var summary=menu.getMenuElem(10);
+        int elementBottom=summary.getPosY()+summary.getHeightE();
+        int tilesBottom=elementBottom+Math.round(menu.getWidthM()*.26f);
+        int bottom=Math.max(elementBottom,tilesBottom)+CFG.PADD;
+        menu.setHeight(bottom+countryRowHeight()+CFG.PADD);
     }
 
     /** Player section immediately below the native country statistics. */
@@ -228,7 +228,7 @@ public final class KreyliProfileUi {
         if(civ<=0)return;
         var players=KreyliProfile.player(civ);
         int height=countryRowHeight(),padding=Math.max(3,CFG.PADD);
-        int x=menu.getPosX()+offsetX,y=menu.getPosY()+offsetY+menu.getHeightM()-height;
+        int x=menu.getPosX()+offsetX,y=menu.getMenuPosY()+offsetY+menu.getHeightM()-height;
         int width=menu.getWidthM();
         if(players.isEmpty()){
             float previous=batch.getPackedColor();

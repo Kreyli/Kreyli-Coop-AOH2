@@ -2,6 +2,7 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Menu;
+import age.of.civilizations2.jakowski.lukasz.View;
 import age.of.civilizations2.jakowski.lukasz.AoCGame;
 import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
 import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
@@ -20,12 +21,11 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.15");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.16");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static int creditsClicks;
     private static Music creditsMusic;
-    private static boolean creditsPlaying,creditsQueued;
     private static boolean requested;
     private static volatile List<String[]> arrived;
     private KreyliBranding(){}
@@ -53,16 +53,16 @@ public final class KreyliBranding {
         int x=AoCGame.LEFT+CFG.BUTTON_W/2;
         y+=CFG.PADD*6;
         String[] lines={"Kreyli Coop AOH2",KreyliText.t("Создатель мода: Kreyli","Mod creator: Kreyli"),
-                KreyliText.t("Тестеры: -lockdown (Pin) и SpaceBodik","Testers: -lockdown (Pin) and SpaceBodik"),
+                KreyliText.t("Тестеры:","Testers:"),"-lockdown (Pin)","SpaceBodik",
                 KreyliText.t("Спасибо, что играете!","Thanks for playing!")};
         for(int i=0;i<lines.length;i++){
             MenuElemUI line;
-            if(i==0){
-                line=new TextScale(lines[i],x,y,1f){
+            if(i==3){
+                line=new TextScale(lines[i],x,y,.9f){
                     @Override public void actionElem(int index){creditsClicked();}
                 };
                 line.setClickable(true);
-            }else line=new TextScale(lines[i],x,y,.9f);
+            }else line=new TextScale(lines[i],x,y,i==0?1f:.9f);
             items.add(line);
             y+=line.getHeightE()+CFG.PADD*2;
         }
@@ -76,31 +76,20 @@ public final class KreyliBranding {
     private static void creditsClicked(){
         if(++creditsClicks<10)return;
         creditsClicks=0;
-        if(creditsPlaying){creditsQueued=true;return;}
-        playCredits();
-    }
-
-    private static void playCredits(){
         try{
-            if(creditsMusic==null){
-                creditsMusic=Gdx.audio.newMusic(Gdx.files.classpath("kreyli-credits.wav"));
-                creditsMusic.setOnCompletionListener(clip->{
-                    creditsPlaying=false;
-                    if(creditsQueued){
-                        creditsQueued=false;
-                        playCredits();
-                    }
-                });
-            }
+            if(creditsMusic==null)creditsMusic=Gdx.audio.newMusic(Gdx.files.classpath("kreyli-credits.wav"));
+            creditsMusic.stop();
             float volume=CFG.SFXManager==null?1f:CFG.SFXManager.getMasterVolume()*CFG.SFXManager.getSoundsVolume();
             creditsMusic.setVolume(volume);
-            creditsPlaying=true;
             creditsMusic.play();
-            if(!creditsMusic.isPlaying())creditsPlaying=false;
         }catch(RuntimeException error){
-            creditsPlaying=false;
             Gdx.app.error("Kreyli Coop AOH2","Could not play credits audio",error);
         }
+    }
+
+    public static void closeCredits(){
+        creditsClicks=0;
+        if(creditsMusic!=null&&creditsMusic.isPlaying())creditsMusic.stop();
     }
 
     public static void mainMenu(Menu menu){
@@ -160,6 +149,8 @@ public final class KreyliBranding {
     }
 
     public static void drawFooter(SpriteBatch batch){
+        if(CFG.menus!=null&&!CFG.menus.getInView(View.eABOUT))closeCredits();
+        if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliSplash.finish();
         if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliTextureCache.finishStartup();
         KreyliPings.draw(batch);
         CFG.drawTextDefaultWithShadow(batch,LABEL,Math.max(6,CFG.PADD),Math.max(0,CFG.GAMEHEIGHT-CFG.TEXT_HEIGHT_DEFAULT-Math.max(6,CFG.PADD)),FOOTER_COLOR);
