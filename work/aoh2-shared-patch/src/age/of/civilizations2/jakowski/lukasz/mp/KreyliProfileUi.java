@@ -17,14 +17,13 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import java.awt.EventQueue;
 import java.awt.FileDialog;
 import java.awt.Frame;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.NumberFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
-import javax.imageio.ImageIO;
 import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 
 /** Profile overlay on the same logical screen coordinates as the game UI. */
@@ -39,7 +38,8 @@ public final class KreyliProfileUi {
     private static Page page=Page.PROFILE;
     private static String nickname="",message="";
     private static int selectedAvatar=-1;
-    private static Box ownCountryPortrait;
+    private static final Map<Box,String> countryPortraits=new LinkedHashMap<>();
+    private static String viewedPlayer;
     private static InputProcessor previousInput;
     private static InputMultiplexer modalInput;
 
@@ -49,9 +49,14 @@ public final class KreyliProfileUi {
         boolean contains(int px,int py){return px>=x&&py>=y&&px<x+w&&py<y+h;}
     }
 
+    private static boolean countryVisible(){
+        if(CFG.menus==null||Menu_InGame_Civ.hideAnimation)return false;
+        return CFG.menus.getIn_Game_CivilizationView()||
+                CFG.menus.getInGameView()&&CFG.menus.getInGame_Civ_Info().getVisibleM();
+    }
     private static boolean visible(){
         return CFG.menus!=null&&(CFG.menus.getInGameView()
-                ||CFG.menus.getIn_MainMenu()||CFG.menus.getInView(View.eMP)
+                ||CFG.menus.getIn_Game_CivilizationView()||CFG.menus.getIn_MainMenu()||CFG.menus.getInView(View.eMP)
                 ||CFG.menus.getInView(View.eMP_HOST)||CFG.menus.getInView(View.eMP_JOINING)
                 ||CFG.menus.getInView(View.eMP_BROWSER));
     }
@@ -89,10 +94,10 @@ public final class KreyliProfileUi {
         if(!visible()){close();return;}
         float previous=batch.getPackedColor();
         try{
-            if(!CFG.menus.getInGameView()){
-                ownCountryPortrait=null;
+            if(!CFG.menus.getInGameView()&&!CFG.menus.getIn_Game_CivilizationView()){
+                countryPortraits.clear();
                 player(batch,badge(),KreyliProfile.displayName(),KreyliProfile.avatar());
-            }else if(!CFG.menus.getIn_Game_CivilizationView())ownCountryPortrait=null;
+            }else if(!countryVisible())countryPortraits.clear();
             if(!open)return;
             fill(batch,new Box(0,0,CFG.GAMEWIDTH,CFG.GAMEHEIGHT),SHADE);
             Box panel=panel();
@@ -102,17 +107,24 @@ public final class KreyliProfileUi {
             int x=panel.x+CFG.PADD*2,y=panel.y+CFG.PADD*2;
             text(batch,t("Профиль игрока","Player profile"),x,y,Color.GOLD);
             y+=row();
-            player(batch,new Box(x,y,panel.w-CFG.PADD*4,row()+CFG.PADD),KreyliProfile.displayName(),KreyliProfile.avatar());
+            String name=viewedPlayer==null?KreyliProfile.displayName():viewedPlayer;
+            player(batch,new Box(x,y,panel.w-CFG.PADD*4,row()+CFG.PADD),name,KreyliProfile.avatar(name));
             y+=row()*2;
-            text(batch,KreyliProfile.steamLinked()?t("Профиль Steam привязан","Steam profile linked"):t("Локальный профиль","Local profile"),x,y,MUTED);
+            if(viewedPlayer==null){
+                text(batch,KreyliProfile.steamLinked()?t("Профиль Steam привязан","Steam profile linked"):t("Локальный профиль","Local profile"),x,y,MUTED);
+                button(batch,action(panel,0),t("Изменить ник","Edit nickname"));
+                button(batch,action(panel,1),t("Аватары","Avatars"));
+            }
             y+=row();
-            long seconds=KreyliProfile.playSeconds();
-            stat(batch,panel,y,t("Время в игре","Time played"),NUMBERS.format(seconds/3600)+t(" ч "," h ")+(seconds/60%60)+t(" мин"," min"));
-            stat(batch,panel,y+row(),t("Завоёвано областей","Provinces conquered"),NUMBERS.format(KreyliProfile.conquered()));
-            stat(batch,panel,y+row()*2,t("Заработано денег","Money earned"),NUMBERS.format(KreyliProfile.earned()));
-            stat(batch,panel,y+row()*3,t("Призвано войск","Troops recruited"),NUMBERS.format(KreyliProfile.recruited()));
-            button(batch,action(panel,0),t("Изменить ник","Edit nickname"));
-            button(batch,action(panel,1),t("Аватары","Avatars"));
+            KreyliProfile.Stats stats=KreyliProfile.stats(viewedPlayer);
+            if(stats==null)text(batch,t("Статистика пока недоступна","Stats are not available yet"),x,y,MUTED);
+            else{
+                long seconds=stats.seconds();
+                stat(batch,panel,y,t("Время в игре","Time played"),NUMBERS.format(seconds/3600)+t(" ч "," h ")+(seconds/60%60)+t(" мин"," min"));
+                stat(batch,panel,y+row(),t("Завоёвано областей","Provinces conquered"),NUMBERS.format(stats.conquered()));
+                stat(batch,panel,y+row()*2,t("Заработано денег","Money earned"),NUMBERS.format(stats.earned()));
+                stat(batch,panel,y+row()*3,t("Призвано войск","Troops recruited"),NUMBERS.format(stats.recruited()));
+            }
             button(batch,action(panel,2),t("Закрыть","Close"));
         }finally{batch.setPackedColor(previous);}
     }
@@ -132,7 +144,7 @@ public final class KreyliProfileUi {
         int x=panel.x+CFG.PADD*2,y=panel.y+CFG.PADD*2;
         text(batch,t("Аватары","Avatars"),x,y,Color.GOLD);
         button(batch,upload(panel),importing?t("Выбор файла…","Choosing file…"):t("Загрузить с компьютера","Upload from computer"));
-        if(KreyliProfile.avatarCount()==0)text(batch,t("Загрузите изображение PNG или JPG","Upload a PNG or JPG image"),x,panel.y+row()*3,MUTED);
+        if(KreyliProfile.avatarCount()==0)text(batch,t("Загрузите PNG или JPG до 2 МБ","Upload a PNG or JPG up to 2 MB"),x,panel.y+row()*3,MUTED);
         for(int i=0;i<KreyliProfile.avatarCount();i++){
             Box cell=avatarCell(panel,i);
             fill(batch,cell,CONTROL);
@@ -186,7 +198,9 @@ public final class KreyliProfileUi {
     public static void drawAvatar(SpriteBatch batch,int x,int y,int size,TextureRegion avatar){
         if(avatar!=null){
             batch.setColor(Color.WHITE);
-            batch.draw(avatar,x,-y-size,size,size);
+            float scale=(float)size/Math.max(avatar.getRegionWidth(),avatar.getRegionHeight());
+            float width=avatar.getRegionWidth()*scale,height=avatar.getRegionHeight()*scale;
+            batch.draw(avatar,x+(size-width)/2,-y-(size+height)/2,width,height);
         }else{
             fill(batch,new Box(x,y,size,size),CONTROL);
             text(batch,"?",x+(size-MP_UI.textWidth("?"))/2,y+(size-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,MUTED);
@@ -195,7 +209,7 @@ public final class KreyliProfileUi {
 
     /** A separate portrait panel beside the native country details and flag. */
     public static void drawCountry(Menu menu,SpriteBatch batch,int offsetX,int offsetY){
-        ownCountryPortrait=null;
+        countryPortraits.clear();
         if(open||!menu.getVisibleM()||Menu_InGame_Civ.hideAnimation)return;
         int civ=CFG.getActiveCivInfoId();
         if(civ<=0)return;
@@ -220,25 +234,30 @@ public final class KreyliProfileUi {
                 if(size>0)drawAvatar(batch,x+(width-size)/2,y+CFG.PADD,size,controller.avatar());
                 String name=MP_UI.fit(controller.nick(),width-CFG.PADD*2);
                 text(batch,name,x+(width-MP_UI.textWidth(name))/2,y+height-row(),Color.WHITE);
-                if(controller.nick().equals(KreyliProfile.displayName()))ownCountryPortrait=card;
+                countryPortraits.put(card,controller.nick());
             }
         }finally{batch.setPackedColor(previous);}
     }
-    private static boolean profileTarget(int x,int y){
-        if(!CFG.menus.getInGameView())return badge().contains(x,y);
-        return CFG.menus.getIn_Game_CivilizationView()&&ownCountryPortrait!=null&&ownCountryPortrait.contains(x,y);
+    private static String profileTarget(int x,int y){
+        if(!CFG.menus.getInGameView()&&!CFG.menus.getIn_Game_CivilizationView())return badge().contains(x,y)?KreyliProfile.displayName():null;
+        if(countryVisible())
+            for(var entry:countryPortraits.entrySet())if(entry.getKey().contains(x,y))return entry.getValue();
+        return null;
     }
 
     public static boolean touchDown(int x,int y,int pointer,int button){
         if(pointer!=0||!visible())return false;
-        captured=open||(button==Input.Buttons.LEFT&&profileTarget(x,y));
+        captured=open||(button==Input.Buttons.LEFT&&profileTarget(x,y)!=null);
         return captured;
     }
     public static boolean touchUp(int x,int y,int pointer,int button){
         if(pointer!=0||!captured)return false;
         captured=false;
         if(button!=Input.Buttons.LEFT||!visible())return true;
-        if(!open){if(profileTarget(x,y))open();}
+        if(!open){
+            String target=profileTarget(x,y);
+            if(target!=null)open(target);
+        }
         else click(x,y);
         CFG.setRenderO(true);
         return true;
@@ -264,6 +283,7 @@ public final class KreyliProfileUi {
             }
             return;
         }
+        if(viewedPlayer!=null)return;
         if(action(panel,0).contains(x,y)){page=Page.NICKNAME;nickname=KreyliProfile.nick();message="";}
         else if(action(panel,1).contains(x,y)){page=Page.AVATARS;selectedAvatar=KreyliProfile.selectedAvatar();message="";}
     }
@@ -277,7 +297,8 @@ public final class KreyliProfileUi {
         KreyliProfile.setNickname(clean);
         back();
     }
-    private static void open(){
+    private static void open(String name){
+        viewedPlayer=name.equals(KreyliProfile.displayName())?null:name;
         open=true;
         page=Page.PROFILE;
         previousInput=Gdx.input.getInputProcessor();
@@ -317,6 +338,7 @@ public final class KreyliProfileUi {
     private static void close(){
         if(!open)return;
         open=false;
+        viewedPlayer=null;
         if(Gdx.input.getInputProcessor()==modalInput)Gdx.input.setInputProcessor(previousInput);
         previousInput=null;
         modalInput=null;
@@ -326,7 +348,7 @@ public final class KreyliProfileUi {
         if(importing)return;
         importing=true;
         String title=t("Загрузить аватар","Upload avatar");
-        String errorMessage=t("Не удалось загрузить PNG или JPG","Could not load PNG or JPG");
+        String errorMessage=t("Не удалось загрузить PNG или JPG до 2 МБ (макс. 4 Мп)","Could not load PNG or JPG up to 2 MB (max. 4 MP)");
         EventQueue.invokeLater(()->{
             byte[] pixels=null;
             String problem="";
@@ -356,35 +378,8 @@ public final class KreyliProfileUi {
         });
     }
     static byte[] decodeAvatar(File file)throws IOException{
-        if(!file.isFile()||file.length()>10L*1024*1024)throw new IOException("Размер файла");
-        try(var input=ImageIO.createImageInputStream(file)){
-            if(input==null)throw new IOException("Формат изображения");
-            var readers=ImageIO.getImageReaders(input);
-            if(!readers.hasNext())throw new IOException("Формат изображения");
-            var reader=readers.next();
-            try{
-                String format=reader.getFormatName();
-                if(!format.equalsIgnoreCase("PNG")&&!format.equalsIgnoreCase("JPEG"))throw new IOException("Формат изображения");
-                reader.setInput(input,true,true);
-                int width=reader.getWidth(0),height=reader.getHeight(0);
-                if(width<1||height<1||width>4096||height>4096)throw new IOException("Размер изображения");
-                BufferedImage source=reader.read(0);
-                int size=KreyliProfile.UPLOAD_SIDE;
-                BufferedImage small=new BufferedImage(size,size,BufferedImage.TYPE_INT_ARGB);
-                int side=Math.min(width,height),x=(width-side)/2,y=(height-side)/2;
-                Graphics2D graphics=small.createGraphics();
-                try{
-                    graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-                    graphics.drawImage(source,0,0,size,size,x,y,x+side,y+side,null);
-                }finally{graphics.dispose();}
-                byte[] rgba=new byte[size*size*4];
-                for(int row=0;row<size;row++)for(int col=0;col<size;col++){
-                    int argb=small.getRGB(col,row),offset=(row*size+col)*4;
-                    rgba[offset]=(byte)(argb>>>16);rgba[offset+1]=(byte)(argb>>>8);
-                    rgba[offset+2]=(byte)argb;rgba[offset+3]=(byte)(argb>>>24);
-                }
-                return rgba;
-            }finally{reader.dispose();}
+        try(var input=Files.newInputStream(file.toPath())){
+            return KreyliProfile.originalAvatar(input.readNBytes(KreyliProfile.MAX_AVATAR_FILE+1));
         }
     }
 }

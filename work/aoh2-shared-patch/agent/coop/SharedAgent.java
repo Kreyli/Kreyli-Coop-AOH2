@@ -17,10 +17,10 @@ public final class SharedAgent implements Opcodes {
         String hud=P+"KreyliTurnHud", readyButton=root+"Button/Game/Button_GameNextTurn";
         String top=root+"Menus/ZRest/Menu_InGame_";
         boolean topMenu=name.equals(top+"1")||name.equals(top+"2");
-        boolean speedButton=Set.of(top+"1$8",top+"1$14",top+"2$8",top+"2$14").contains(name);
+        String buttonText=root+"Button/ButtonM";
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ";
-        if(!speedButton&&!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,top+"1",top+"2",
+        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,top+"1",top+"2",
                 root+"Save/SaveGameManager").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
@@ -33,6 +33,9 @@ public final class SharedAgent implements Opcodes {
             public MethodVisitor visitMethod(int a,String n,String d,String sig,String[] ex){
                 var mv=super.visitMethod(a,n,d,sig,ex);
                 if(name.equals(root+"CFG")&&(n.equals("drawVersion_LEFT_BOT")||n.equals("drawVersionLB"))){
+                    mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
+                }
+                if(name.equals(ui)&&n.equals("drawRoomCode")){
                     mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
                 }
                 if(name.equals(ui)&&n.equals("addCredits")){
@@ -53,22 +56,24 @@ public final class SharedAgent implements Opcodes {
                             super.visitMethodInsn(INVOKESTATIC,hud,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
                             Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);
                         }
+                        if(name.equals(buttonText)&&n.equals("drawTextE")){
+                            for(int i=0;i<=4;i++)super.visitVarInsn(i<2?ALOAD:ILOAD,i);
+                            super.visitMethodInsn(INVOKESTATIC,hud,"drawReadyText","(L"+root+"Button/MenuElemUI;Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)Z",false);
+                            Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);
+                        }
                         if(name.equals(readyButton)&&n.equals("drawButtonBGE")){
                             super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
                             super.visitMethodInsn(INVOKESTATIC,hud,"anchorReady","(L"+root+"Button/MenuElemUI;II)V",false);
                         }
                         if(name.equals(browserBar)&&n.equals("actionEL")&&d.equals("(I)V")){
                             super.visitVarInsn(ILOAD,1);
-                            Label normal=new Label();super.visitJumpInsn(IFNE,normal);super.visitInsn(RETURN);super.visitLabel(normal);
+                            Label hidden=new Label(),normal=new Label();
+                            super.visitJumpInsn(IFEQ,hidden);
+                            super.visitVarInsn(ILOAD,1);super.visitInsn(ICONST_5);super.visitJumpInsn(IF_ICMPNE,normal);
+                            super.visitLabel(hidden);super.visitInsn(RETURN);super.visitLabel(normal);
                         }
                         if(name.equals(main)&&n.equals("actionEL")&&d.equals("(I)V")){super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"openSinglePlayer","(I)Z",false);Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);}
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
-                    }
-                    public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
-                        if((topMenu&&n.equals("draw")||speedButton&&n.equals("getVisibleE"))
-                                &&owner.equals(root+"RTS")&&method.equals("isEnabled")){
-                            super.visitInsn(ICONST_0);
-                        }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                     }
                     public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
                         super.visitFieldInsn(opcode,owner,field,descriptor);
@@ -94,6 +99,10 @@ public final class SharedAgent implements Opcodes {
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"drawFooter",d,false);
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,hud,"draw",d,false);
                             super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,profile,"draw",d,false);
+                        }
+                        if(name.equals(ui)&&n.equals("drawChat")&&opcode==RETURN){
+                            for(int i=1;i<=3;i++)super.visitVarInsn(ILOAD,i);
+                            super.visitMethodInsn(INVOKESTATIC,hud,"anchorChat","(III)V",false);
                         }
                         if(topMenu&&n.equals("draw")&&d.equals("(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;IIZ)V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,3);
@@ -209,6 +218,7 @@ public final class SharedAgent implements Opcodes {
                                     }
                                     if(name.equals(P+"MP"))switch(method){
                                         case "onEnterInGame"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","prepare","()V",false);}
+                                        case "refreshServers"->{super.visitInsn(ICONST_1);super.visitFieldInsn(PUTSTATIC,P+"MP","browseAll","Z");}
                                         case "join"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
                                         case "onHello"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","beforeHello","()V",false);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}
                                         case "update"->{found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliPings","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliInputRecovery","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","tick","()V",false);}

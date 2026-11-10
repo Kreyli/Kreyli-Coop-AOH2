@@ -18,7 +18,7 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.12");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.13");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static boolean requested;
@@ -29,8 +29,19 @@ public final class KreyliBranding {
         MenuElemUI nickname=menu.getMenuElem(0);
         nickname.setVisibleE(false);
         nickname.setClickable(false);
-        menu.getMenuElem(5).setPosX(CFG.PADD);
+        menu.menuElem.remove(5);
+        menu.iMenuElemsSize=menu.menuElem.size();
+        MP.browseAll=true;
+        int gap=CFG.PADD;
+        int contentWidth=menu.getWidthM()-gap*5;
+        for(int index=1;index<=4;index++){
+            MenuElemUI button=menu.getMenuElem(index);
+            int left=contentWidth*(index-1)/4;
+            button.setPosX(gap*index+left);
+            button.setWidthE(contentWidth*index/4-left);
+        }
         menu.updateMenuElements_IsInView();
+        menu.updateMenuElements_IsInView_X();
     }
 
     public static int addCredits(List<MenuElemUI> items,int y){

@@ -63,14 +63,11 @@ public final class KreyliLobbyProbe {
                 }
                 if(phase==0&&frame>=300&&(host||Files.exists(channel.resolve("ready")))){
                     require(!KreyliProfile.steamLinked()&&KreyliProfile.nick().length()>=2,"Offline profile available without Steam");
-                    byte[] picture=new byte[128*128*4];
-                    for(int i=0;i<picture.length;i+=4){
-                        picture[i]=(byte)(host?224:80);
-                        picture[i+1]=(byte)(host?75:160);
-                        picture[i+2]=(byte)200;
-                        picture[i+3]=(byte)255;
-                    }
-                    KreyliProfile.selectAvatar(KreyliProfile.addAvatar(picture));
+                    var source=new java.awt.image.BufferedImage(360,240,java.awt.image.BufferedImage.TYPE_INT_RGB);
+                    source.setRGB(180,120,host?0xffa000:0x1144ff);
+                    var bytes=new ByteArrayOutputStream();
+                    javax.imageio.ImageIO.write(source,"PNG",bytes);
+                    KreyliProfile.selectAvatar(KreyliProfile.addAvatar(KreyliProfile.originalAvatar(bytes.toByteArray())));
                     require(KreyliProfile.avatar()!=null,"Custom local avatar generated");
                     MP.nick=host?"KreyliHost":"KreyliGuest";MP.port=port;MP.password="test-only";MP.listInLobby=false;MP.hostDirect=true;
                     if(host){MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;KreyliTurns.saveWaitSetting(30);click(1);require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");Files.writeString(channel.resolve("ready"),"ok");}
@@ -98,7 +95,7 @@ public final class KreyliLobbyProbe {
                     }
                     if(phase==2&&KreyliLobby.gate.released){
                         require(CFG.menus.getInGamesMenu(),"Both-ready opens campaign selector");
-                        require(MP.clients.get(0).nick.equals("RenamedGuest")&&KreyliProfile.avatar("RenamedGuest")!=null&&KreyliProfile.avatar("RenamedGuest").getRegionWidth()==128,
+                        require(MP.clients.get(0).nick.equals("RenamedGuest")&&KreyliProfile.avatar("RenamedGuest")!=null&&KreyliProfile.avatar("RenamedGuest").getRegionWidth()==360&&KreyliProfile.avatar("RenamedGuest").getRegionHeight()==240,
                                 "Guest nickname and avatar propagated to host");
                         KreyliUiProbe.capture("kreyli-game-selector.png");Files.writeString(channel.resolve("released"),"ok");phase=3;
                     }
@@ -119,7 +116,7 @@ public final class KreyliLobbyProbe {
                         require(!MP.nick.equalsIgnoreCase(KreyliLobby.hostDisplay()),"Duplicate nickname rejected");
                         KreyliProfile.setNickname("RenamedGuest");phase=5;
                     }
-                    if(phase==5&&MP.nick.equals("RenamedGuest")&&KreyliProfile.avatar(KreyliLobby.hostDisplay())!=null){
+                    if(phase==5&&MP.nick.equals("RenamedGuest")&&KreyliProfile.avatar(KreyliLobby.hostDisplay())!=null&&KreyliProfile.stats(KreyliLobby.hostDisplay())!=null){
                         KreyliUiProbe.capture("kreyli-lobby-guest.png");
                         CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
                     }

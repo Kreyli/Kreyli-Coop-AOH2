@@ -53,11 +53,11 @@ public final class KreyliUiProbe {
             source.setRGB(32,16,0xffafde12);
             javax.imageio.ImageIO.write(source,"PNG",image.toFile());
             byte[] pixels=KreyliProfileUi.decodeAvatar(image.toFile());
-            require(pixels.length==128*128*4,"Avatar is normalized to bounded RGBA");
+            require(pixels.length==Files.size(image)+4,"Avatar retains original encoded bytes");
             int index=KreyliProfile.addAvatar(pixels);
             require(KreyliProfile.addAvatar(pixels)==index,"Repeated upload keeps one history entry");
             KreyliProfile.selectAvatar(index);
-            require(KreyliProfile.selectedAvatar()==index&&KreyliProfile.avatar()!=null&&KreyliProfile.avatar().getRegionWidth()==128,"Uploaded avatar retains portrait resolution");
+            require(KreyliProfile.selectedAvatar()==index&&KreyliProfile.avatar()!=null&&KreyliProfile.avatar().getRegionWidth()==64&&KreyliProfile.avatar().getRegionHeight()==32,"Uploaded avatar retains original resolution and aspect ratio");
             KreyliProfile.selectAvatar(-1);
             require(KreyliProfile.selectedAvatar()==-1&&KreyliProfile.avatar()==null,"Default restores offline question mark");
         }finally{Files.deleteIfExists(image);}
@@ -73,6 +73,9 @@ public final class KreyliUiProbe {
         var bar=CFG.menus.getActiveMenu().stream()
                 .filter(menu->menu.getClass().getName().endsWith("MP_Browser$Bar")).findFirst().orElseThrow();
         require(!bar.getMenuElem(0).getVisibleE()&&!bar.getMenuElem(0).getIsClickable(),"Server browser nickname editor disabled");
+        require(bar.getMenuElemsSize()==5&&MP.browseAll,"Server browser shows all regions without a region button");
+        bar.actionEL(5);
+        require(MP.browseAll,"Removed region action cannot change the server filter");
         MP_UI.open(View.eMAINMENU);
         CFG.menus.getActiveMenu().get(0).actionEL(6);
         var texts=CFG.menus.getActiveMenu().stream().flatMap(menu->menu.menuElem.stream()).map(item->item.getTextE()).toList();

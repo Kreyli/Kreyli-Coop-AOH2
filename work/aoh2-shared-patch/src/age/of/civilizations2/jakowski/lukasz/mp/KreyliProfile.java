@@ -9,12 +9,18 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import java.util.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 
 /** Local profile preferences and host-authoritative campaign counters. */
 public final class KreyliProfile {
     public record Player(String nick,TextureRegion avatar) {}
-    static final int UPLOAD_SIDE=128;
+    public record Stats(long seconds,long conquered,long earned,long recruited) {}
+    static final int MAX_AVATAR_FILE=2*1024*1024;
+    private static final byte[] ORIGINAL_AVATAR={'K','A','V',1};
     private static final int MAX_AVATARS=24;
     private static final String[] STAT_KEYS={"profile.conquered","profile.earned","profile.recruited"};
     private static final int[] COLORS={0x5768bbff,0xb83a53ff,0x267f65ff,0x8a5bb3ff};
@@ -23,7 +29,11 @@ public final class KreyliProfile {
     private static final byte[] EMPTY_AVATAR=new byte[0];
     private static byte[] localAvatar=EMPTY_AVATAR, steamAvatar;
     private static final Map<MP_Net.Conn,byte[]> guestAvatars=new IdentityHashMap<>();
+    private static final Map<MP_Net.Conn,Map<String,byte[]>> sentPictures=new IdentityHashMap<>();
     private static final Map<String,byte[]> remoteAvatars=new HashMap<>();
+    private static final Map<MP_Net.Conn,Stats> guestStats=new IdentityHashMap<>();
+    private static final Map<String,Stats> publicStats=new HashMap<>();
+    private static long nextPublicStats;
     private static List<String> roster=List.of();
     private static boolean profilesDirty;
     private static MP_Net.Conn peer;
@@ -98,7 +108,7 @@ public final class KreyliProfile {
         for(int i=0;i<count;i++){
             try{
                 byte[] picture=Base64.getDecoder().decode(prefs().getString("uploaded."+i,""));
-                if(avatarSide(picture)>0)history.add(picture);
+                if(picture.length>0&&validAvatar(picture))history.add(picture);
             }catch(IllegalArgumentException ignored){}
         }
         return history;
@@ -112,7 +122,7 @@ public final class KreyliProfile {
     }
     /** Adds a validated thumbnail to the local library. Choosing it is a separate action. */
     public static int addAvatar(byte[] picture){
-        if(avatarSide(picture)==0)throw new IllegalArgumentException(t("Некорректное изображение","Invalid image"));
+        if(picture.length==0||!validAvatar(picture))throw new IllegalArgumentException(t("Некорректное изображение","Invalid image"));
         for(int i=0;i<avatarCount();i++)if(Arrays.equals(history().get(i),picture))return i;
         if(avatarCount()>=MAX_AVATARS)throw new IllegalStateException(t("В истории уже 24 аватара","Avatar history already contains 24 images"));
         int index=avatarCount();
@@ -153,12 +163,19 @@ public final class KreyliProfile {
     private static TextureRegion portrait(String slot,byte[] data){
         Portrait old=portraits.get(slot);
         if(old!=null&&Arrays.equals(old.data,data))return old.image;
-        if(old!=null){old.image.getTexture().dispose();portraits.remove(slot);}
+        if(old!=null){if(old.image!=null)old.image.getTexture().dispose();portraits.remove(slot);}
         int side=avatarSide(data);
-        if(side==0)return null;
-        Pixmap pix=new Pixmap(side,side,Pixmap.Format.RGBA8888);
+        Pixmap pix;
         try{
-            pix.getPixels().put(data).rewind();
+            if(isOriginalAvatar(data))pix=new Pixmap(data,ORIGINAL_AVATAR.length,data.length-ORIGINAL_AVATAR.length);
+            else if(side>0)pix=new Pixmap(side,side,Pixmap.Format.RGBA8888);
+            else return null;
+        }catch(RuntimeException badImage){
+            portraits.put(slot,new Portrait(data,null));
+            return null;
+        }
+        try{
+            if(!isOriginalAvatar(data))pix.getPixels().put(data).rewind();
             Texture texture=new Texture(pix);
             texture.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);
             TextureRegion region=new TextureRegion(texture);
@@ -180,6 +197,21 @@ public final class KreyliProfile {
     public static long conquered(){return totalStat(0);}
     public static long earned(){return totalStat(1);}
     public static long recruited(){return totalStat(2);}
+    public static Stats stats(String name){
+        if(name==null||name.equals(displayName()))return new Stats(playSeconds(),conquered(),earned(),recruited());
+        if(MP.isHost())for(var guest:MP.clients)if(name.equals(guest.nick))return guestStats.get(guest);
+        return publicStats.get(name);
+    }
+    private static Stats readStats(Object[] packet,int start){
+        if(packet[start] instanceof Long seconds&&packet[start+1] instanceof Long conquered
+                &&packet[start+2] instanceof Long earned&&packet[start+3] instanceof Long recruited
+                &&seconds>=0&&conquered>=0&&earned>=0&&recruited>=0)
+            return new Stats(seconds,conquered,earned,recruited);
+        return null;
+    }
+    private static void shareStats(MP_Net.Conn recipient,String name,Stats stats){
+        if(stats!=null)recipient.send("kreyli_profile_public",name,stats.seconds,stats.conquered,stats.earned,stats.recruited);
+    }
     private static long totalStat(int index){return add(prefs().getLong(STAT_KEYS[index],0),unflushedStats[index]);}
     private static long add(long total,long amount){return total>Long.MAX_VALUE-amount?Long.MAX_VALUE:total+amount;}
     private static void record(int index,long delta){
@@ -248,9 +280,16 @@ public final class KreyliProfile {
             peer.send("kreyli_profile_avatar",localAvatar);
             sentAvatar=localAvatar;
         }
+        if(MP.isClient()&&peer!=null&&now>=nextPublicStats){
+            Stats local=stats(null);
+            peer.send("kreyli_profile_report",local.seconds,local.conquered,local.earned,local.recruited);
+            nextPublicStats=now+5_000_000_000L;
+        }
     }
     private static void tickHost(long now){
         guestAvatars.keySet().retainAll(MP.clients);
+        sentPictures.keySet().retainAll(MP.clients);
+        guestStats.keySet().retainAll(MP.clients);
         var names=new ArrayList<String>();
         names.add(MP.nick);
         for(var guest:MP.clients)if(guest.nick!=null)names.add(guest.nick);
@@ -262,9 +301,11 @@ public final class KreyliProfile {
             for(int i=0;i<names.size();i++)list[i+1]=names.get(i);
             for(var recipient:MP.clients)if(recipient.nick!=null){
                 recipient.send(list);
-                recipient.send("kreyli_profile_picture",MP.nick,localAvatar);
+                var sent=sentPictures.computeIfAbsent(recipient,key->new HashMap<>());
+                sent.keySet().retainAll(names);
+                shareAvatar(recipient,sent,MP.nick,localAvatar);
                 for(var guest:MP.clients)if(guest!=recipient&&guest.nick!=null)
-                    recipient.send("kreyli_profile_picture",guest.nick,guestAvatars.getOrDefault(guest,EMPTY_AVATAR));
+                    shareAvatar(recipient,sent,guest.nick,guestAvatars.getOrDefault(guest,EMPTY_AVATAR));
             }
         }
         if(now>=nextSend){
@@ -274,19 +315,32 @@ public final class KreyliProfile {
             }
             nextSend=now+1_000_000_000L;
         }
+        if(now>=nextPublicStats){
+            Stats local=stats(null);
+            for(var recipient:MP.clients)if(recipient.nick!=null){
+                shareStats(recipient,MP.nick,local);
+                for(var guest:MP.clients)if(guest!=recipient&&guest.nick!=null)
+                    shareStats(recipient,guest.nick,guestStats.get(guest));
+            }
+            nextPublicStats=now+5_000_000_000L;
+        }
+    }
+    private static void shareAvatar(MP_Net.Conn recipient,Map<String,byte[]> sent,String name,byte[] image){
+        if(sent.put(name,image)!=image)recipient.send("kreyli_profile_picture",name,image);
     }
     private static void setRoster(List<String> names){
         for(String old:roster)if(!names.contains(old)){
             remoteAvatars.remove(old);
+            publicStats.remove(old);
             Portrait portrait=portraits.remove("remote:"+old);
-            if(portrait!=null)portrait.image.getTexture().dispose();
+            if(portrait!=null&&portrait.image!=null)portrait.image.getTexture().dispose();
         }
         roster=List.copyOf(names);
     }
-    static void connected(MP_Net.Conn connection){peer=connection;sentAvatar=null;nextSend=0;}
+    static void connected(MP_Net.Conn connection){peer=connection;sentAvatar=null;nextSend=nextPublicStats=0;}
     static void reset(){
         if(initialized&&Gdx.app!=null)flushTime();
-        peer=null;sentAvatar=null;setRoster(List.of());guestAvatars.clear();remoteAvatars.clear();
+        peer=null;sentAvatar=null;setRoster(List.of());guestAvatars.clear();sentPictures.clear();remoteAvatars.clear();guestStats.clear();publicStats.clear();nextPublicStats=0;
         profilesDirty=true;remoteStats=new long[3];remoteStatsSeen=false;recruitCiv=-1;
         requestedName=null;counters.clear();inCampaign=false;nextSend=0;
     }
@@ -294,18 +348,50 @@ public final class KreyliProfile {
         return switch(data.length){
             case 32*32*4 -> 32;
             case 64*64*4 -> 64;
-            case UPLOAD_SIDE*UPLOAD_SIDE*4 -> UPLOAD_SIDE;
+            case 128*128*4 -> 128;
             case 184*184*4 -> 184;
             default -> 0;
         };
     }
-    private static boolean validAvatar(byte[] data){return data.length==0||avatarSide(data)>0;}
+    static byte[] originalAvatar(byte[] encoded)throws IOException{
+        if(encoded.length>MAX_AVATAR_FILE)throw new IOException("Avatar exceeds size limit");
+        byte[] packet=Arrays.copyOf(ORIGINAL_AVATAR,ORIGINAL_AVATAR.length+encoded.length);
+        System.arraycopy(encoded,0,packet,ORIGINAL_AVATAR.length,encoded.length);
+        if(!validAvatar(packet)||!isOriginalAvatar(packet))throw new IOException("Invalid PNG or JPEG");
+        return packet;
+    }
+    private static boolean isOriginalAvatar(byte[] data){
+        return data.length>ORIGINAL_AVATAR.length
+                &&data.length<=MAX_AVATAR_FILE+ORIGINAL_AVATAR.length
+                &&Arrays.equals(data,0,ORIGINAL_AVATAR.length,ORIGINAL_AVATAR,0,ORIGINAL_AVATAR.length);
+    }
+    private static boolean validAvatar(byte[] data){
+        if(!isOriginalAvatar(data))return data.length==0||avatarSide(data)>0;
+        try(var stream=new MemoryCacheImageInputStream(new ByteArrayInputStream(data,ORIGINAL_AVATAR.length,data.length-ORIGINAL_AVATAR.length))){
+            var readers=ImageIO.getImageReaders(stream);
+            if(!readers.hasNext())return false;
+            var reader=readers.next();
+            try{
+                String format=reader.getFormatName();
+                if(!format.equalsIgnoreCase("PNG")&&!format.equalsIgnoreCase("JPEG"))return false;
+                reader.setInput(stream,true,true);
+                int width=reader.getWidth(0),height=reader.getHeight(0);
+                return width>0&&height>0&&width<=4096&&height<=4096&&((long)width*height)<=4_194_304;
+            }finally{reader.dispose();}
+        }catch(IOException|RuntimeException badImage){return false;}
+    }
     static boolean hostMessage(MP_Net.Conn sender,Object[] data){
         if(data.length==0||!(data[0] instanceof String op)||!op.startsWith("kreyli_profile_"))return false;
         if(!MP.isHost()||sender.nick==null||!MP.clients.contains(sender))return true;
         if(op.equals("kreyli_profile_avatar")&&data.length==2&&data[1] instanceof byte[] picture&&validAvatar(picture)){
-            byte[] previous=guestAvatars.put(sender,picture);
-            if(!Arrays.equals(previous,picture)){profilesDirty=true;CFG.setRenderO(true);}
+            if(!Arrays.equals(guestAvatars.get(sender),picture)){
+                guestAvatars.put(sender,picture);
+                profilesDirty=true;
+                CFG.setRenderO(true);
+            }
+        }else if(op.equals("kreyli_profile_report")&&data.length==5){
+            Stats stats=readStats(data,1);
+            if(stats!=null&&!stats.equals(guestStats.put(sender,stats)))CFG.setRenderO(true);
         }else if(op.equals("kreyli_profile_name")&&data.length==2&&data[1] instanceof String name){
             boolean allowed=name.length()>=2&&name.equals(KreyliIdentity.cleanNickname(name))&&!name.equalsIgnoreCase(MP.nick)
                     &&MP.clients.stream().noneMatch(c->c!=sender&&name.equalsIgnoreCase(c.nick));
@@ -327,6 +413,9 @@ public final class KreyliProfile {
         }else if(op.equals("kreyli_profile_picture")&&data.length==3&&data[1] instanceof String name
                 &&roster.contains(name)&&data[2] instanceof byte[] image&&validAvatar(image)){
             if(!Arrays.equals(remoteAvatars.put(name,image),image))CFG.setRenderO(true);
+        }else if(op.equals("kreyli_profile_public")&&data.length==6&&data[1] instanceof String name&&roster.contains(name)){
+            Stats stats=readStats(data,2);
+            if(stats!=null&&!stats.equals(publicStats.put(name,stats)))CFG.setRenderO(true);
         }else if(op.equals("kreyli_profile_stats")&&data.length==5&&data[1] instanceof Integer civ&&data[2] instanceof Long captures
                 &&data[3] instanceof Long money&&data[4] instanceof Long troops){
             long[] next={captures,money,troops};

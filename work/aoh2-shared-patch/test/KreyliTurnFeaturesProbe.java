@@ -62,6 +62,7 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==3&&exists("accepted")&&CFG.core.getCiv(guestCiv).getGold()==guestGold+10&&hudControl("OPEN")!=null){
       int[] arrow=hudControl("OPEN");
       var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
+      require(arrow[0]==CFG.menus.getInGameProvInfo().getMenuPosX()+button.getPosXE(),"Arrow stays inside Ready bounds");
       require(arrow[3]==button.getHeightE()&&arrow[2]<button.getWidthE(),"Arrow is narrower and as high as native Ready");
       pressHud("OPEN");phase=30;
      }
@@ -93,11 +94,11 @@ public final class KreyliTurnFeaturesProbe {
        for(var item:top.menuElem){
         String type=item.getClass().getName();
         if(type.endsWith("$8")||type.endsWith("$14")){
-         require(!item.getVisibleE(),"Solo speed control hidden");
+         require(item.getVisibleE()==RTS.isEnabled(),"Solo speed control follows native RTS");
          hidden++;
         }
        }
-       require(hidden==2,"Both solo speed controls verified");
+       require(hidden==2,"Both solo speed controls restored");
       }
       System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout and early advance");Runtime.getRuntime().halt(0);}
     }else{

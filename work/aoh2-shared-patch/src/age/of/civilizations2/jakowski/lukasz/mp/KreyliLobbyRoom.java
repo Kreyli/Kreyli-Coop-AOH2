@@ -165,6 +165,9 @@ public final class KreyliLobbyRoom extends Menu {
             int header=height/(slots+1);
             int body=height-header;
             if(header<1||body<slots)return;
+            var members=KreyliLobby.roster();
+            int rows=Math.min(members.size(),slots);
+            int tableHeight=header+body*rows/slots;
             int statusWidth=Math.min(width/2,Math.max(width/4,
                     MP_UI.textWidth(KreyliText.t("Не готов","Not ready"))+padding*2));
             int split=left+width-statusWidth;
@@ -174,37 +177,31 @@ public final class KreyliLobbyRoom extends Menu {
                 cellText(batch,KreyliText.t("Игрок","Player"),left+padding,top,split-left-padding*2,header,CFG.COLOR_TEXT_CIV_INFO_TITLE);
                 cellText(batch,KreyliText.t("Статус","Status"),split+padding,top,statusWidth-padding*2,header,CFG.COLOR_TEXT_CIV_INFO_TITLE);
 
-                var members=KreyliLobby.roster();
-                for(int index=0;index<slots;index++){
+                for(int index=0;index<rows;index++){
                     int rowY=top+header+body*index/slots;
                     int rowHeight=top+header+body*(index+1)/slots-rowY;
                     rectangle(batch,left,rowY,width,rowHeight,index%2==0?EVEN_ROW:ODD_ROW);
-                    if(index<members.size()){
-                        var member=members.get(index);
-                        int icon=Math.min(rowHeight-4,width/8);
-                        int nameX=left+padding;
-                        if(icon>0){
-                            var avatar=KreyliProfile.avatar(member.name());
-                            int iconY=rowY+(rowHeight-icon)/2;
-                            if(avatar!=null||icon>=CFG.TEXT_HEIGHT_DEFAULT_SMALL)
-                                KreyliProfileUi.drawAvatar(batch,nameX,iconY,icon,avatar);
-                            else rectangle(batch,nameX,iconY,icon,icon,HEADER);
-                            nameX+=icon+padding;
-                        }
-                        cellText(batch,member.name(),nameX,rowY,split-nameX-padding,rowHeight,Color.WHITE);
-                        cellText(batch,member.ready()?KreyliText.t("Готов","Ready"):KreyliText.t("Не готов","Not ready"),
-                                split+padding,rowY,statusWidth-padding*2,rowHeight,member.ready()?MP.GOOD:EMPTY);
-                    }else{
-                        cellText(batch,KreyliText.t("Свободное место","Open slot"),
-                                left+padding,rowY,split-left-padding*2,rowHeight,EMPTY);
+                    var member=members.get(index);
+                    int icon=Math.min(rowHeight-4,width/8);
+                    int nameX=left+padding;
+                    if(icon>0){
+                        var avatar=KreyliProfile.avatar(member.name());
+                        int iconY=rowY+(rowHeight-icon)/2;
+                        if(avatar!=null||icon>=CFG.TEXT_HEIGHT_DEFAULT_SMALL)
+                            KreyliProfileUi.drawAvatar(batch,nameX,iconY,icon,avatar);
+                        else rectangle(batch,nameX,iconY,icon,icon,HEADER);
+                        nameX+=icon+padding;
                     }
+                    cellText(batch,member.name(),nameX,rowY,split-nameX-padding,rowHeight,Color.WHITE);
+                    cellText(batch,member.ready()?KreyliText.t("Готов","Ready"):KreyliText.t("Не готов","Not ready"),
+                            split+padding,rowY,statusWidth-padding*2,rowHeight,member.ready()?MP.GOOD:EMPTY);
                     rectangle(batch,left,rowY,width,1,DIVIDER);
                 }
                 rectangle(batch,left,top,width,1,DIVIDER);
-                rectangle(batch,left,top+height-1,width,1,DIVIDER);
-                rectangle(batch,left,top,1,height,DIVIDER);
-                rectangle(batch,split,top,1,height,DIVIDER);
-                rectangle(batch,left+width-1,top,1,height,DIVIDER);
+                rectangle(batch,left,top+tableHeight-1,width,1,DIVIDER);
+                rectangle(batch,left,top,1,tableHeight,DIVIDER);
+                rectangle(batch,split,top,1,tableHeight,DIVIDER);
+                rectangle(batch,left+width-1,top,1,tableHeight,DIVIDER);
             }finally{batch.setPackedColor(old);}
         }
 

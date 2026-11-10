@@ -2,7 +2,7 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.*;
 import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
-import age.of.civilizations2.jakowski.lukasz.Button.Game.Button_Game;
+import age.of.civilizations2.jakowski.lukasz.Button.Game.Button_GameNextTurn;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
@@ -21,8 +21,7 @@ public final class KreyliTurnHud {
     private static final Color PANEL=new Color(0x101b2af6), BORDER=new Color(0xc39648ff);
     private static final Color BUTTON=new Color(0x17253bff), BUTTON_HOVER=new Color(0x2b405aff);
     private static final EnumMap<Action,Box> hits=new EnumMap<>(Action.class);
-    private static Box nativeReady,nativeDate;
-    private static Button_Game skin;
+    private static Box nativeReady,nativeDate,nativeChat;
     private static boolean choosing;
     private static Action pressed;
     private static float slide;
@@ -62,8 +61,8 @@ public final class KreyliTurnHud {
 
     public static void draw(SpriteBatch batch){
         hits.clear();
-        Box ready=nativeReady,date=nativeDate;
-        nativeReady=nativeDate=null;
+        Box ready=nativeReady,date=nativeDate,chat=nativeChat;
+        nativeReady=nativeDate=nativeChat=null;
         if(!MP.playing()||!CFG.menus.getInGameView()){
             choosing=false;
             slide=0;
@@ -73,19 +72,46 @@ public final class KreyliTurnHud {
         }
         float color=batch.getPackedColor();
         try{
-            boolean canChoose=ready!=null&&MP.inputOrders()&&!MP.hasBattleReports()&&!KreyliTurns.hasSkipVote();
+            if(chat!=null)drawChatHeader(batch,chat);
+            boolean canChoose=ready!=null&&canSplitReady();
             if(canChoose)drawReadyControls(batch,ready);
             else choosing=false;
             if(date!=null)drawNotice(batch,date);
         }finally{batch.setPackedColor(color);}
     }
 
+    private static boolean canSplitReady(){
+        return MP.playing()&&MP.inputOrders()&&!MP.hasBattleReports()&&!KreyliTurns.hasSkipVote();
+    }
+    private static int arrowWidth(Box ready){return Math.min(ready.width/3,ready.height*2/3);}
+    public static boolean drawReadyText(MenuElemUI button,SpriteBatch batch,int x,int y,boolean active){
+        if(!(button instanceof Button_GameNextTurn nextTurn)||!canSplitReady())return false;
+        Box ready=absolute(button,x,y);
+        int width=arrowWidth(ready);
+        if(width<8)return false;
+        label(batch,new Box(ready.x+width,ready.y,ready.width-width,ready.height),button.getTextE(),nextTurn.getColorE(active));
+        return true;
+    }
+    public static void anchorChat(int x,int y,int width){
+        int height=CFG.TEXT_HEIGHT_DEFAULT_SMALL+Math.max(4,CFG.PADD*2);
+        nativeChat=new Box(x,Math.max(0,y-height),width,height);
+    }
+    private static void drawChatHeader(SpriteBatch batch,Box header){
+        String code=MP.roomCode();
+        if(code==null||code.isBlank())return;
+        panel(batch,header);
+        label(batch,header,MP.t("MP_Code","Code: {0}",code),Color.GOLD);
+    }
+
     private static void drawReadyControls(SpriteBatch batch,Box ready){
         int gap=Math.max(3,CFG.PADD);
-        int width=Math.min(ready.width/2,ready.height*2/3);
-        if(ready.x<width||width<8)return;
-        Box arrow=new Box(ready.x-width,ready.y,width,ready.height);
-        button(batch,arrow,"",Action.OPEN);
+        int width=arrowWidth(ready);
+        if(width<8)return;
+        Box arrow=new Box(ready.x,ready.y,width,ready.height);
+        hits.put(Action.OPEN,arrow);
+        if(arrow.contains(Gdx.input.getX(),Gdx.input.getY())||pressed==Action.OPEN)
+            fill(batch,arrow.x+CFG.PADD,arrow.y+CFG.PADD,arrow.width-CFG.PADD,arrow.height-CFG.PADD*2,BUTTON_HOVER);
+        fill(batch,arrow.x+arrow.width-1,arrow.y+CFG.PADD,1,arrow.height-CFG.PADD*2,BORDER);
         int center=arrow.x+arrow.width/2,middle=arrow.y+arrow.height/2;
         int size=Math.max(3,arrow.width/7);
         for(int i=0;i<=size;i++){
@@ -181,17 +207,8 @@ public final class KreyliTurnHud {
     private static void button(SpriteBatch batch,Box box,String text,Action action){
         hits.put(action,box);
         boolean hovered=box.contains(Gdx.input.getX(),Gdx.input.getY());
-        if(action==Action.OPEN){
-            if(skin==null)skin=new Button_Game("",0,0,1,1,true);
-            skin.setWidthE(box.width);
-            skin.setHeightE(box.height);
-            skin.setIsHovered(hovered);
-            batch.setColor(Color.WHITE);
-            skin.drawButtonBGE(batch,box.x,box.y,action==pressed);
-        }else{
-            fill(batch,box.x,box.y,box.width,box.height,BORDER);
-            fill(batch,box.x+1,box.y+1,box.width-2,box.height-2,hovered||action==pressed?BUTTON_HOVER:BUTTON);
-        }
+        fill(batch,box.x,box.y,box.width,box.height,BORDER);
+        fill(batch,box.x+1,box.y+1,box.width-2,box.height-2,hovered||action==pressed?BUTTON_HOVER:BUTTON);
         label(batch,box,text,Color.WHITE);
     }
 
