@@ -128,6 +128,12 @@ public final class SharedAgent implements Opcodes {
                             super.visitMethodInsn(INVOKESTATIC,realtime,"hideTurnViews","(L"+gameAction+";)V",false);
                             return;
                         }
+                        if(name.equals(main)&&n.equals("draw")&&owner.equals(main)&&method.equals("beginClipM")){
+                            super.visitVarInsn(ALOAD,1);
+                            super.visitVarInsn(ILOAD,2);
+                            super.visitVarInsn(ILOAD,3);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliSplash","drawBackdrop","(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;II)V",false);
+                        }
                         if(name.equals(startup)&&n.equals("draw")&&owner.equals(root+"CFG")&&method.equals("drawJakowskiGamesRIGHT_BOT")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliSplash","draw",descriptor,false);
                         }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
@@ -300,6 +306,7 @@ public final class SharedAgent implements Opcodes {
                                     }
                                     if(name.equals(P+"MP"))switch(method){
                                         case "onEnterInGame"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","prepare","()V",false);}
+                                        case "onNewTurn"->super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","resumeMarches","()V",false);
                                         case "refreshServers"->{super.visitInsn(ICONST_1);super.visitFieldInsn(PUTSTATIC,P+"MP","browseAll","Z");}
                                         case "join"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
                                         case "onHello"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","beforeHello","()V",false);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}

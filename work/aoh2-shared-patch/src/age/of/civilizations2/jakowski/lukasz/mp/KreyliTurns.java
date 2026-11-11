@@ -204,12 +204,13 @@ public final class KreyliTurns {
     private static final long AUTO_TURN_MILLIS=5_000;
     private static long automaticTurn, quickTurnDeadline;
     private static int quickTurn=-1;
-    /** Stretch the native marker animation across the auto-turn interval in the orders phase. */
+    /** Stretch the native marker animation across the auto-turn interval. */
     public static float marchMillis(float nativeMillis){
-        return KreyliLobby.realTime()&&MP.playing()&&MP.inputOrders()?AUTO_TURN_MILLIS:nativeMillis;
+        return KreyliLobby.realTime()&&MP.playing()&&MP.inputOrders()?KreyliRealtimeMarch.DURATION_MILLIS:nativeMillis;
     }
     private static void tickAutomaticTurn(){
         KreyliRealtimeUi.finishAutomaticTurn();
+        KreyliRealtimeMarch.tick();
         if(!active()){
             automaticTurn=0;
             return;

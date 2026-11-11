@@ -27,10 +27,23 @@ public final class KreyliOrderSync {
   long now=System.nanoTime();if(now-lastSent<150_000_000L)return;
   dirty=false;lastSent=now;long id=++sequence;String state=SharedState.capture();
   sentTurn=GameCalendar.TURNID;
-  for(var connection:MP.clients)if(connection.civ>0){connection.send("kreyli_orders",GameCalendar.TURNID,id,state,connection.cmds);sentCountries.put(connection,connection.civ);}
+  String clock=KreyliLobby.realTime()?KreyliRealtimeMarch.clock():"";
+  for(var connection:MP.clients)if(connection.civ>0){
+   connection.send("kreyli_orders",GameCalendar.TURNID,id,state,connection.cmds);
+   if(!clock.isEmpty())connection.send("kreyli_march_clock",GameCalendar.TURNID,id,clock);
+   sentCountries.put(connection,connection.civ);
+  }
  }
  public static boolean receive(Object[] message){
-  if(message.length==0||!"kreyli_orders".equals(message[0]))return false;
+  if(message.length==0)return false;
+  if("kreyli_march_clock".equals(message[0])){
+   if(MP.isClient()&&MP.playing()&&KreyliLobby.realTime()&&message.length==4
+    &&message[1] instanceof Integer turn&&turn==GameCalendar.TURNID&&turn==receivedTurn
+    &&message[2] instanceof Long id&&id==received&&message[3] instanceof String clock)
+    KreyliRealtimeMarch.applyClock(clock);
+   return true;
+  }
+  if(!"kreyli_orders".equals(message[0]))return false;
   if(!MP.isClient()||!MP.playing()||!MP.inputOrders()||message.length!=5||
     !(message[1] instanceof Integer turn)||!(message[2] instanceof Long id)||!(message[3] instanceof String state)||
     !(message[4] instanceof Integer commands)||commands<sentCommands()||

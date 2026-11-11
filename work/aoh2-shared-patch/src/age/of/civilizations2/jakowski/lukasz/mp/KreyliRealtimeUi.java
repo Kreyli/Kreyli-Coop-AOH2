@@ -33,10 +33,11 @@ public final class KreyliRealtimeUi {
 
     private KreyliRealtimeUi() {}
 
+    public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}
     public static void beforeSnapshot(){snapshot=capture();}
     public static void afterSnapshot(){State state=snapshot;snapshot=null;restore(state);}
-    public static void beforeHostTurn(){if(MP.isHost())hostTurn=capture();}
-    public static void afterHostTurn(){if(MP.isHost()){State state=hostTurn;hostTurn=null;restore(state);}}
+    public static void beforeHostTurn(){if(MP.isHost()){hostTurn=capture();KreyliRealtimeMarch.beforeTurn();}}
+    public static void afterHostTurn(){if(MP.isHost()){KreyliRealtimeMarch.afterTurn();State state=hostTurn;hostTurn=null;restore(state);}}
 
     private static State capture(){
         MenuManager manager=CFG.menus;
@@ -88,5 +89,5 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime())Menu_InGame_Messages.START_ANIMATION=requested;
     }
 
-    public static void reset(){snapshot=hostTurn=automatic=null;}
+    public static void reset(){snapshot=hostTurn=automatic=null;KreyliRealtimeMarch.reset();}
 }

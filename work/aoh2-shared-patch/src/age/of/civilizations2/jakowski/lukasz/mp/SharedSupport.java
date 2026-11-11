@@ -66,6 +66,10 @@ public final class SharedSupport {
         pieces.put("coop_legacy",shared);
         if(KreyliCountrySeats.anyShared()){pieces.put("coop_mode",true);pieces.put("coop_revision",++revision);pieces.put("coop_armies",SharedState.capture());}
         else pieces.put("coop_mode",false);
+        if(KreyliLobby.realTime()){
+            if(!pieces.containsKey("coop_armies"))pieces.put("coop_realtime_orders",SharedState.capture());
+            pieces.put("coop_march_clock",KreyliRealtimeMarch.clock());
+        }
         return pieces;
     }
     public static Future<?> built(Future<?> future){if(KreyliCountrySeats.anyShared() && future!=null){futures.clear();futures.put(future,revision);}return future;}
@@ -78,9 +82,17 @@ public final class SharedSupport {
         if(map.get("coop_limits") instanceof String limits)KreyliCountrySeats.decode(limits);
         shared=Boolean.TRUE.equals(map.get("coop_legacy"));
         KreyliInputRecovery.afterSnapshot();KreyliTurns.afterSnapshot();KreyliOrderSync.request();
-        if(!Boolean.TRUE.equals(map.get("coop_mode")))return;
+        if(!Boolean.TRUE.equals(map.get("coop_mode"))){
+            if(KreyliLobby.realTime()&&map.get("coop_realtime_orders") instanceof String orders){
+                SharedState.restore(orders);
+                if(map.get("coop_march_clock") instanceof String clock)KreyliRealtimeMarch.applyClock(clock);
+            }
+            return;
+        }
         if(!(map.get("coop_revision") instanceof Long rev)||!(map.get("coop_armies") instanceof String state))throw new IllegalStateException("Shared snapshot missing state");
-        SharedState.restore(state);if(snapshotCommands>=pendingRequest)pending=false;
+        SharedState.restore(state);
+        if(KreyliLobby.realTime()&&map.get("coop_march_clock") instanceof String clock)KreyliRealtimeMarch.applyClock(clock);
+        if(snapshotCommands>=pendingRequest)pending=false;
         if(KreyliCountrySeats.sharedCountry(MP.myCiv))((MP_Net.Conn)get("host")).send("coop_ack",rev);
     }
     public static boolean message(MP_Net.Conn connection,Object[] message){

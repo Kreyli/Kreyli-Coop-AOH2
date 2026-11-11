@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.17");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.18");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static int creditsClicks;
@@ -57,11 +57,14 @@ public final class KreyliBranding {
         for(int i=0;i<lines.length;i++){
             MenuElemUI line;
             if(i==3){
-                line=new Button_InGameBox(lines[i],-1,x,y,CFG.BUTTON_W*2,true){
+                line=new TextScale(lines[i],x,y,.9f){
+                    private final Color plainText=new Color(.78f,.78f,.78f,.7f);
+                    @Override public Color getColor(boolean selected){return plainText;}
                     @Override public void actionElem(int index){creditsClicked();}
                 };
-                line.setClickable(true);
+
             }else line=new TextScale(lines[i],x,y,i==0?1f:.9f);
+            line.setClickable(i==3);
             items.add(line);
             y+=line.getHeightE()+CFG.PADD*2;
         }
@@ -98,6 +101,7 @@ public final class KreyliBranding {
             menu.updateMenuElements_IsInView();
         }
         KreyliQuickSearch.installMainButton(menu);
+        KreyliMainMenu.layout(menu);
     }
 
     public static boolean openSinglePlayer(int index){
@@ -149,7 +153,7 @@ public final class KreyliBranding {
         KreyliRealtimeUi.finishAutomaticTurn();
         KreyliQuickGame.draw(batch);
         if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())closeCredits();
-        if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliSplash.finish();
+
         if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliTextureCache.finishStartup();
         KreyliQuickSearch.draw(batch);
         KreyliPings.draw(batch);

@@ -79,7 +79,13 @@ public final class KreyliUiProbe {
         bar.actionEL(5);
         require(MP.browseAll,"Removed region action cannot change the server filter");
         MP_UI.open(View.eMAINMENU);
-        CFG.menus.getActiveMenu().get(0).actionEL(6);
+        Menu main=CFG.menus.getActiveMenu().get(0);
+        var logo=main.getMenuElem(6);
+        var multiplayer=main.getMenuElem(0);
+        require(Math.abs(logo.getPosXE()*2+logo.getWidthE()-CFG.GAMEWIDTH)<=1
+                &&Math.abs(multiplayer.getPosXE()*2+multiplayer.getWidthE()-CFG.GAMEWIDTH)<=1
+                &&logo.getPosY()+logo.getHeightE()<=multiplayer.getPosY(),"Centered logo and main controls");
+        main.actionEL(6);
         var texts=CFG.menus.getActiveMenu().stream().flatMap(menu->menu.menuElem.stream()).map(item->item.getTextE()).toList();
         require(texts.contains(KreyliText.t("Создатель мода: Kreyli","Mod creator: Kreyli"))
                 &&texts.contains("-lockdown (Pin)")&&texts.contains("SpaceBodik")
@@ -93,7 +99,13 @@ public final class KreyliUiProbe {
                 .findFirst().orElseThrow();
         int index=0;
         while(!"-lockdown (Pin)".equals(about.getMenuElem(index).getTextE()))index++;
-        require(about.getMenuElem(index).getIsClickable(),"Tester name is clickable");
+        require(about.getMenuElem(index) instanceof age.of.civilizations2.jakowski.lukasz.TextB.Texts.TextScale
+                &&about.getMenuElem(index).getIsClickable(),"Plain tester text retains the secret click target");
+        var pin=(age.of.civilizations2.jakowski.lukasz.TextB.Text)about.getMenuElem(index);
+        var other=(age.of.civilizations2.jakowski.lukasz.TextB.Text)about.getMenuElem(index+1);
+        pin.setIsHovered(true);
+        require(pin.getColor(false).equals(other.getColor(false))&&pin.getColor(true).equals(other.getColor(false)),
+                "Pin text never highlights or reveals the secret");
         var original=Gdx.audio;
         int[] plays={0},stops={0};
         var music=(com.badlogic.gdx.audio.Music)java.lang.reflect.Proxy.newProxyInstance(

@@ -35,7 +35,7 @@ public final class KreyliLobbyRoom extends Menu {
         elements.add(new RoomButton(this::status,gap,bottom-row,quarter,row,null));
         elements.add(new RoomButton(()->KreyliText.t("Настройки лобби","Lobby settings"),rightX,gap,right,row,null));
         elements.add(new RoomButton(this::readyText,gap*4+quarter*3,bottom,width-gap*5-quarter*3,row,KreyliLobby::toggleReady));
-        elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*4+quarter*3,bottom-row,quarter,row,()->{if(!lan())KreyliSteam.inviteFriends();}){
+        elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*3+quarter*2,bottom,quarter,row,()->{if(!lan())KreyliSteam.inviteFriends();}){
             @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
                 if(!lan()){super.drawTextE(batch,x,y,active);return;}
                 String label=MP_UI.fit(getTextE(),getWidthE()-CFG.PADD*2);
@@ -44,7 +44,7 @@ public final class KreyliLobbyRoom extends Menu {
                         y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,new Color(1,1,1,.45f));
             }
         });
-        elements.add(new RoomButton(()->"Discord",gap*2+quarter,bottom,quarter*2+gap,row,KreyliLobby::discord));
+        elements.add(new RoomButton(()->"Discord",gap*2+quarter,bottom,quarter,row,KreyliLobby::discord));
         elements.add(new RoomButton(()->KreyliText.nativeLabel("Back","Back"),gap,bottom,quarter,row,this::leave));
 
         if(host){
@@ -55,10 +55,10 @@ public final class KreyliLobbyRoom extends Menu {
             elements.add(new SettingInput(PORT,rightX,first+row*5,right,row));
         }else{
             elements.add(new RoomButton(this::connection,rightX,first,right,row,null));
-            elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
+            elements.add(new RoomButton(this::timer,rightX,first+row*2,right,row,null));
         }
         elements.add(new RoomCode((width-quarter*2-gap)/2,bottom-row,quarter*2+gap,row));
-        elements.add(new RoomButton(this::mode,rightX,first+row*(host?1:2),right,row,host?KreyliLobby::toggleMode:null));
+        elements.add(new RoomButton(this::mode,rightX,first+row,right,row,host?KreyliLobby::toggleMode:null));
 
         initMenu(MP_Form.titleBar(KreyliText.t("Мультиплеер · Лобби","Multiplayer · Lobby")),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
     }
@@ -91,12 +91,26 @@ public final class KreyliLobbyRoom extends Menu {
     }
     @Override public void draw(SpriteBatch batch,int offsetX,int offsetY,boolean active){
         float color=batch.getPackedColor();
-        var waitButton=getMenuElem(host?TIMER:9);
-        waitButton.setVisibleE(!KreyliLobby.realTime());
+        layoutSettings();
         batch.setColor(Color.WHITE);
         MP_Form.drawFrame(this,batch,offsetX,offsetY);
         super.draw(batch,offsetX,offsetY,active);
         batch.setPackedColor(color);
+    }
+    private void layoutSettings(){
+        boolean timed=!KreyliLobby.realTime();
+        var wait=getMenuElem(TIMER);
+        wait.setVisibleE(timed);
+        int row=wait.getHeightE();
+        if(host){
+            int next=wait.getPosY()+(timed?row:0);
+            for(int index=LISTED;index<=PORT;index++)
+                getMenuElem(index).setPosY(next+row*(index-LISTED));
+        }
+    }
+    String profileAt(int x,int y){
+        var table=(RosterTable)getMenuElem(1);
+        return table.playerAt(x-getMenuPosX(),y-getMenuPosY());
     }
     private boolean canEdit(){return MP.isHost()&&!MP.started;}
     private boolean canChangeEndpoint(){return canEdit()&&MP.clients.isEmpty();}
@@ -238,6 +252,19 @@ public final class KreyliLobbyRoom extends Menu {
                 rectangle(batch,split,top,1,tableHeight,DIVIDER);
                 rectangle(batch,left+width-1,top,1,tableHeight,DIVIDER);
             }finally{batch.setPackedColor(old);}
+        }
+
+        String playerAt(int x,int y){
+            int width=getWidthE(),padding=Math.max(2,CFG.PADD);
+            int statusWidth=Math.min(width/2,Math.max(width/4,
+                    MP_UI.textWidth(KreyliText.t("Не готов","Not ready"))+padding*2));
+            if(x<getPosXE()||x>=getPosXE()+width-statusWidth)return null;
+            int slots=KreyliSteam.MAX_PLAYERS,header=getHeightE()/(slots+1);
+            int body=getHeightE()-header,offset=y-getPosY()-header;
+            if(header<1||body<slots||offset<0||offset>=body)return null;
+            int index=((offset+1)*slots-1)/body;
+            var members=KreyliLobby.roster();
+            return index<members.size()?members.get(index).name():null;
         }
 
         private static void rectangle(SpriteBatch batch,int x,int y,int width,int height,Color color){

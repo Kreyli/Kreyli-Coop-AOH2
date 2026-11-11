@@ -98,7 +98,7 @@ public final class KreyliProfileUi {
         try{
             if(!CFG.menus.getInGameView()&&!CFG.menus.getIn_Game_CivilizationView()){
                 countryPortraits.clear();
-                player(batch,badge(),KreyliProfile.displayName(),KreyliProfile.avatar());
+                if(!inLobby())player(batch,badge(),KreyliProfile.displayName(),KreyliProfile.avatar());
             }else if(!countryVisible())countryPortraits.clear();
             if(!open)return;
             fill(batch,new Box(0,0,CFG.GAMEWIDTH,CFG.GAMEHEIGHT),SHADE);
@@ -271,7 +271,16 @@ public final class KreyliProfileUi {
             }
         }finally{batch.setPackedColor(previous);}
     }
+    private static boolean inLobby(){
+        return CFG.menus.getInView(View.eMP_HOST)||CFG.menus.getInView(View.eMP_JOINING);
+    }
+
     private static String profileTarget(int x,int y){
+        if(inLobby()){
+            for(Menu menu:CFG.menus.getActiveMenu())
+                if(menu instanceof KreyliLobbyRoom room)return room.profileAt(x,y);
+            return null;
+        }
         if(!CFG.menus.getInGameView()&&!CFG.menus.getIn_Game_CivilizationView())return badge().contains(x,y)?KreyliProfile.displayName():null;
         if(countryVisible())
             for(var entry:countryPortraits.entrySet())if(entry.getKey().contains(x,y))return entry.getValue();

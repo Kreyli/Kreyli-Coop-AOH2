@@ -44,6 +44,46 @@ public final class KreyliTurnFeaturesProbe {
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
+   int marchFrom=-1,marchTo=-1,marchSource,marchDestination;
+   long marchIssued;
+   void startMarch(){
+    var country=CFG.core.getCiv(hostCiv);
+    for(int i=0;i<country.getNumOfProvs()&&marchFrom<0;i++){
+     int from=country.getProvID(i);
+     var source=CFG.core.getProv(from);
+     if(source.getSeaProv())continue;
+     for(int j=0;j<source.getNeighProvincesSize();j++){
+      int to=source.getNeighProvinces(j);
+      var target=CFG.core.getProv(to);
+      if(!target.getSeaProv()&&target.getCivId()==hostCiv){marchFrom=from;marchTo=to;break;}
+     }
+    }
+    require(marchFrom>=0,"Find an adjacent friendly land route");
+    CFG.core.getProv(marchFrom).updateArmy4(hostCiv,50);
+    marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
+    require(CFG.gameAction.moveArmyAction(marchFrom,marchTo,10,hostCiv,false,true),"Native order queues the march");
+    require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==40,"Order reserves troops at departure");
+    marchIssued=System.nanoTime();
+   }
+   int marchIndex(){
+    var country=CFG.core.getCiv(hostCiv);
+    for(int i=0;i<country.moveUnitsSize();i++){
+     var order=country.getMoveUnits(i);
+     if(order.getFromProviID()==marchFrom&&order.getToProvID()==marchTo)return i;
+    }
+    return -1;
+   }
+   boolean marchQueued(){return marchIndex()>=0;}
+   void checkSavedMarch(){
+    var country=CFG.core.getCiv(hostCiv);
+    var route=KreyliRealtimeMarch.storedRoutes();
+    country.removeMove(marchIndex()); // The native save restores the armies but omits transient orders.
+    int otherRoutes=country.moveUnitsSize();
+    KreyliRealtimeMarch.restoreStoredRoutes(route);
+    KreyliRealtimeMarch.restoreStoredRoutes(route);
+    require(marchQueued()&&country.moveUnitsSize()==otherRoutes+1,"Saved march restores once");
+    require(KreyliRealtimeMarch.elapsed(country.getMoveUnits(marchIndex()))>0,"Saved march resumes at its elapsed time");
+   }
    public void render(){try{super.render();frames++;
     if(frames%300==0)System.out.println("TURN_FEATURES "+(host?"host":"client")+" phase="+phase+" turn="+GameCalendar.TURNID);
     if(phase==0&&frames>300&&CFG.core.getCivsSize()>2&&(host||exists("ready"))){
@@ -107,10 +147,25 @@ public final class KreyliTurnFeaturesProbe {
       autoCountry=CFG.getActiveCivInfoId();
       require(KreyliTurns.marchMillis(600)==5000,"Real-time movement interpolates over the turn interval");
       startTurn=GameCalendar.TURNID;
+      waitStart=System.nanoTime();
       phase=12;
      }
+     if(phase==12&&marchIssued==0&&System.nanoTime()-waitStart>2_000_000_000L)startMarch();
      if(phase==12&&GameCalendar.TURNID>startTurn&&playable()&&++autoSettledFrames>=3){
+      require(marchIssued>0&&marchQueued()&&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination,
+              "March crosses a turn boundary before arriving");
       require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
+      marchSource=CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv);
+      marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
+      checkSavedMarch();
+      phase=13;
+     }
+     if(phase==13&&playable()&&!marchQueued()){
+      long travel=System.nanoTime()-marchIssued;
+      require(travel>=4_950_000_000L&&travel<8_500_000_000L,"March arrival follows the order clock");
+      require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==marchSource
+              &&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination+10,
+              "Exactly ten troops are transferred once");
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),
@@ -126,7 +181,7 @@ public final class KreyliTurnFeaturesProbe {
        }
        require(hidden==2,"Both solo speed controls restored");
       }
-      System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout and early advance");Runtime.getRuntime().halt(0);}
+      System.out.println("TURN_FEATURES PASS gift, stale ready, unanimous skip, wait timeout, early advance and realtime march");Runtime.getRuntime().halt(0);}
     }else{
      if(phase==1&&MP.picking&&exists("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(read("ready"));civ=1;while(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0)civ++;var previous=com.badlogic.gdx.Gdx.input.getInputProcessor();
       MP.pick(civ);

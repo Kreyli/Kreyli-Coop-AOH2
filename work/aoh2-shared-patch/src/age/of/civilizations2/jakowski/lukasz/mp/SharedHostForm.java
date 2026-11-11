@@ -26,6 +26,7 @@ public final class SharedHostForm {
             MP.toast("Для смены подключения, порта или региона гость должен выйти из комнаты",false);
             return;
         }
+        boolean realTime=KreyliLobby.realTime();
         boolean oldDirect=MP.hostDirect, oldListed=MP.listInLobby;
         int oldPort=MP.port,oldSeconds=MP.turnSeconds;
         String oldRegion=MP.regionName,oldPassword=MP.password;
@@ -38,6 +39,7 @@ public final class SharedHostForm {
             MP.startHost();
         }
         if(MP.isHost()){
+            KreyliLobby.readMode(realTime);
             KreyliTurns.saveWaitSetting(MP.turnSeconds);
             MP.saveSettings();
             if(changed)KreyliLobby.settingsChanged();

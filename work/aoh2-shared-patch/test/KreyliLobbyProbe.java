@@ -1,6 +1,7 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
 import age.of.civilizations2.jakowski.lukasz.*;
 import aoc.kingdoms.lukasz.jakowski.AA_Game;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.*;
 import java.nio.file.*;
 import java.io.*;
@@ -135,11 +136,14 @@ public final class KreyliLobbyProbe {
                     require(KreyliProfile.avatar()!=null,"Custom local avatar generated");
                     MP.nick=host?"KreyliHost":"KreyliGuest";MP.port=port;MP.password="test-only";MP.listInLobby=false;MP.hostDirect=true;
                     if(host){
-                        MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=true;
+                        MP_UI.open(View.eMP);MP.port=port;MP.hostDirect=true;MP.listInLobby=false;
                         KreyliTurns.saveWaitSetting(30);
                         CountDownLatch hostReturned=delayedListing(port);
                         click(1);
                         require(MP.isHost()&&CFG.menus.getActiveMenu().get(0) instanceof KreyliLobbyRoom,"Host opens room directly");
+                        KreyliLobby.toggleMode();
+                        click(KreyliLobbyRoom.LISTED);
+                        require(MP.listInLobby&&KreyliLobby.realTime(),"Listing reconnect keeps real-time mode");
                         hostReturned.countDown();
                         Files.writeString(channel.resolve("ready"),"ok");
                     }
@@ -152,16 +156,26 @@ public final class KreyliLobbyProbe {
                         Menu room=CFG.menus.getActiveMenu().get(0);
                         require(room instanceof KreyliLobbyRoom&&room.getMenuElemsSize()==15,"Settings inside room without Apply or Region");
                         require(room.getMenuElem(KreyliLobbyRoom.PORT).getVisibleE(),"LAN port visible in LAN room");
+                        require(!room.getMenuElem(KreyliLobbyRoom.INVITE).getIsClickable(),"Steam invite disabled in LAN room");
+                        require(!room.getMenuElem(KreyliLobbyRoom.TIMER).getVisibleE()
+                                &&room.getMenuElem(KreyliLobbyRoom.LISTED).getPosY()==room.getMenuElem(KreyliLobbyRoom.TIMER).getPosY(),
+                                "Real-time settings close up the waiting row");
                         MP.hostDirect=false;
+                        require(room.getMenuElem(KreyliLobbyRoom.INVITE).getIsClickable(),"Steam invite enabled in Steam room");
                         require(!room.getMenuElem(KreyliLobbyRoom.PORT).getVisibleE(),"LAN port hidden in Steam room");
                         MP.relayCode="TEST42";
                         require(room.getMenuElem(13).getIsClickable(),"Room code can be clicked");
                         MP.relayCode=null;
                         MP.hostDirect=true;
                         KreyliLobby.toggleMode();
-                        require(KreyliLobby.realTime(),"Real-time prototype toggles on");
-                        KreyliLobby.toggleMode();
                         require(!KreyliLobby.realTime(),"Turn mode restores waiting settings");
+                        phase=10;return;
+                    }
+                    if(phase==10){
+                        Menu room=CFG.menus.getActiveMenu().get(0);
+                        require(room.getMenuElem(KreyliLobbyRoom.TIMER).getVisibleE()
+                                &&room.getMenuElem(KreyliLobbyRoom.LISTED).getPosY()>room.getMenuElem(KreyliLobbyRoom.TIMER).getPosY(),
+                                "Turn-based settings restore the waiting row");
                         click(KreyliLobbyRoom.TIMER);
                         require(MP.turnSeconds==45,"Timer applies immediately");
                         click(KreyliLobbyRoom.PASSWORD);
@@ -216,6 +230,17 @@ public final class KreyliLobbyProbe {
                         KreyliProfile.setNickname("RenamedGuest");phase=5;
                     }
                     if(phase==5&&MP.nick.equals("RenamedGuest")&&KreyliProfile.avatar(KreyliLobby.hostDisplay())!=null&&KreyliProfile.stats(KreyliLobby.hostDisplay())!=null){
+                        var room=(KreyliLobbyRoom)CFG.menus.getActiveMenu().get(0);
+                        var roster=room.getMenuElem(1);
+                        int x=room.getMenuPosX()+roster.getPosXE()+roster.getWidthE()/4;
+                        int y=room.getMenuPosY()+roster.getPosY()+roster.getHeightE()/11+2;
+                        require(KreyliLobby.hostDisplay().equals(room.profileAt(x,y)),"Host row has a profile target");
+                        require(!KreyliProfileUi.touchDown(2,2,0,0),"Profile badge hidden in the lobby");
+                        require(KreyliProfileUi.touchDown(x,y,0,0)&&KreyliProfileUi.touchUp(x,y,0,0),"Roster name opens profile");
+                        var viewed=KreyliProfileUi.class.getDeclaredField("viewedPlayer");
+                        viewed.setAccessible(true);
+                        require(KreyliLobby.hostDisplay().equals(viewed.get(null)),"Selected host profile");
+                        Gdx.input.getInputProcessor().keyUp(com.badlogic.gdx.Input.Keys.ESCAPE);
                         KreyliUiProbe.capture("kreyli-lobby-guest.png");
                         CFG.menus.getActiveMenu().get(0).actionEL(KreyliLobbyRoom.READY);phase=2;
                     }
