@@ -128,6 +128,10 @@ public final class SharedAgent implements Opcodes {
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeConstruction","resolveNative","(L"+root+"Civilization;)V",false);
                             return;
                         }
+                        if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(root+"Save/SaveGameManager")&&method.equals("trySaveGame")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAutosave","saveFromWorldUpdate","()V",false);
+                            return;
+                        }
                         if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(root+"Game/GameUpdate")&&method.equals("updateCivs_Money")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeEconomy","nativePayout","(L"+root+"Game/GameUpdate;)V",false);
                             return;

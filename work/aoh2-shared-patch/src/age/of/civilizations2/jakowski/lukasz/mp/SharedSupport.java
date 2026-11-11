@@ -32,6 +32,7 @@ public final class SharedSupport {
     private static void set(String name,Object value) {try{var f=MP.class.getDeclaredField(name);f.setAccessible(true);f.set(null,value);}catch(Exception e){throw new IllegalStateException(e);}}
     private static Object call(String name,Class<?>[] types,Object...args){try{var m=MP.class.getDeclaredMethod(name,types);m.setAccessible(true);return m.invoke(null,args);}catch(InvocationTargetException e){throw new IllegalStateException(e.getCause());}catch(Exception e){throw new IllegalStateException(e);}}
     public static boolean command(String op,int civ,Object[] args){
+        if(!MP.applying&&KreyliRealtimePause.paused())return true;
         if(!MP.applying&&KreyliQuickGame.active()
                 &&(KreyliQuickGame.blocksOrders(civ)||"dw".equals(op)&&args.length>1&&args[1] instanceof Integer target&&!KreyliQuickGame.allowWar(civ,target)))
             return true;

@@ -58,7 +58,7 @@ public final class KreyliRealtimeMarch {
 
     static void tick(){
         if(!enabled()||!MP.inputOrders()||!pending.isEmpty())return;
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         if(now<nextCheck)return;
         nextCheck=now+50_000_000L;
         boolean changed=false;
@@ -118,7 +118,7 @@ public final class KreyliRealtimeMarch {
     }
 
     private static void detachTimedOrders(){
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
@@ -150,7 +150,7 @@ public final class KreyliRealtimeMarch {
 
     static int elapsed(MoveUnits move){
         Long start=starts.get(move);
-        return start==null?-1:(int)Math.clamp((System.nanoTime()-start)/1_000_000L,0,DURATION_MILLIS);
+        return start==null?-1:(int)Math.clamp((KreyliRealtimePause.clock()-start)/1_000_000L,0,DURATION_MILLIS);
     }
 
     static void drawProgress(MoveUnits move,int elapsed){
@@ -172,7 +172,7 @@ public final class KreyliRealtimeMarch {
                     appendRoute(routes,civ,move,Math.max(0,elapsed(move)));
             }
         }
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         for(var march:pending)
             appendRoute(routes,march.civ(),march.move(),
                     (int)Math.clamp((now-march.start())/1_000_000L,0,DURATION_MILLIS));
@@ -188,7 +188,7 @@ public final class KreyliRealtimeMarch {
         if(routes.isEmpty()||routes.length()>1_000_000)return;
         String[] rows=routes.split("\n");
         if(rows.length<2||!rows[0].equals(Integer.toString(GameCalendar.TURNID)))return;
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         for(int row=1;row<rows.length;row++){
             String[] columns=rows[row].split(",");
             if(columns.length!=5)continue;

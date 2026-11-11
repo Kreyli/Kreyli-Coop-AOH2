@@ -24,7 +24,7 @@ public final class KreyliRealtimeConstruction {
 
     static void tick(){
         if(!enabled()||!MP.inputOrders())return;
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         if(now<nextCheck)return;
         nextCheck=now+100_000_000L;
         var current=new IdentityHashMap<BuildingsConstruction,Long>();

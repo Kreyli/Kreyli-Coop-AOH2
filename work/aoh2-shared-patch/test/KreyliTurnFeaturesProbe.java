@@ -45,7 +45,8 @@ public final class KreyliTurnFeaturesProbe {
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
    int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince,recruitProvince,recruitArmyBefore,fortLevelBefore;
-   long marchIssued;
+   long marchIssued,pausedClock;
+   int pausedTurn;
    void startMarch(){
     var country=CFG.core.getCiv(hostCiv);
     for(int i=0;i<country.getNumOfProvs()&&marchFrom<0;i++){
@@ -197,7 +198,7 @@ public final class KreyliTurnFeaturesProbe {
       CFG.map.getMpS().setCurrScale(1.2f);
       CFG.core.chooseProvinceMode();
       require(CFG.chooseProvinceMode,"Army selection active at close zoom");
-      age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.gameSaved=true;
+      age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.saveRequest=true;
      }
      if(phase==12&&KreyliRealtimeEconomy.snapshotSequence()>0&&!exists("economy-payout")){
       require(GameCalendar.TURNID==startTurn,"Host treasury settles before the next internal turn");
@@ -211,6 +212,7 @@ public final class KreyliTurnFeaturesProbe {
       require(CFG.core.getActiveProvID()==selectedProvince,"Selected province survives automatic update");
       require(CFG.menus.getInGameMenu().getVisibleM()&&!CFG.HIDE_UI,"The native HUD stays visible at close zoom");
       require(!CFG.menus.getInGameMenu(CFG.menus.INGAME_SAVED_GAME).getVisibleM(),"Automatic update does not show the saved-game notice");
+      require(!age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.saveRequest&&age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.iTurnsSinceLastSave==0,"Native save completed without leaving the campaign view");
       require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Auto turn stays hidden after automatic update");
       marchSource=CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv);
       marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
@@ -238,7 +240,7 @@ public final class KreyliTurnFeaturesProbe {
       checkRealtimeBattle();
       phase=14;
      }
-     if(phase==14&&exists("client-pass")){
+     if(phase==14&&exists("client-world-pass")){
       require(!CFG.menus.getInGame_Report_Visible()&&!MP.hasBattleReports(),"Real-time combat does not open a report popup");
       var hits=KreyliRealtimeAlerts.class.getDeclaredField("hits");
       hits.setAccessible(true);
@@ -260,6 +262,34 @@ public final class KreyliTurnFeaturesProbe {
       var archive=KreyliRealtimeAlerts.class.getDeclaredField("archive");
       archive.setAccessible(true);
       require(!((java.util.Collection<?>)archive.get(null)).isEmpty(),"Battle details remain available in the archive");
+      KreyliRealtimePause.requestLocal();
+      require(KreyliRealtimePause.currentVote()!=0&&!KreyliRealtimePause.paused(),"Host alone cannot pause a two-player game");
+      waitStart=System.nanoTime();
+      phase=15;
+     }
+     if(phase==15&&System.nanoTime()-waitStart>200_000_000L){
+      require(!KreyliRealtimePause.paused()&&KreyliRealtimePause.currentVote()!=0,"Pause waits for the guest vote");
+      signal("allow-pause","ok");
+      phase=16;
+     }
+     if(phase==16&&KreyliRealtimePause.paused()){
+      pausedClock=KreyliRealtimePause.clock();
+      pausedTurn=GameCalendar.TURNID;
+      waitStart=System.nanoTime();
+      phase=17;
+     }
+     if(phase==17&&System.nanoTime()-waitStart>6_000_000_000L){
+      require(KreyliRealtimePause.paused()&&KreyliRealtimePause.clock()==pausedClock
+              &&GameCalendar.TURNID==pausedTurn,"The game clock and native advance stop on pause");
+      KreyliRealtimePause.requestLocal();
+      require(KreyliRealtimePause.currentVote()!=0&&KreyliRealtimePause.paused(),"Resume also requires both votes");
+      signal("allow-resume","ok");
+      phase=18;
+     }
+     if(phase==18&&exists("client-pass")){
+      long elapsed=KreyliRealtimePause.clock()-pausedClock;
+      require(!KreyliRealtimePause.paused()&&elapsed>=0&&elapsed<3_000_000_000L,
+              "Resuming keeps the time spent paused out of the game clock");
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),
@@ -326,9 +356,22 @@ public final class KreyliTurnFeaturesProbe {
       String[] battle=read("battle-result").split(",");
       if(CFG.core.getProv(Integer.parseInt(battle[0])).getCivId()!=Integer.parseInt(battle[1]))return;
       require(GameCalendar.TURNID==Integer.parseInt(battle[2]),"Guest sees the captured province in the same native turn");
+      signal("client-world-pass","ok");
+      phase=12;
+     }
+     if(phase==12&&exists("allow-pause")&&KreyliRealtimePause.canVote()){
+      KreyliRealtimePause.respondLocal(true);
+      phase=13;
+     }
+     if(phase==13&&KreyliRealtimePause.paused())phase=14;
+     if(phase==14&&exists("allow-resume")&&KreyliRealtimePause.paused()&&KreyliRealtimePause.canVote()){
+      KreyliRealtimePause.respondLocal(true);
+      phase=15;
+     }
+     if(phase==15&&!KreyliRealtimePause.paused()){
       signal("client-pass","ok");
       MP.stop();
-      System.out.println("TURN_FEATURES PASS guest selection and controls across a real-time snapshot");
+      System.out.println("TURN_FEATURES PASS guest selection, real-time snapshot and unanimous pause/resume");
       Runtime.getRuntime().halt(0);
      }
     }

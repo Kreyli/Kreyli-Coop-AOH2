@@ -127,15 +127,15 @@ public final class KreyliRealtimeAlerts {
                 &&!CFG.menus.getInGame_Report_Visible()&&!CFG.menus.getVisibleInGame_Event();
     }
 
-    static void draw(SpriteBatch batch,int top){
+    static void draw(SpriteBatch batch){
         hits.clear();
         if(!visible())return;
         int gap=Math.max(5,CFG.PADD), row=Math.max(26,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
         int width=Math.min(CFG.GAMEWIDTH-gap*2,CFG.BUTTON_W*3);
-        int x=CFG.GAMEWIDTH-width-gap, y=top+gap;
+        int x=CFG.GAMEWIDTH-width-gap, y=KreyliRealtimePause.top()-row-gap;
         float color=batch.getPackedColor();
         try{
-            for(var it=notices.descendingIterator();it.hasNext()&&y+row<=CFG.GAMEHEIGHT;){
+            for(var it=notices.descendingIterator();it.hasNext()&&y>=0;){
                 Capture capture=it.next().capture();
                 boolean loss=capture.former()==localCountry();
                 String province=CFG.core.getProv(capture.province()).getProvName();
@@ -143,11 +143,11 @@ public final class KreyliRealtimeAlerts {
                         (loss?t("Территория потеряна: ","Territory lost: "):t("Территория захвачена: ","Territory captured: "))+province,
                         loss?Color.SALMON:Color.GOLD,capture);
             }
-            if(archive.isEmpty()||y+row>CFG.GAMEHEIGHT)return;
+            if(archive.isEmpty()||y<0)return;
             y=card(batch,x,y,width,row,gap,t("Журнал боёв","Battle log"),Color.WHITE,ARCHIVE_BUTTON);
             if(!archiveOpen)return;
             int remaining=ARCHIVE_ROWS;
-            for(var it=archive.descendingIterator();it.hasNext()&&remaining-->0&&y+row<=CFG.GAMEHEIGHT;){
+            for(var it=archive.descendingIterator();it.hasNext()&&remaining-->0&&y>=0;){
                 var report=it.next();
                 if(!provinceExists(report.iBattleOfProvinceID))continue;
                 String name=CFG.core.getProv(report.iBattleOfProvinceID).getProvName();
@@ -166,7 +166,7 @@ public final class KreyliRealtimeAlerts {
         batch.setColor(Color.WHITE);
         Renderer.drawTextWithShadow(batch,MP_UI.font(),MP_UI.fit(text,width-gap*2),
                 x+gap,y+(height-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,color);
-        return y+height+gap;
+        return y-height-gap;
     }
 
     static boolean touchDown(int x,int y,int pointer,int button){

@@ -38,7 +38,7 @@ public final class KreyliTurns {
         for(var c:MP.clients)if(c.civ>0&&!MP.eliminated(c.civ))result.add(c);
         return result;
     }
-    private static MP_Net.Conn host(){return (MP_Net.Conn)field("host");}
+    static MP_Net.Conn host(){return (MP_Net.Conn)field("host");}
     private static boolean active(){return MP.playing()&&MP.inputOrders()&&MP.myCiv>0||MP.isHost()&&MP.started&&MP.inputOrders();}
     private static void send(Object...data){for(var c:MP.clients)c.send(data);}
     private static void notice(String text){MP.toast(text,false);send("kreyli_turn_notice",text);}
@@ -57,7 +57,7 @@ public final class KreyliTurns {
         return true;
     }
     public static int selectedSkipCount(){return selected;}
-    public static boolean blocksNativeAdvance(){return vote.id!=0&&!vote.waiting;}
+    public static boolean blocksNativeAdvance(){return KreyliRealtimePause.paused()||vote.id!=0&&!vote.waiting;}
     public static long activeSkipId(){return MP.isHost()?vote.id:remoteId;}
     public static boolean hasSkipVote(){return activeSkipId()!=0;}
     public static boolean skipCanRespond(){return active()&&(MP.isHost()?vote.canVote(HOST):remoteCanVote);}
@@ -125,7 +125,7 @@ public final class KreyliTurns {
     }
     private static void showOutcome(String result){outcome=result;outcomeUntil=System.nanoTime()+4_000_000_000L;}
     public static boolean hostMessage(MP_Net.Conn conn,Object[] data){
-        if(readyMessage(conn,data))return true;
+        if(KreyliRealtimePause.hostMessage(conn,data)||readyMessage(conn,data))return true;
         if(data.length==0||!(data[0] instanceof String op)||!op.startsWith("kreyli_skip_"))return false;
         if(!MP.isHost()||!MP.clients.contains(conn)||conn.nick==null||conn.civ<=0)return true;
         switch(op){
@@ -136,6 +136,7 @@ public final class KreyliTurns {
         return true;
     }
     public static boolean clientMessage(Object[] data){
+        if(KreyliRealtimePause.clientMessage(data))return true;
         if(data.length==4&&"kreyli_ready_state".equals(data[0])){
             if(MP.isClient()&&data[1] instanceof Integer turn&&data[2] instanceof String name&&data[3] instanceof Integer seconds){
                 remoteReadyTurn=turn;remoteReadyPlayer=name;remoteSeconds=seconds;
@@ -206,10 +207,13 @@ public final class KreyliTurns {
     private static int quickTurn=-1;
     /** Stretch the native marker animation across the auto-turn interval. */
     public static float marchMillis(float nativeMillis){
+        if(KreyliRealtimePause.paused())return Float.POSITIVE_INFINITY;
         return KreyliLobby.realTime()&&MP.playing()?KreyliRealtimeMarch.DURATION_MILLIS:nativeMillis;
     }
     private static void tickAutomaticTurn(){
         KreyliRealtimeUi.finishAutomaticTurn();
+        KreyliRealtimePause.tick();
+        if(KreyliRealtimePause.paused())return;
         KreyliRealtimeMarch.tick();
         KreyliRealtimeRecruitment.tick();
         KreyliRealtimeEconomy.tick();
@@ -218,7 +222,7 @@ public final class KreyliTurns {
             automaticTurn=0;
             return;
         }
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         if(automaticTurn==0)automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
         if(now<automaticTurn||!SharedSupport.canEnd())return;
         if(CFG.menus.getInGame_ProvinceMoveUnits_Visible()&&now-automaticTurn<1_500_000_000L)return;
@@ -296,5 +300,5 @@ public final class KreyliTurns {
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();KreyliRealtimeConstruction.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
+    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimePause.reset();KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();KreyliRealtimeConstruction.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }

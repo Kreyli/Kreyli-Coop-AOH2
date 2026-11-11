@@ -30,7 +30,7 @@ public final class KreyliRealtimeRecruitment {
 
     static void tick(){
         if(!enabled()||!MP.inputOrders())return;
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         if(now<nextCheck)return;
         nextCheck=now+100_000_000L;
         var current=new IdentityHashMap<RecruitArmy,Training>();
@@ -74,7 +74,7 @@ public final class KreyliRealtimeRecruitment {
 
     static String save(){
         if(!enabled())return "";
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         var saved=new StringBuilder();
         for(int id=1;id<CFG.core.getCivsSize();id++){
             var country=CFG.core.getCiv(id);
@@ -93,7 +93,7 @@ public final class KreyliRealtimeRecruitment {
         if(saved.isEmpty()||saved.length()>1_000_000)return;
         String[] rows=saved.split("\n");
         if(!rows[0].equals(Integer.toString(GameCalendar.TURNID)))return;
-        long now=System.nanoTime();
+        long now=KreyliRealtimePause.clock();
         for(int i=1;i<rows.length;i++){
             String[] parts=rows[i].split(",");
             if(parts.length!=4)continue;

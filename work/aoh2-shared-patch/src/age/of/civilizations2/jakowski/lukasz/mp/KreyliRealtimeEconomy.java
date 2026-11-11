@@ -30,7 +30,7 @@ public final class KreyliRealtimeEconomy {
 
     public static void tick() {
         if (!hostEnabled()) return;
-        long now = System.nanoTime();
+        long now = KreyliRealtimePause.clock();
         if (deadline == 0) deadline = now + INTERVAL / 2;
         if (now < deadline || !MP.inputOrders()) return;
         deadline = now + INTERVAL;
