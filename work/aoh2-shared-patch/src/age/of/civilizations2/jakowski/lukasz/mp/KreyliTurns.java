@@ -213,6 +213,7 @@ public final class KreyliTurns {
         KreyliRealtimeMarch.tick();
         KreyliRealtimeRecruitment.tick();
         KreyliRealtimeEconomy.tick();
+        KreyliRealtimeConstruction.tick();
         if(!active()){
             automaticTurn=0;
             return;
@@ -295,5 +296,5 @@ public final class KreyliTurns {
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
+    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();KreyliRealtimeConstruction.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }

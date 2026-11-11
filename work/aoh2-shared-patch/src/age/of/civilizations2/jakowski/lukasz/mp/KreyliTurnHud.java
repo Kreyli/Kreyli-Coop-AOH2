@@ -68,7 +68,14 @@ public final class KreyliTurnHud {
             pressed=null;
             return;
         }
-        if(KreyliLobby.realTime()||!MP.playing()||!CFG.menus.getInGameView()){
+        if(KreyliLobby.realTime()){
+            choosing=false;
+            pressed=null;
+            slide=0;
+            KreyliRealtimeAlerts.draw(batch,date==null?CFG.PADD*2:date.y+date.height);
+            return;
+        }
+        if(!MP.playing()||!CFG.menus.getInGameView()){
             choosing=false;
             slide=0;
             lastReadySoundTurn=-1;
@@ -212,6 +219,7 @@ public final class KreyliTurnHud {
     }
 
     public static boolean touchDown(int x,int y,int pointer,int button){
+        if(KreyliLobby.realTime())return KreyliRealtimeAlerts.touchDown(x,y,pointer,button);
         if(pointer!=0||button!=Input.Buttons.LEFT||!MP.playing()||paused())return false;
         pressed=null;
         for(var hit:hits.entrySet())if(hit.getValue().contains(x,y)){pressed=hit.getKey();break;}
@@ -220,6 +228,7 @@ public final class KreyliTurnHud {
     }
 
     public static boolean touchUp(int x,int y,int pointer,int button){
+        if(KreyliLobby.realTime())return KreyliRealtimeAlerts.touchUp(x,y,pointer,button);
         if(pointer!=0||pressed==null)return false;
         Action action=pressed;
         pressed=null;

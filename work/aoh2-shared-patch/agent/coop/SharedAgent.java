@@ -124,8 +124,20 @@ public final class SharedAgent implements Opcodes {
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(root+"NewTurn")&&n.equals("updateBuildingsConstruction")&&owner.equals(root+"Civilization")&&method.equals("runConstructions")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeConstruction","resolveNative","(L"+root+"Civilization;)V",false);
+                            return;
+                        }
                         if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(root+"Game/GameUpdate")&&method.equals("updateCivs_Money")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeEconomy","nativePayout","(L"+root+"Game/GameUpdate;)V",false);
+                            return;
+                        }
+                        if(name.equals(root+"Actions")&&n.equals("doActions")&&owner.equals(root+"AI/AI")&&method.equals("turnOrders_End")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeMarch","finishAiOrders","(L"+root+"AI/AI;)V",false);
+                            return;
+                        }
+                        if(name.equals(root+"Actions")&&n.equals("doActions")&&owner.equals(root+"MenuManager")&&method.equals("setVisibleInGame_Messages")){
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"showTurnMessages","(L"+root+"MenuManager;Z)V",false);
                             return;
                         }
                         if(name.equals(root+"Actions")&&owner.equals(root+"Civilization")&&method.equals("runRecruitArmyNT")){
@@ -151,6 +163,12 @@ public final class SharedAgent implements Opcodes {
                         }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                     }
                     public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
+                        if(name.equals(gameAction)&&n.equals("turnMoves_MoveCurrentArmy")&&owner.equals(gameAction)
+                                &&opcode==GETFIELD&&field.equals("SHOW_REPORT")){
+                            super.visitFieldInsn(opcode,owner,field,descriptor);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","showNativeReport","(Z)Z",false);
+                            return;
+                        }
                         if(name.equals(root+"MenuManager")&&n.equals("getViewID")&&opcode==GETFIELD
                                 &&owner.equals(root+"GameValues/GV_InGame")&&field.equals("CIV_VIEW_STATS_SCALE_DOWN_IF_TOO_BIG")){
                             // Shrinking the viewport here clips the native stats and the profile row.
@@ -250,6 +268,11 @@ public final class SharedAgent implements Opcodes {
                         super.visitVarInsn(gold?LLOAD:ILOAD,1);
                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliProfile",gold?"gold":"capture",
                                 "(L"+type+";"+(gold?"J":"I")+")V",false);
+                        if(!gold){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitVarInsn(ILOAD,1);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","capture","(L"+type+";I)V",false);
+                        }
                     }
                 };
             }
@@ -315,9 +338,11 @@ public final class SharedAgent implements Opcodes {
                                     }
                                     if(name.equals(P+"MP")&&method.equals("update")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliProfile","tick","()V",false);
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","tick","()V",false);
                                     }
                                     if(name.equals(P+"MP")&&method.equals("stop")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliProfile","reset","()V",false);
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","reset","()V",false);
                                     }
                                     if(name.equals(P+"MP"))switch(method){
                                         case "onEnterInGame"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","prepare","()V",false);}
@@ -338,7 +363,23 @@ public final class SharedAgent implements Opcodes {
                                         case "onClientLeft"->{found.add(method);guard("leave","("+C+")Z",ALOAD,0);}
                                         case "setPlayerLeader"->{found.add(method);guard("keepLeader","(I)Z",ILOAD,0);}
                                         case "onHostMessage"->{found.add(method);guard("message","("+C+"[Ljava/lang/Object;)Z",ALOAD,0,ALOAD,1);}
-                                        case "onClientMessage"->{found.add(method);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","clientMessage","([Ljava/lang/Object;)Z",false);Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);super.visitVarInsn(ALOAD,1);call("incoming","([Ljava/lang/Object;)V");}
+                                        case "updateBattleReports","showNextBattleReport"->{
+                                            super.visitFieldInsn(GETSTATIC,P+"MP","reportsToShow","Ljava/util/List;");
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","archiveQueued","(Ljava/util/List;)Z",false);
+                                            Label showNative=new Label();super.visitJumpInsn(IFEQ,showNative);
+                                            super.visitInsn(RETURN);super.visitLabel(showNative);
+                                        }
+                                        case "hasBattleReports"->{
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","active","()Z",false);
+                                            Label nativeReports=new Label();super.visitJumpInsn(IFEQ,nativeReports);
+                                            super.visitInsn(ICONST_0);super.visitInsn(IRETURN);super.visitLabel(nativeReports);
+                                        }
+                                        case "onClientMessage"->{
+                                            found.add(method);
+                                            super.visitVarInsn(ALOAD,1);
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAlerts","receive","([Ljava/lang/Object;)Z",false);
+                                            Label otherMessage=new Label();super.visitJumpInsn(IFEQ,otherMessage);
+                                            super.visitInsn(RETURN);super.visitLabel(otherMessage);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","clientMessage","([Ljava/lang/Object;)Z",false);Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);super.visitVarInsn(ALOAD,1);call("incoming","([Ljava/lang/Object;)V");}
                                         case "syncAfter"->{guard("lightSync","(Ljava/lang/String;)Z",ALOAD,0);}
                                         case "markReady"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","markReady","()Z",false);Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);}
                                         case "endTurnPressed"->{

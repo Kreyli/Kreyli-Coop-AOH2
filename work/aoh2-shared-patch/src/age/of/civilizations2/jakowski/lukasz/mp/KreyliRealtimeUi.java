@@ -31,6 +31,10 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime()||!MP.playing())action.hideExtraViews();
     }
 
+    public static void showTurnMessages(MenuManager manager,boolean visible){
+        if(visible||!KreyliLobby.realTime()||!MP.playing())manager.setVisibleInGame_Messages(visible);
+    }
+
     private KreyliRealtimeUi() {}
 
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}

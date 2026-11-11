@@ -44,7 +44,7 @@ public final class KreyliTurnFeaturesProbe {
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
-   int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince,recruitProvince,recruitArmyBefore;
+   int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince,recruitProvince,recruitArmyBefore,fortLevelBefore;
    long marchIssued;
    void startMarch(){
     var country=CFG.core.getCiv(hostCiv);
@@ -190,6 +190,8 @@ public final class KreyliTurnFeaturesProbe {
       recruitProvince=java.util.stream.IntStream.range(0,country.getNumOfProvs()).map(country::getProvID)
               .filter(p->p!=marchFrom&&p!=marchTo&&CFG.gameAction.gMARY(p)>=10).findFirst().orElseThrow();
       require(country.recruitArmy(recruitProvince,10),"Native recruitment order accepted");
+      fortLevelBefore=CFG.core.getProv(recruitProvince).getLvlOfFort();
+      country.civGD.lConstructions.add(new age.of.civilizations2.jakowski.lukasz.Civilizations.Construction.BuildingsConstruction__Fort(recruitProvince,1));
       selectedProvince=marchFrom;
       CFG.core.setActiveProvID(selectedProvince);
       CFG.map.getMpS().setCurrScale(1.2f);
@@ -214,6 +216,7 @@ public final class KreyliTurnFeaturesProbe {
       marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
       var country=CFG.core.getCiv(hostCiv);
       require(country.getRecruitArmy_BasedOnProvinceID(recruitProvince)==10,"Recruitment remains queued across the native update");
+      require(CFG.core.getProv(recruitProvince).getLvlOfFort()==fortLevelBefore,"Native update does not finish a construction early");
       String recruits=KreyliRealtimeRecruitment.save();
       country.clearRecruitArmy();
       KreyliRealtimeRecruitment.load(recruits);
@@ -223,18 +226,40 @@ public final class KreyliTurnFeaturesProbe {
       checkSavedMarch();
       phase=13;
      }
-     if(phase==13&&playable()&&!marchQueued()&&CFG.core.getCiv(hostCiv).getRecruitArmySize()==0){
+     if(phase==13&&playable()&&!marchQueued()&&CFG.core.getCiv(hostCiv).getRecruitArmySize()==0
+             &&CFG.core.getProv(recruitProvince).getLvlOfFort()>fortLevelBefore){
       long travel=System.nanoTime()-marchIssued;
       require(travel>=4_950_000_000L&&travel<8_500_000_000L,"March arrival follows the order clock");
       require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==marchSource
               &&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination+10,
               "Exactly ten troops are transferred once");
       require(CFG.core.getProv(recruitProvince).getArmyCivID1(hostCiv)==recruitArmyBefore+10,"Timed recruitment adds troops exactly once");
-      signal("recruitment-result",recruitProvince+","+hostCiv+","+(recruitArmyBefore+10)+","+GameCalendar.TURNID);
+      signal("recruitment-result",recruitProvince+","+hostCiv+","+(recruitArmyBefore+10)+","+GameCalendar.TURNID+","+(fortLevelBefore+1));
       checkRealtimeBattle();
       phase=14;
      }
      if(phase==14&&exists("client-pass")){
+      require(!CFG.menus.getInGame_Report_Visible()&&!MP.hasBattleReports(),"Real-time combat does not open a report popup");
+      var hits=KreyliRealtimeAlerts.class.getDeclaredField("hits");
+      hits.setAccessible(true);
+      boolean captureNotice=false;
+      for(Object hit:(java.util.List<?>)hits.get(null)){
+       var action=hit.getClass().getDeclaredMethod("action");
+       action.setAccessible(true);
+       if(!action.invoke(hit).getClass().getSimpleName().equals("Capture"))continue;
+       var x=hit.getClass().getDeclaredMethod("x");
+       var y=hit.getClass().getDeclaredMethod("y");
+       x.setAccessible(true);
+       y.setAccessible(true);
+       int px=(Integer)x.invoke(hit)+2,py=(Integer)y.invoke(hit)+2;
+       require(KreyliRealtimeAlerts.touchDown(px,py,0,0)&&KreyliRealtimeAlerts.touchUp(px,py,0,0),"Territory notice accepts one click");
+       captureNotice=true;
+       break;
+      }
+      require(captureNotice,"Host sees a clickable territory notice");
+      var archive=KreyliRealtimeAlerts.class.getDeclaredField("archive");
+      archive.setAccessible(true);
+      require(!((java.util.Collection<?>)archive.get(null)).isEmpty(),"Battle details remain available in the archive");
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),
@@ -295,6 +320,7 @@ public final class KreyliTurnFeaturesProbe {
       String[] expected=read("recruitment-result").split(",");
       int province=Integer.parseInt(expected[0]),country=Integer.parseInt(expected[1]);
       if(CFG.core.getProv(province).getArmyCivID1(country)!=Integer.parseInt(expected[2]))return;
+      if(CFG.core.getProv(province).getLvlOfFort()!=Integer.parseInt(expected[4]))return;
       require(GameCalendar.TURNID==Integer.parseInt(expected[3]),"Guest sees trained troops before another native turn");
       if(!exists("battle-result"))return;
       String[] battle=read("battle-result").split(",");

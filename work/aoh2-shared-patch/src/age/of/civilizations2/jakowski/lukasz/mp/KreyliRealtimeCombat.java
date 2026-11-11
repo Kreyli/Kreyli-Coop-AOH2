@@ -60,7 +60,7 @@ final class KreyliRealtimeCombat {
             action.diceAggressors=attackerDice;
             action.diceDefenders=defenderDice;
         }
-        if(consumed)MP.requestSync();
+        if(consumed)KreyliOrderSync.worldChanged();
         return consumed;
     }
 

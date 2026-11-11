@@ -1,17 +1,21 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
 
+import age.of.civilizations2.jakowski.lukasz.AI.AI;
 import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.GameCalendar;
 import age.of.civilizations2.jakowski.lukasz.MoveUnitsB.MoveUnits;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 
-/** Runs player marches between adjacent land provinces on the host clock. */
-final class KreyliRealtimeMarch {
+/** Runs supported marches between adjacent land provinces on the host clock. */
+public final class KreyliRealtimeMarch {
     static final int DURATION_MILLIS=5_000;
     private static final long DURATION_NANOS=DURATION_MILLIS*1_000_000L;
+    private static final long AI_ATTACK_SPACING_NANOS=3_000_000_000L;
+    private static final HashMap<Integer,Long> nextAiAttack=new HashMap<>();
     private static final IdentityHashMap<MoveUnits,Long> starts=new IdentityHashMap<>();
     private static final HashSet<MoveUnits> nativeFallback=new HashSet<>();
     private record Pending(int civ,MoveUnits move,long start) {}
@@ -24,12 +28,20 @@ final class KreyliRealtimeMarch {
         return MP.isHost()&&MP.started&&KreyliLobby.realTime();
     }
 
-    private static HashSet<Integer> countries(){
-        var countries=new HashSet<Integer>();
-        if(CFG.core.getPlayersSize()>0)countries.add(CFG.core.getPlayer(0).getCivId());
-        for(var guest:MP.clients)countries.add(guest.civ);
-        countries.removeIf(civ->civ<=0||!MP.validCiv(civ));
-        return countries;
+    private static boolean playerCountry(int civ){
+        if(CFG.core.getPlayersSize()>0&&CFG.core.getPlayer(0).getCivId()==civ)return true;
+        for(var guest:MP.clients)if(guest.civ==civ)return true;
+        return false;
+    }
+
+    public static void finishAiOrders(AI ai){
+        try{
+            ai.turnOrders_End();
+        }finally{
+            // Actions refunds queued moves to the source immediately after AI planning.
+            // Detach these first so the native turn never executes a timed order.
+            if(enabled())detachTimedOrders();
+        }
     }
 
     private static boolean eligible(int civ,MoveUnits move){
@@ -52,7 +64,7 @@ final class KreyliRealtimeMarch {
         boolean changed=false;
         var live=new HashSet<MoveUnits>();
         var fallback=new HashSet<MoveUnits>();
-        for(int civ:countries()){
+        for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
@@ -70,7 +82,13 @@ final class KreyliRealtimeMarch {
                 }
                 var to=CFG.core.getProv(move.getToProvID());
                 if(to.getCivId()!=civ){
+                    boolean ai=!playerCountry(civ);
+                    if(ai&&now<nextAiAttack.getOrDefault(civ,Long.MIN_VALUE)){
+                        live.add(move);
+                        continue;
+                    }
                     if(KreyliRealtimeCombat.resolve(civ,i)){
+                        if(ai)nextAiAttack.put(civ,now+AI_ATTACK_SPACING_NANOS);
                         i--;
                         changed=true;
                     }else live.add(move);
@@ -96,9 +114,12 @@ final class KreyliRealtimeMarch {
     }
 
     static void beforeTurn(){
-        if(!enabled()||!pending.isEmpty())return;
+        if(enabled()&&pending.isEmpty())detachTimedOrders();
+    }
+
+    private static void detachTimedOrders(){
         long now=System.nanoTime();
-        for(int civ:countries()){
+        for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
@@ -143,7 +164,7 @@ final class KreyliRealtimeMarch {
     static String storedRoutes(){
         if(!enabled())return "";
         var routes=new StringBuilder().append(GameCalendar.TURNID).append('\n');
-        for(int civ:countries()){
+        for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
@@ -195,7 +216,7 @@ final class KreyliRealtimeMarch {
 
     static String clock(){
         var clock=new StringBuilder();
-        for(int civ:countries()){
+        for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 int elapsed=elapsed(country.getMoveUnits(i));
@@ -230,6 +251,7 @@ final class KreyliRealtimeMarch {
     }
 
     static void reset(){
+        nextAiAttack.clear();
         starts.clear();
         pending.clear();
         nativeFallback.clear();

@@ -57,8 +57,9 @@ public final class KreyliRealtimeCombatProbe {
                     }
                     if(phase==1&&MP.started&&MP.inputOrders()&&CFG.menus.getInGameView()){
                         checkAttack();
+                        checkAiAttacks();
                         MP.stop();
-                        System.out.println("KREYLI_REALTIME_COMBAT: PASS hostile march resolves once without advancing the turn");
+                        System.out.println("KREYLI_REALTIME_COMBAT: PASS hostile marches resolve once and AI captures are staggered");
                         Runtime.getRuntime().halt(0);
                     }
                 }catch(Throwable error){
@@ -92,6 +93,68 @@ public final class KreyliRealtimeCombatProbe {
                     }
                 }
                 throw new AssertionError("No two countries share a land border");
+            }
+
+            @SuppressWarnings("unchecked")
+            private void checkAiAttacks()throws Exception{
+                for(int civ=1;civ<CFG.core.getCivsSize();civ++){
+                    if(civ==attacker)continue;
+                    var country=CFG.core.getCiv(civ);
+                    for(int i=0;i<country.getNumOfProvs();i++){
+                        int from=country.getProvID(i);
+                        var origin=CFG.core.getProv(from);
+                        if(origin.getSeaProv())continue;
+                        int first=-1,second=-1;
+                        for(int j=0;j<origin.getNeighProvincesSize();j++){
+                            int adjacent=origin.getNeighProvinces(j);
+                            var target=CFG.core.getProv(adjacent);
+                            int owner=target.getCivId();
+                            if(owner<=0||owner==civ||target.getSeaProv()
+                                    ||CFG.core.getCivsInAlliance(civ,owner)
+                                    ||CFG.core.getMilitaryAccess(civ,owner)>0
+                                    ||CFG.core.getCiv(owner).getPuppetOfCiv()==civ
+                                    ||country.getPuppetOfCiv()==owner)continue;
+                            if(first<0)first=adjacent;
+                            else if(first!=adjacent){second=adjacent;break;}
+                        }
+                        if(second<0)continue;
+                        int firstOwner=CFG.core.getProv(first).getCivId();
+                        int secondOwner=CFG.core.getProv(second).getCivId();
+                        if(!CFG.core.getCivsAtWar(civ,firstOwner))CFG.core.addWarData(civ,firstOwner);
+                        if(!CFG.core.getCivsAtWar(civ,secondOwner))CFG.core.addWarData(civ,secondOwner);
+                        int amount=Math.max(10_000,CFG.MIN_ARMY_REQUIRED_TO_ATTACK);
+                        country.setMovementPoints(100);
+                        origin.updateArmy4(civ,amount*2+10);
+                        CFG.core.getProv(first).updateArmy4(firstOwner,1);
+                        CFG.core.getProv(second).updateArmy4(secondOwner,1);
+                        int count=country.moveUnitsSize(),turn=GameCalendar.TURNID;
+                        require(CFG.gameAction.moveArmyAction(from,first,amount,civ,true,false),"Native AI order accepted");
+                        require(CFG.gameAction.moveArmyAction(from,second,amount,civ,true,false),"Second native AI order accepted");
+                        require(origin.getArmyCivID1(civ)==10,"Native AI reserves both forces immediately");
+                        KreyliRealtimeMarch.finishAiOrders(CFG.oAI);
+                        require(country.moveUnitsSize()==count,"Both AI orders detached before native refund");
+                        require(origin.getArmyCivID1(civ)==10,"Detaching preserves the original reservation");
+                        KreyliRealtimeMarch.afterTurn();
+                        require(country.moveUnitsSize()==count+2,"Detached AI orders are restored");
+                        var timings=(Map<MoveUnits,Long>)starts.get(null);
+                        for(int order=count;order<country.moveUnitsSize();order++)
+                            timings.put(country.getMoveUnits(order),System.nanoTime()-6_000_000_000L);
+                        var nextCheck=KreyliRealtimeMarch.class.getDeclaredField("nextCheck");
+                        nextCheck.setAccessible(true);
+                        nextCheck.setLong(null,0);
+                        KreyliRealtimeMarch.tick();
+                        require(GameCalendar.TURNID==turn&&MP.inputOrders(),"AI attack preserves the input phase and turn");
+                        require(CFG.core.getProv(first).getCivId()==civ&&CFG.core.getProv(second).getCivId()==secondOwner,
+                                "Only the first AI attack arrives when both orders are due");
+                        require(origin.getArmyCivID1(civ)==10,"AI attack does not double debit");
+                        nextCheck.setLong(null,0);
+                        KreyliRealtimeMarch.tick();
+                        require(CFG.core.getProv(second).getCivId()==secondOwner&&country.moveUnitsSize()==count+1,
+                                "AI cooldown leaves the second order queued");
+                        return;
+                    }
+                }
+                throw new AssertionError("No AI origin has two hostile land neighbors");
             }
 
             @SuppressWarnings("unchecked")

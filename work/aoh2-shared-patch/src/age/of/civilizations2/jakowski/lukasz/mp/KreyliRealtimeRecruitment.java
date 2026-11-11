@@ -55,7 +55,7 @@ public final class KreyliRealtimeRecruitment {
         if(completed){
             CFG.setRenderO(true);
             KreyliOrderSync.mark();
-            MP.requestSync();
+            KreyliOrderSync.worldChanged();
         }
     }
 
