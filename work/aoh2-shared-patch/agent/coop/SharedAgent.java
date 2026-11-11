@@ -25,7 +25,7 @@ public final class SharedAgent implements Opcodes {
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
         if(!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
-                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn").contains(name))return data;
+                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
         reader.accept(new ClassVisitor(ASM8,writer){
@@ -124,6 +124,14 @@ public final class SharedAgent implements Opcodes {
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(root+"Game/GameUpdate")&&method.equals("updateCivs_Money")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeEconomy","nativePayout","(L"+root+"Game/GameUpdate;)V",false);
+                            return;
+                        }
+                        if(name.equals(root+"Actions")&&owner.equals(root+"Civilization")&&method.equals("runRecruitArmyNT")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeRecruitment","resolveNative","(L"+root+"Civilization;)V",false);
+                            return;
+                        }
                         if(name.equals(root+"Menus/Turn/Menu_NextPlayerTurn")&&owner.equals(root+"MenuManager")&&method.equals("rebuildMenu_InGame_SavedGame")){
                             super.visitMethodInsn(INVOKESTATIC,realtime,"showAutomaticSave","(L"+root+"MenuManager;)V",false);
                             return;

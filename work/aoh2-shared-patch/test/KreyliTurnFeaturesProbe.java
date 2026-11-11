@@ -44,7 +44,7 @@ public final class KreyliTurnFeaturesProbe {
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
-   int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince;
+   int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince,recruitProvince,recruitArmyBefore;
    long marchIssued;
    void startMarch(){
     var country=CFG.core.getCiv(hostCiv);
@@ -64,6 +64,34 @@ public final class KreyliTurnFeaturesProbe {
     require(CFG.gameAction.moveArmyAction(marchFrom,marchTo,10,hostCiv,false,true),"Native order queues the march");
     require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==40,"Order reserves troops at departure");
     marchIssued=System.nanoTime();
+   }
+   void checkRealtimeBattle()throws Exception{
+    var country=CFG.core.getCiv(hostCiv);
+    for(int i=0;i<country.getNumOfProvs();i++){
+     int from=country.getProvID(i);
+     var origin=CFG.core.getProv(from);
+     if(origin.getSeaProv())continue;
+     for(int j=0;j<origin.getNeighProvincesSize();j++){
+      int to=origin.getNeighProvinces(j);
+      var target=CFG.core.getProv(to);
+      int defender=target.getCivId();
+      if(target.getSeaProv()||defender<=0||defender==hostCiv||defender==guestCiv
+              ||CFG.core.getCivsInAlliance(hostCiv,defender)||CFG.core.getMilitaryAccess(hostCiv,defender)>0
+              ||country.getPuppetOfCiv()==defender||CFG.core.getCiv(defender).getPuppetOfCiv()==hostCiv)continue;
+      if(!CFG.core.getCivsAtWar(hostCiv,defender))CFG.core.addWarData(hostCiv,defender);
+      int troops=Math.max(10_000,CFG.MIN_ARMY_REQUIRED_TO_ATTACK);
+      origin.updateArmy4(hostCiv,troops+10);
+      target.updateArmy4(defender,1);
+      require(CFG.gameAction.moveArmyAction(from,to,troops,hostCiv,false,true),"Host can order a real-time attack");
+      int turn=GameCalendar.TURNID;
+      require(KreyliRealtimeCombat.resolve(hostCiv,country.moveUnitsSize()-1),"Host resolves the independent attack");
+      require(GameCalendar.TURNID==turn&&target.getCivId()==hostCiv&&origin.getArmyCivID1(hostCiv)==10,
+              "Capture and troop reservation settle without advancing the native turn");
+      signal("battle-result",to+","+hostCiv+","+turn);
+      return;
+     }
+    }
+    throw new AssertionError("No land border for combat fixture");
    }
    int marchIndex(){
     var country=CFG.core.getCiv(hostCiv);
@@ -158,6 +186,10 @@ public final class KreyliTurnFeaturesProbe {
       MP.endTurnPressed();
       require(GameCalendar.TURNID==startTurn&&MP.inputOrders(),"Ready shortcut cannot advance real-time mode");
       startMarch();
+      var country=CFG.core.getCiv(hostCiv);
+      recruitProvince=java.util.stream.IntStream.range(0,country.getNumOfProvs()).map(country::getProvID)
+              .filter(p->p!=marchFrom&&p!=marchTo&&CFG.gameAction.gMARY(p)>=10).findFirst().orElseThrow();
+      require(country.recruitArmy(recruitProvince,10),"Native recruitment order accepted");
       selectedProvince=marchFrom;
       CFG.core.setActiveProvID(selectedProvince);
       CFG.map.getMpS().setCurrScale(1.2f);
@@ -165,7 +197,12 @@ public final class KreyliTurnFeaturesProbe {
       require(CFG.chooseProvinceMode,"Army selection active at close zoom");
       age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.gameSaved=true;
      }
+     if(phase==12&&KreyliRealtimeEconomy.snapshotSequence()>0&&!exists("economy-payout")){
+      require(GameCalendar.TURNID==startTurn,"Host treasury settles before the next internal turn");
+      signal("economy-payout",Long.toString(CFG.core.getCiv(guestCiv).getGold()));
+     }
      if(phase==12&&GameCalendar.TURNID>startTurn&&playable()&&++autoSettledFrames>=3){
+      require(exists("guest-saw-economy"),"Guest received matching gold without a native turn");
       require(marchIssued>0&&marchQueued()&&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination,
               "March crosses a turn boundary before arriving");
       require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
@@ -175,15 +212,29 @@ public final class KreyliTurnFeaturesProbe {
       require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Auto turn stays hidden after automatic update");
       marchSource=CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv);
       marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
+      var country=CFG.core.getCiv(hostCiv);
+      require(country.getRecruitArmy_BasedOnProvinceID(recruitProvince)==10,"Recruitment remains queued across the native update");
+      String recruits=KreyliRealtimeRecruitment.save();
+      country.clearRecruitArmy();
+      KreyliRealtimeRecruitment.load(recruits);
+      KreyliRealtimeRecruitment.load(recruits);
+      require(country.getRecruitArmySize()==1,"Recruitment queue restores once");
+      recruitArmyBefore=CFG.core.getProv(recruitProvince).getArmyCivID1(hostCiv);
       checkSavedMarch();
       phase=13;
      }
-     if(phase==13&&playable()&&!marchQueued()&&exists("client-pass")){
+     if(phase==13&&playable()&&!marchQueued()&&CFG.core.getCiv(hostCiv).getRecruitArmySize()==0){
       long travel=System.nanoTime()-marchIssued;
       require(travel>=4_950_000_000L&&travel<8_500_000_000L,"March arrival follows the order clock");
       require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==marchSource
               &&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination+10,
               "Exactly ten troops are transferred once");
+      require(CFG.core.getProv(recruitProvince).getArmyCivID1(hostCiv)==recruitArmyBefore+10,"Timed recruitment adds troops exactly once");
+      signal("recruitment-result",recruitProvince+","+hostCiv+","+(recruitArmyBefore+10)+","+GameCalendar.TURNID);
+      checkRealtimeBattle();
+      phase=14;
+     }
+     if(phase==14&&exists("client-pass")){
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),
@@ -232,9 +283,23 @@ public final class KreyliTurnFeaturesProbe {
       signal("realtime-client-ready","ok");
       phase=10;
      }
+     if(phase==10&&GameCalendar.TURNID==startTurn&&exists("economy-payout")
+              &&CFG.core.getCiv(civ).getGold()==Long.parseLong(read("economy-payout"))&&!exists("guest-saw-economy"))
+      signal("guest-saw-economy","ok");
      if(phase==10&&GameCalendar.TURNID>startTurn&&playable()){
       require(CFG.core.getActiveProvID()==selectedProvince,"Guest province survives host update");
       require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Guest does not see Auto turn");
+      phase=11;
+     }
+     if(phase==11&&exists("recruitment-result")&&playable()){
+      String[] expected=read("recruitment-result").split(",");
+      int province=Integer.parseInt(expected[0]),country=Integer.parseInt(expected[1]);
+      if(CFG.core.getProv(province).getArmyCivID1(country)!=Integer.parseInt(expected[2]))return;
+      require(GameCalendar.TURNID==Integer.parseInt(expected[3]),"Guest sees trained troops before another native turn");
+      if(!exists("battle-result"))return;
+      String[] battle=read("battle-result").split(",");
+      if(CFG.core.getProv(Integer.parseInt(battle[0])).getCivId()!=Integer.parseInt(battle[1]))return;
+      require(GameCalendar.TURNID==Integer.parseInt(battle[2]),"Guest sees the captured province in the same native turn");
       signal("client-pass","ok");
       MP.stop();
       System.out.println("TURN_FEATURES PASS guest selection and controls across a real-time snapshot");

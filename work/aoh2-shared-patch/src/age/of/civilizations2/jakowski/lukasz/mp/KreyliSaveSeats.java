@@ -118,6 +118,8 @@ public final class KreyliSaveSeats {
         data.setProperty("capacities",KreyliCountrySeats.encode());
         String marches=KreyliRealtimeMarch.storedRoutes();
         if(!marches.isEmpty())data.setProperty("realtimeMarches",marches);
+        String recruits=KreyliRealtimeRecruitment.save();
+        if(!recruits.isEmpty())data.setProperty("realtimeRecruits",recruits);
         data.setProperty("hostCiv", Integer.toString(CFG.core.getPlayer(0).getCivId()));
         for (var seat : seats.entrySet()) {
             if (MP.pickable(seat.getValue())) data.setProperty("seat." + seat.getKey(), seat.getValue().toString());
@@ -154,6 +156,7 @@ public final class KreyliSaveSeats {
             SharedSupport.shared = Boolean.parseBoolean(data.getProperty("shared", "false"));
             KreyliCountrySeats.decode(data.getProperty("capacities",""));
             KreyliRealtimeMarch.restoreStoredRoutes(data.getProperty("realtimeMarches",""));
+            KreyliRealtimeRecruitment.load(data.getProperty("realtimeRecruits",""));
             for (String key : data.stringPropertyNames()) {
                 if (key.equals(hostKey) || !key.matches("seat\\.reconnect:[0-9a-f]{64}")) continue;
                 int civ = country(data.getProperty(key));

@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 
-/** Runs player marches between adjacent friendly land provinces on the host clock. */
+/** Runs player marches between adjacent land provinces on the host clock. */
 final class KreyliRealtimeMarch {
     static final int DURATION_MILLIS=5_000;
     private static final long DURATION_NANOS=DURATION_MILLIS*1_000_000L;
@@ -36,7 +36,8 @@ final class KreyliRealtimeMarch {
         if(move.getNumberOfUnits()<=0||move.getFromProviID()==move.getToProvID())return false;
         var from=CFG.core.getProv(move.getFromProviID());
         var to=CFG.core.getProv(move.getToProvID());
-        if(from.getSeaProv()||to.getSeaProv()||from.getCivId()!=civ||to.getCivId()!=civ)return false;
+        if(from.getSeaProv()||to.getSeaProv()||from.getCivId()!=civ)return false;
+        if(to.getCivId()!=civ&&!KreyliRealtimeCombat.hostile(civ,to,move.getNumberOfUnits()))return false;
         for(int i=0;i<from.getNeighProvincesSize();i++){
             if(from.getNeighProvinces(i)==move.getToProvID())return true;
         }
@@ -68,6 +69,13 @@ final class KreyliRealtimeMarch {
                     continue;
                 }
                 var to=CFG.core.getProv(move.getToProvID());
+                if(to.getCivId()!=civ){
+                    if(KreyliRealtimeCombat.resolve(civ,i)){
+                        i--;
+                        changed=true;
+                    }else live.add(move);
+                    continue;
+                }
                 int destination=to.getArmyCivID1(civ);
                 int amount=move.getNumberOfUnits();
                 if(destination>Integer.MAX_VALUE-amount){

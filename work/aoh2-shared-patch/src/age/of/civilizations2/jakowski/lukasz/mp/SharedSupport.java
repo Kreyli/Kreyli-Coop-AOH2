@@ -69,6 +69,7 @@ public final class SharedSupport {
         if(KreyliLobby.realTime()){
             if(!pieces.containsKey("coop_armies"))pieces.put("coop_realtime_orders",SharedState.capture());
             pieces.put("coop_march_clock",KreyliRealtimeMarch.clock());
+            pieces.put("coop_economy_sequence",KreyliRealtimeEconomy.snapshotSequence());
         }
         return pieces;
     }
@@ -79,6 +80,7 @@ public final class SharedSupport {
     public static void loaded(Object data){
         if(!(data instanceof Map<?,?> map))return;
         if(map.get("coop_realtime") instanceof Boolean mode)KreyliLobby.readMode(mode);
+        KreyliRealtimeEconomy.afterSnapshot(map.get("coop_economy_sequence"));
         if(map.get("coop_limits") instanceof String limits)KreyliCountrySeats.decode(limits);
         shared=Boolean.TRUE.equals(map.get("coop_legacy"));
         KreyliInputRecovery.afterSnapshot();KreyliTurns.afterSnapshot();KreyliOrderSync.request();

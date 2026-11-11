@@ -70,6 +70,7 @@ public final class KreyliLobby {
         if(KreyliProfile.clientMessage(message))return true;
         if(KreyliIdentity.clientMessage(message))return true;
         if(KreyliOrderSync.receive(message))return true;
+        if(KreyliRealtimeEconomy.receive(message))return true;
         if(KreyliTurns.clientMessage(message))return true;
         if(KreyliPings.clientMessage(message))return true;
         if(message.length==0)return false;
