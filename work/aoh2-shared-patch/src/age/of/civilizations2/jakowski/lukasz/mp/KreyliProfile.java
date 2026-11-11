@@ -18,7 +18,7 @@ import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 /** Local profile preferences and host-authoritative campaign counters. */
 public final class KreyliProfile {
     public record Player(String nick,TextureRegion avatar) {}
-    public record Stats(long seconds,long conquered,long earned,long recruited) {}
+    public record Stats(long seconds,long conquered,long earned,long recruited,int quickWins) {}
     static final int MAX_AVATAR_FILE=2*1024*1024;
     private static final byte[] ORIGINAL_AVATAR={'K','A','V',1};
     private static final int MAX_AVATARS=24;
@@ -192,13 +192,17 @@ public final class KreyliProfile {
         return players;
     }
     private static boolean playing(){return CFG.menus!=null&&CFG.menus.getInGameView()&&CFG.core!=null&&CFG.core.getPlayersSize()>0;}
-    private static int localCiv(){return MP.isClient()?MP.myCiv:playing()?CFG.core.getPlayer(CFG.PLAYER_TURN_ID).getCivId():-1;}
+    private static int localCiv(){return MP.isClient()?MP.myCiv:playing()?CFG.core.getPlayer(MP.isHost()?0:CFG.PLAYER_TURN_ID).getCivId():-1;}
+    public static int quickWins(){return prefs().getInteger("quickWins",0);}
+    public static void recordQuickWin(){
+        if(quickWins()<Integer.MAX_VALUE)prefs().putInteger("quickWins",quickWins()+1).flush();
+    }
     public static long playSeconds(){return prefs().getLong("playSeconds",0)+playNanos/1_000_000_000L-flushedSeconds;}
     public static long conquered(){return totalStat(0);}
     public static long earned(){return totalStat(1);}
     public static long recruited(){return totalStat(2);}
     public static Stats stats(String name){
-        if(name==null||name.equals(displayName()))return new Stats(playSeconds(),conquered(),earned(),recruited());
+        if(name==null||name.equals(displayName()))return new Stats(playSeconds(),conquered(),earned(),recruited(),quickWins());
         if(MP.isHost())for(var guest:MP.clients)if(name.equals(guest.nick))return guestStats.get(guest);
         return publicStats.get(name);
     }
@@ -206,11 +210,12 @@ public final class KreyliProfile {
         if(packet[start] instanceof Long seconds&&packet[start+1] instanceof Long conquered
                 &&packet[start+2] instanceof Long earned&&packet[start+3] instanceof Long recruited
                 &&seconds>=0&&conquered>=0&&earned>=0&&recruited>=0)
-            return new Stats(seconds,conquered,earned,recruited);
+            return new Stats(seconds,conquered,earned,recruited,
+                    packet.length>start+4&&packet[start+4] instanceof Integer wins?Math.max(0,wins):0);
         return null;
     }
     private static void shareStats(MP_Net.Conn recipient,String name,Stats stats){
-        if(stats!=null)recipient.send("kreyli_profile_public",name,stats.seconds,stats.conquered,stats.earned,stats.recruited);
+        if(stats!=null)recipient.send("kreyli_profile_public",name,stats.seconds,stats.conquered,stats.earned,stats.recruited,stats.quickWins);
     }
     private static long totalStat(int index){return add(prefs().getLong(STAT_KEYS[index],0),unflushedStats[index]);}
     private static long add(long total,long amount){return total>Long.MAX_VALUE-amount?Long.MAX_VALUE:total+amount;}
@@ -237,6 +242,7 @@ public final class KreyliProfile {
         }
     }
     public static void capture(Province province,int civ){
+        KreyliQuickGame.capture(province,civ);
         if(!tracks(civ))return;
         int old=province.getCivId();
         if(old>0&&old!=civ&&CFG.core.getCivsAtWar(old,civ)){
@@ -282,7 +288,7 @@ public final class KreyliProfile {
         }
         if(MP.isClient()&&peer!=null&&now>=nextPublicStats){
             Stats local=stats(null);
-            peer.send("kreyli_profile_report",local.seconds,local.conquered,local.earned,local.recruited);
+            peer.send("kreyli_profile_report",local.seconds,local.conquered,local.earned,local.recruited,local.quickWins);
             nextPublicStats=now+5_000_000_000L;
         }
     }
@@ -389,7 +395,7 @@ public final class KreyliProfile {
                 profilesDirty=true;
                 CFG.setRenderO(true);
             }
-        }else if(op.equals("kreyli_profile_report")&&data.length==5){
+        }else if(op.equals("kreyli_profile_report")&&(data.length==5||data.length==6)){
             Stats stats=readStats(data,1);
             if(stats!=null&&!stats.equals(guestStats.put(sender,stats)))CFG.setRenderO(true);
         }else if(op.equals("kreyli_profile_name")&&data.length==2&&data[1] instanceof String name){
@@ -413,7 +419,7 @@ public final class KreyliProfile {
         }else if(op.equals("kreyli_profile_picture")&&data.length==3&&data[1] instanceof String name
                 &&roster.contains(name)&&data[2] instanceof byte[] image&&validAvatar(image)){
             if(!Arrays.equals(remoteAvatars.put(name,image),image))CFG.setRenderO(true);
-        }else if(op.equals("kreyli_profile_public")&&data.length==6&&data[1] instanceof String name&&roster.contains(name)){
+        }else if(op.equals("kreyli_profile_public")&&(data.length==6||data.length==7)&&data[1] instanceof String name&&roster.contains(name)){
             Stats stats=readStats(data,2);
             if(stats!=null&&!stats.equals(publicStats.put(name,stats)))CFG.setRenderO(true);
         }else if(op.equals("kreyli_profile_stats")&&data.length==5&&data[1] instanceof Integer civ&&data[2] instanceof Long captures

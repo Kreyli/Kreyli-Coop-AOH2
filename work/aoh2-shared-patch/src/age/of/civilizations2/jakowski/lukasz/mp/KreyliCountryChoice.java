@@ -15,6 +15,7 @@ import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 
 /** Confirmation dialog for the map's country-selection action. */
 public final class KreyliCountryChoice {
+    private static final Color BORDER=new Color(0x80633cff);
     private static final Color PANEL=new Color(0x111c2cf9), SHADE=new Color(0,0,0,.5f);
     private static final int SOLO=0,SHARED=1,LESS=2,MORE=3,CONFIRM=4,BACK=5;
     private static int target=-1,selected=1,pressed=-1;
@@ -119,7 +120,7 @@ public final class KreyliCountryChoice {
         float color=batch.getPackedColor();
         try{
             Box p=panel();fill(batch,new Box(0,0,CFG.GAMEWIDTH,CFG.GAMEHEIGHT),SHADE);
-            fill(batch,p,Color.GOLD);
+            fill(batch,p,BORDER);
             fill(batch,new Box(p.x+1,p.y+1,p.w-2,p.h-2),PANEL);
             int h=CFG.BUTTON_H;
             text(batch,new Box(p.x,p.y,p.w,h),CFG.core.getCiv(target).getCivName(),Color.GOLD);

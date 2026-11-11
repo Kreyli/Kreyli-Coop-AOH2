@@ -69,7 +69,7 @@ public final class KreyliProfileUi {
     }
     private static Box panel(){
         int width=Math.min(CFG.GAMEWIDTH-CFG.PADD*4,Math.max(460,CFG.BUTTON_W*4));
-        int height=row()*9+CFG.PADD*4;
+        int height=row()*10+CFG.PADD*4;
         return new Box((CFG.GAMEWIDTH-width)/2,Math.max(CFG.PADD,(CFG.GAMEHEIGHT-height)/2),width,height);
     }
     private static Box action(Box panel,int index){
@@ -126,6 +126,7 @@ public final class KreyliProfileUi {
                 stat(batch,panel,y+row(),t("Завоёвано областей","Provinces conquered"),NUMBERS.format(stats.conquered()));
                 stat(batch,panel,y+row()*2,t("Заработано денег","Money earned"),NUMBERS.format(stats.earned()));
                 stat(batch,panel,y+row()*3,t("Призвано войск","Troops recruited"),NUMBERS.format(stats.recruited()));
+                stat(batch,panel,y+row()*4,t("Победы в быстрой игре","Quick Game wins"),NUMBERS.format(stats.quickWins()));
             }
             button(batch,action(panel,2),t("Закрыть","Close"));
         }finally{batch.setPackedColor(previous);}
@@ -211,12 +212,14 @@ public final class KreyliProfileUi {
 
     private static int countryRowHeight(){return row()*2+CFG.PADD;}
 
+    static int nativeCountryStatsBottom(Menu menu){
+        // The final native element is the transparent hit area for the full stats panel.
+        var hitArea=menu.menuElem.getLast();
+        return hitArea.getPosY()+hitArea.getHeightE();
+    }
+
     public static void reserveCountryPlayers(Menu menu){
-        var summary=menu.getMenuElem(10);
-        int elementBottom=summary.getPosY()+summary.getHeightE();
-        int tilesBottom=elementBottom+Math.round(menu.getWidthM()*.37f);
-        int bottom=Math.max(elementBottom,tilesBottom)+CFG.PADD;
-        menu.setHeight(bottom+countryRowHeight()+CFG.PADD);
+        menu.setHeight(nativeCountryStatsBottom(menu)+countryRowHeight());
     }
 
     /** Player section immediately below the native country statistics. */
@@ -228,7 +231,7 @@ public final class KreyliProfileUi {
         if(civ<=0)return;
         var players=KreyliProfile.player(civ);
         int height=countryRowHeight(),padding=Math.max(3,CFG.PADD);
-        int x=menu.getPosX()+offsetX,y=menu.getMenuPosY()+offsetY+menu.getHeightM()-height;
+        int x=menu.getPosX()+offsetX,y=menu.getMenuPosY()+offsetY+nativeCountryStatsBottom(menu);
         int width=menu.getWidthM();
         if(players.isEmpty()){
             float previous=batch.getPackedColor();

@@ -86,7 +86,7 @@ public final class KreyliTurnHud {
 
     private static boolean paused(){return CFG.menus!=null&&CFG.menus.getInGameView_Options();}
     private static boolean canSplitReady(){
-        return !KreyliLobby.realTime()&&!paused()&&MP.playing()&&MP.inputOrders()&&!MP.hasBattleReports()&&!KreyliTurns.hasSkipVote();
+        return !KreyliQuickGame.active()&&!KreyliLobby.realTime()&&!paused()&&MP.playing()&&MP.inputOrders()&&!MP.hasBattleReports()&&!KreyliTurns.hasSkipVote();
     }
     private static int arrowWidth(Box ready){return Math.min(ready.width/3,ready.height*2/3);}
     public static boolean drawReadyText(MenuElemUI button,SpriteBatch batch,int x,int y,boolean active){

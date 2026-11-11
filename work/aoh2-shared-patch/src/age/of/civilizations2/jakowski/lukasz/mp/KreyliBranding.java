@@ -2,7 +2,6 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Menu;
-import age.of.civilizations2.jakowski.lukasz.View;
 import age.of.civilizations2.jakowski.lukasz.AoCGame;
 import age.of.civilizations2.jakowski.lukasz.Button.MenuElemUI;
 import age.of.civilizations2.jakowski.lukasz.Button.NewGame.Button_InGameBox;
@@ -21,7 +20,7 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.16");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.17");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static int creditsClicks;
@@ -58,7 +57,7 @@ public final class KreyliBranding {
         for(int i=0;i<lines.length;i++){
             MenuElemUI line;
             if(i==3){
-                line=new TextScale(lines[i],x,y,.9f){
+                line=new Button_InGameBox(lines[i],-1,x,y,CFG.BUTTON_W*2,true){
                     @Override public void actionElem(int index){creditsClicked();}
                 };
                 line.setClickable(true);
@@ -79,8 +78,7 @@ public final class KreyliBranding {
         try{
             if(creditsMusic==null)creditsMusic=Gdx.audio.newMusic(Gdx.files.classpath("kreyli-credits.wav"));
             creditsMusic.stop();
-            float volume=CFG.SFXManager==null?1f:CFG.SFXManager.getMasterVolume()*CFG.SFXManager.getSoundsVolume();
-            creditsMusic.setVolume(volume);
+            creditsMusic.setVolume(1f);
             creditsMusic.play();
         }catch(RuntimeException error){
             Gdx.app.error("Kreyli Coop AOH2","Could not play credits audio",error);
@@ -99,8 +97,7 @@ public final class KreyliBranding {
             singlePlayer.setTextE(KreyliText.t("Одиночная игра","Single player"));
             menu.updateMenuElements_IsInView();
         }
-        // The website link is the last of the two upstream linkButton entries.
-        if(menu.menuElem.size()>0)menu.menuElem.get(menu.menuElem.size()-1).setVisibleE(false);
+        KreyliQuickSearch.installMainButton(menu);
     }
 
     public static boolean openSinglePlayer(int index){
@@ -149,9 +146,12 @@ public final class KreyliBranding {
     }
 
     public static void drawFooter(SpriteBatch batch){
-        if(CFG.menus!=null&&!CFG.menus.getInView(View.eABOUT))closeCredits();
+        KreyliRealtimeUi.finishAutomaticTurn();
+        KreyliQuickGame.draw(batch);
+        if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())closeCredits();
         if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliSplash.finish();
         if(CFG.menus!=null&&CFG.menus.getIn_MainMenu())KreyliTextureCache.finishStartup();
+        KreyliQuickSearch.draw(batch);
         KreyliPings.draw(batch);
         CFG.drawTextDefaultWithShadow(batch,LABEL,Math.max(6,CFG.PADD),Math.max(0,CFG.GAMEHEIGHT-CFG.TEXT_HEIGHT_DEFAULT-Math.max(6,CFG.PADD)),FOOTER_COLOR);
     }

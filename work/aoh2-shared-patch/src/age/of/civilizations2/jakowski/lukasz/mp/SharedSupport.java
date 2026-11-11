@@ -32,6 +32,9 @@ public final class SharedSupport {
     private static void set(String name,Object value) {try{var f=MP.class.getDeclaredField(name);f.setAccessible(true);f.set(null,value);}catch(Exception e){throw new IllegalStateException(e);}}
     private static Object call(String name,Class<?>[] types,Object...args){try{var m=MP.class.getDeclaredMethod(name,types);m.setAccessible(true);return m.invoke(null,args);}catch(InvocationTargetException e){throw new IllegalStateException(e.getCause());}catch(Exception e){throw new IllegalStateException(e);}}
     public static boolean command(String op,int civ,Object[] args){
+        if(!MP.applying&&KreyliQuickGame.active()
+                &&(KreyliQuickGame.blocksOrders(civ)||"dw".equals(op)&&args.length>1&&args[1] instanceof Integer target&&!KreyliQuickGame.allowWar(civ,target)))
+            return true;
         if(MP.isHost()){if(!MP.applying&&MP.playing()&&MP.inputOrders())KreyliTurns.order();militaryOnly=op.equals("ma")||op.equals("mtp");KreyliOrderSync.mark();}
         // New local orders withdraw the vote before the ordered network command.
         // In particular, accepting diplomacy must not silently discard its mutation.
@@ -110,6 +113,7 @@ public final class SharedSupport {
     public static boolean waitBeforeReady(){return KreyliCountrySeats.sharedCountry(MP.myCiv) && MP.isClient() && pending;}
     /** A second press withdraws only the local player's vote, before turn processing. */
     public static boolean cancelReady(){
+        if(KreyliQuickGame.active()&&KreyliQuickGame.blocksOrders(KreyliQuickGame.localCountry()))return true;
         if(KreyliLobby.realTime()&&MP.playing())return true;
         if(!MP.playing()||!MP.inputOrders()||!((java.util.List<?>)get("reportsToShow")).isEmpty())return false;
         if(MP.isHost()&&Boolean.TRUE.equals(get("hostReady"))){set("hostReady",false);KreyliTurns.cancelSkip();MP.toast(MP.nick+": готовность отменена",false);return true;}

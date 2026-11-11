@@ -47,6 +47,8 @@ public final class KreyliOrderNetworkProbe {
      int bottom=sidebar.getPosY()+sidebar.getHeightM();
      check(px>=sidebar.getPosX()&&px<sidebar.getPosX()+sidebar.getWidthM(),"Player card stays inside country sidebar width");
      check(py>=sidebar.getPosY()&&py<bottom&&bottom<=diplomacy.getPosY(),"Player section is inside country stats, before diplomacy");
+     int nativeBottom=sidebar.getMenuPosY()+KreyliProfileUi.nativeCountryStatsBottom(sidebar);
+     check(py-nativeBottom>=CFG.TEXT_HEIGHT_DEFAULT_SMALL&&py-nativeBottom<=CFG.TEXT_HEIGHT_DEFAULT_SMALL+CFG.PADD*2+2,"Player row follows the native stats without a gap");
      KreyliUiProbe.capture("kreyli-country-player-section.png");
      Touch touch=new Touch();
      touch.actionDown(px,py,0,0);
@@ -70,7 +72,7 @@ public final class KreyliOrderNetworkProbe {
       var treasury=CFG.core.getCiv(hostCiv);
       long balance=treasury.getGold(), earned=KreyliProfile.earned();
       treasury.setGold(balance+17);treasury.setGold(balance);
-      check(KreyliProfile.earned()==earned+17,"Treasury credit increments earnings without counting expenditure");
+      check(KreyliProfile.earned()==earned+17,"Treasury credit increments earnings without counting expenditure: delta="+(KreyliProfile.earned()-earned)+" country="+treasury.getCivId()+" slot="+CFG.core.getPlayer(0).getCivId()+" turnSlot="+CFG.PLAYER_TURN_ID+" applying="+MP.applying);
       CFG.core.getCiv(hostCiv).setAlliance(0);CFG.core.getCiv(guestCiv).setAlliance(0);
       MP.requestSync();put("nonallied","ok");phase=3;
      }
@@ -96,11 +98,16 @@ public final class KreyliOrderNetworkProbe {
       if(shared)check(KreyliProfile.player(civ).size()==2,"Both shared-country profiles visible");
       KreyliUiProbe.capture("kreyli-f10-columns.png");
       MP_UI.togglePlayers();
-      CFG.setActiveCivInfoId(hostCiv);
+      CFG.core.setActiveProvID(CFG.core.getCiv(hostCiv).getProvID(0));
       CFG.menus.setVisible_InGame_CivInfo(true);
+      CFG.setRenderO(true);
+      began=System.nanoTime();
       phase=10;return;
      }
-     if(phase==10&&openRemoteProfile()){phase=11;return;}
+     if(phase==10){
+      if(openRemoteProfile()){phase=11;return;}
+      check(System.nanoTime()-began<10_000_000_000L,"Host profile row rendered: selected="+CFG.getActiveCivInfoId()+" visible="+CFG.menus.getVisible_InGame_CivInfo()+" roster="+java.util.Arrays.toString(MP.rosterNicks)+" players="+KreyliProfile.player(CFG.getActiveCivInfoId()).stream().map(KreyliProfile.Player::nick).toList());
+     }
      if(phase==11){
       KreyliUiProbe.capture("kreyli-remote-profile.png");
       put("client-pass","ok");System.out.println("ORDER_NETWORK PASS client no save reload, movement queues, left Alt ping, F10 headers and shared country profiles");MP.stop();Runtime.getRuntime().halt(0);

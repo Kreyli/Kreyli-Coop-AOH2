@@ -16,6 +16,7 @@ public final class KreyliSteam {
     private static SteamMatchmaking matchmaking;
     private static SteamUtils utils;
     private static SteamUser user;
+    private static KreyliSteamQuick quick;
     private static SteamID lobby, requested, localSteamID;
     private static boolean initialized, hosting, creating, nativeJoin, invitePending;
     private static long startupLobby, lastRefresh;
@@ -50,6 +51,7 @@ public final class KreyliSteam {
             matchmaking=new SteamMatchmaking(callback(SteamMatchmakingCallback.class,KreyliSteam::matchEvent));
             user=new SteamUser(callback(SteamUserCallback.class,(n,a)->{}));
             localSteamID=user.getSteamID();
+            quick=new KreyliSteamQuick(matchmaking,utils,localSteamID);
             status="Steam: Spacewar — Shift+Tab";
             Runtime.getRuntime().addShutdownHook(new Thread(KreyliSteam::shutdown,"Kreyli-Steam-shutdown"));
             System.out.println("KREYLI_STEAM: initialized AppID="+utils.getAppID());
@@ -74,6 +76,7 @@ public final class KreyliSteam {
         if(!available())return;
         try{
             SteamAPI.runCallbacks();
+            if(quick!=null)quick.tick();
             if(startupLobby!=0){long id=startupLobby;startupLobby=0;requestJoin(SteamID.createFromNativeHandle(id));}
             if(hosting&&lobby!=null&&System.currentTimeMillis()-lastRefresh>1000){
                 lastRefresh=System.currentTimeMillis();
@@ -99,6 +102,7 @@ public final class KreyliSteam {
         friends.activateGameOverlayInviteDialog(lobby);
     }
     private static void matchEvent(String event,Object[] a){
+        if(quick!=null&&quick.event(event,a))return;
         switch(event){
             case "onLobbyCreated" -> {
                 SteamID id=(SteamID)a[1];creating=false;
@@ -127,6 +131,7 @@ public final class KreyliSteam {
     private static void requestJoin(SteamID id){
         if(!available()||id==null||!id.isValid())return;
         if(MP.isHost()||MP.isClient()){notice("Сначала выйдите из текущей сетевой игры, затем примите приглашение");return;}
+        cancelQuick();
         leaveSession();requested=new SteamID(id);status="Подключение к Steam-лобби…";matchmaking.joinLobby(id);
     }
     private static void consumeRoom(){
@@ -135,17 +140,36 @@ public final class KreyliSteam {
         if(!PROTOCOL.equals(protocol)||!validRoom(room)){leaveSession();notice("Приглашение не относится к совместимой комнате Kreyli Coop AOH2");return;}
         String password=matchmaking.getLobbyData(lobby,"password"),relay=matchmaking.getLobbyData(lobby,"relay");
         if(password.length()>256||!validRelay(relay)){leaveSession();notice("Некорректные данные лобби");return;}
-        requested=null;nativeJoin=true;
+        requested=null;
+        joinRelayRoom(room,relay,password);
+    }
+    public static boolean joinQuickRoom(String room,String relay,String password){
+        if(!validRoom(room)||!validRelay(relay)||password==null||password.length()>256
+                ||MP.regions.stream().noneMatch(region->relay.equalsIgnoreCase(region[0]))){
+            notice("Сервер быстрой игры не входит в список серверов проекта");
+            return false;
+        }
+        joinRelayRoom(room,relay,password);
+        return true;
+    }
+    private static void joinRelayRoom(String room,String relay,String password){
+        nativeJoin=true;
         try{
-            // A startup invitation can arrive before the remote region list loads.
-            // Resolve the room on the host's region, preserving normal regions for later browsing.
             var regions=new ArrayList<String[]>();regions.add(new String[]{relay,"Steam room"});
             for(String[] region:MP.regions)if(!region[0].equals(relay))regions.add(region);
             MP.regions=regions;
             MP.address=room;MP.password=password;MP.join();MP_UI.open(View.eMP_JOINING);status="Подключение к Kreyli Coop AOH2…";
-        }
-        finally{nativeJoin=false;}
+        }finally{nativeJoin=false;}
     }
+    public record QuickStatus(String phase,String error,int members,int accepted,int elapsed,int remaining,boolean localAccepted) {}
+    public static boolean startQuick(java.util.function.IntFunction<String> host,java.util.function.Consumer<String> join){
+        return available()&&quick!=null&&!creating&&!MP.isOn()&&quick.start(host,join);
+    }
+    public static QuickStatus quickStatus(){
+        return quick==null?new QuickStatus("idle","",0,0,0,0,false):quick.status();
+    }
+    public static void acceptQuick(){if(quick!=null)quick.accept();}
+    public static void cancelQuick(){if(quick!=null)quick.cancel();}
     public static void leaveSession(){
         if(nativeJoin)return;
         if(hosting&&friends!=null)friends.setRichPresence("connect",null);
@@ -175,8 +199,8 @@ public final class KreyliSteam {
     private static void notice(String text){status=text;try{MP.toast(text,false);}catch(Throwable ignored){System.out.println("KREYLI_STEAM: "+text);}}
     public static synchronized void shutdown(){
         if(!initialized)return;
-        try{leaveSession();if(friends!=null)friends.dispose();if(matchmaking!=null)matchmaking.dispose();if(utils!=null)utils.dispose();if(user!=null)user.dispose();SteamAPI.shutdown();}
-        catch(Throwable ignored){}finally{initialized=false;friends=null;matchmaking=null;utils=null;user=null;localSteamID=null;}
+        try{cancelQuick();leaveSession();if(friends!=null)friends.dispose();if(matchmaking!=null)matchmaking.dispose();if(utils!=null)utils.dispose();if(user!=null)user.dispose();SteamAPI.shutdown();}
+        catch(Throwable ignored){}finally{initialized=false;friends=null;matchmaking=null;utils=null;user=null;localSteamID=null;quick=null;}
     }
 }
 

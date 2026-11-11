@@ -44,8 +44,10 @@ public final class KreyliLobby {
     private static boolean hostReady,guestReady;
     private static int guestTimer,guestCountdown;
     private KreyliLobby(){}
-    public static void reset(){gate=new Gate();active=false;choosing=false;realTime=false;roster=List.of();hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
+    public static void reset(){KreyliQuickGame.reset();gate=new Gate();active=false;choosing=false;realTime=false;roster=List.of();hostReady=false;guestReady=false;guestTimer=0;guestCountdown=0;}
     public static void tick(){
+        KreyliQuickGame.tick();
+        if(KreyliQuickGame.active())return;
         if(!MP.isHost()||MP.started)return;
         boolean wasReleased=gate.released;
         if(gate.members(MP.clients)){
@@ -63,6 +65,7 @@ public final class KreyliLobby {
         advance();return true;
     }
     public static boolean clientMessage(Object[] message){
+        if(KreyliQuickGame.clientMessage(message))return true;
         if(KreyliCountrySeats.clientMessage(message))return true;
         if(KreyliProfile.clientMessage(message))return true;
         if(KreyliIdentity.clientMessage(message))return true;

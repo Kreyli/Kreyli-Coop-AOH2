@@ -35,22 +35,30 @@ public final class KreyliLobbyRoom extends Menu {
         elements.add(new RoomButton(this::status,gap,bottom-row,quarter,row,null));
         elements.add(new RoomButton(()->KreyliText.t("Настройки лобби","Lobby settings"),rightX,gap,right,row,null));
         elements.add(new RoomButton(this::readyText,gap*4+quarter*3,bottom,width-gap*5-quarter*3,row,KreyliLobby::toggleReady));
-        elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*3+quarter*2,bottom,quarter,row,KreyliSteam::inviteFriends));
-        elements.add(new RoomButton(()->"Discord",gap*2+quarter,bottom,quarter,row,KreyliLobby::discord));
+        elements.add(new RoomButton(()->KreyliText.t("Пригласить через Steam","Invite via Steam"),gap*4+quarter*3,bottom-row,quarter,row,()->{if(!lan())KreyliSteam.inviteFriends();}){
+            @Override public void drawTextE(SpriteBatch batch,int x,int y,boolean active){
+                if(!lan()){super.drawTextE(batch,x,y,active);return;}
+                String label=MP_UI.fit(getTextE(),getWidthE()-CFG.PADD*2);
+                Renderer.drawTextWithShadow(batch,MP_UI.font(),label,
+                        x+getPosXE()+(getWidthE()-MP_UI.textWidth(label))/2,
+                        y+getPosY()+(getHeightE()-CFG.TEXT_HEIGHT_DEFAULT_SMALL)/2,new Color(1,1,1,.45f));
+            }
+        });
+        elements.add(new RoomButton(()->"Discord",gap*2+quarter,bottom,quarter*2+gap,row,KreyliLobby::discord));
         elements.add(new RoomButton(()->KreyliText.nativeLabel("Back","Back"),gap,bottom,quarter,row,this::leave));
 
         if(host){
             elements.add(new SettingInput(PASSWORD,rightX,first,right,row));
-            elements.add(new RoomButton(this::timer,rightX,first+row,right,row,()->change(TIMER)));
-            elements.add(new RoomButton(()->KreyliText.t("Публичный список: ","Public listing: ")+MP_Form.yesNo(MP.listInLobby),rightX,first+row*2,right,row,()->change(LISTED)));
-            elements.add(new RoomButton(this::connection,rightX,first+row*3,right,row,()->change(CONNECTION)));
-            elements.add(new SettingInput(PORT,rightX,first+row*4,right,row));
+            elements.add(new RoomButton(this::timer,rightX,first+row*2,right,row,()->change(TIMER)));
+            elements.add(new RoomButton(()->KreyliText.t("Публичный список: ","Public listing: ")+MP_Form.yesNo(MP.listInLobby),rightX,first+row*3,right,row,()->change(LISTED)));
+            elements.add(new RoomButton(this::connection,rightX,first+row*4,right,row,()->change(CONNECTION)));
+            elements.add(new SettingInput(PORT,rightX,first+row*5,right,row));
         }else{
             elements.add(new RoomButton(this::connection,rightX,first,right,row,null));
             elements.add(new RoomButton(this::timer,rightX,first+row,right,row,null));
         }
         elements.add(new RoomCode((width-quarter*2-gap)/2,bottom-row,quarter*2+gap,row));
-        elements.add(new RoomButton(this::mode,rightX,first+row*(host?5:2),right,row,host?KreyliLobby::toggleMode:null));
+        elements.add(new RoomButton(this::mode,rightX,first+row*(host?1:2),right,row,host?KreyliLobby::toggleMode:null));
 
         initMenu(MP_Form.titleBar(KreyliText.t("Мультиплеер · Лобби","Multiplayer · Lobby")),(CFG.GAMEWIDTH-width)/2,(CFG.GAMEHEIGHT-height)/2,width,height,elements,true,false);
     }
@@ -85,8 +93,6 @@ public final class KreyliLobbyRoom extends Menu {
         float color=batch.getPackedColor();
         var waitButton=getMenuElem(host?TIMER:9);
         waitButton.setVisibleE(!KreyliLobby.realTime());
-        getMenuElem(INVITE).setVisibleE(!lan());
-        getMenuElem(INVITE).setClickable(!lan());
         batch.setColor(Color.WHITE);
         MP_Form.drawFrame(this,batch,offsetX,offsetY);
         super.draw(batch,offsetX,offsetY,active);
@@ -247,7 +253,7 @@ public final class KreyliLobbyRoom extends Menu {
         }
     }
 
-    private final class RoomButton extends Button_InGameBox {
+    private class RoomButton extends Button_InGameBox {
         private final Supplier<String> label;
         private final Runnable action;
         RoomButton(Supplier<String> label,int x,int y,int width,int height,Runnable action){
@@ -284,6 +290,7 @@ public final class KreyliLobbyRoom extends Menu {
         @Override public boolean getIsClickable(){
             if(action==null)return false;
             int index=menuElem.indexOf(this);
+            if(index==INVITE)return !lan();
             if(index==READY)return host||!KreyliLobby.choosingGame();
             if(index==CONNECTION||(index==LISTED&&MP.hostDirect&&!MP.listInLobby))return canChangeEndpoint();
             return index<PASSWORD||canEdit();

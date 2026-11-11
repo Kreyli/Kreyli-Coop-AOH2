@@ -28,7 +28,7 @@ public final class KreyliUiProbe {
         require(profile!=null&&profile!=previous,"Profile badge opens the profile overlay");
         int row=Math.max(CFG.BUTTON_H/2,CFG.TEXT_HEIGHT_DEFAULT_SMALL+CFG.PADD*2);
         int width=Math.min(CFG.GAMEWIDTH-CFG.PADD*4,Math.max(460,CFG.BUTTON_W*4));
-        int height=row*9+CFG.PADD*4,gap=CFG.PADD*2;
+        int height=row*10+CFG.PADD*4,gap=CFG.PADD*2;
         int buttonWidth=(width-gap*4)/3;
         int buttonY=Math.max(CFG.PADD,(CFG.GAMEHEIGHT-height)/2)+height-row/2-gap;
         int buttonX=(CFG.GAMEWIDTH-width)/2+gap+buttonWidth/2;

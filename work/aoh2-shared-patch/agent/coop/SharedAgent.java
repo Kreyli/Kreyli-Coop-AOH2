@@ -12,6 +12,7 @@ public final class SharedAgent implements Opcodes {
     static byte[] brand(ClassLoader loader,String name,byte[] data){
         String root="age/of/civilizations2/jakowski/lukasz/", main=root+"Messages/Gift/R/Menu_Main", ui=P+"MP_UI", b=P+"KreyliBranding";
         String workshop=root+"Z_Other/ST/sUM";
+        String quick=P+"KreyliQuickGame", diplomacy=root+"GameManager";
         String browserBar=P+"MP_Browser$Bar";
         String touch=root+"Touch",province=root+"Menus/Info/Menu_InGame_ProvInfo",profile=P+"KreyliProfileUi";
         String countryChoice=P+"KreyliCountryChoice", newGame=root+"Menus/NewGame/Menu_CreateNewGame";
@@ -19,9 +20,11 @@ public final class SharedAgent implements Opcodes {
         String top=root+"Menus/ZRest/Menu_InGame_";
         boolean topMenu=name.equals(top+"1")||name.equals(top+"2");
         String buttonText=root+"Button/ButtonM", startup=root+"Menus/Menu_InitGame";
+        String gameAction=root+"GameAction", realtime=P+"KreyliRealtimeUi";
+        String march=root+"MoveUnitsB/Line/MoveUnits_Line";
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
-        if(!Set.of(P+"MP",ui,browserBar,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,top+"1",top+"2",
+        if(!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
                 root+"Save/SaveGameManager").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
@@ -58,7 +61,31 @@ public final class SharedAgent implements Opcodes {
                 }
                 return new MethodVisitor(ASM8,mv){
                     public void visitCode(){super.visitCode();
+                        if(name.equals(diplomacy)&&d.startsWith("(II")&&d.endsWith(")V")
+                                &&Set.of("sendAllianceProposal","acceptAllianceProposal","sendUnionProposal","sendUnionProposalFree",
+                                    "acceptUnionProposal","sendNonAggressionProposal","acceptNonAggressionPact",
+                                    "sendOfferVassalizationProposal","acceptOfferVassalization").contains(n)){
+                            super.visitVarInsn(ILOAD,0);super.visitVarInsn(ILOAD,1);
+                            super.visitMethodInsn(INVOKESTATIC,quick,"allowDiplomacy","(II)Z",false);
+                            Label allowed=new Label();super.visitJumpInsn(IFNE,allowed);super.visitInsn(RETURN);super.visitLabel(allowed);
+                        }
+                        if(name.equals(diplomacy)&&n.equals("colonizeProvince")&&d.equals("(IIZ)Z")){
+                            super.visitMethodInsn(INVOKESTATIC,quick,"allowColonization","()Z",false);
+                            Label allowed=new Label();super.visitJumpInsn(IFNE,allowed);
+                            super.visitInsn(ICONST_0);super.visitInsn(IRETURN);super.visitLabel(allowed);
+                        }
+                        if(name.equals(gameAction)&&n.equals("moveArmyAction")&&d.equals("(IIIIZZ)Z")){
+                            super.visitVarInsn(ILOAD,2);super.visitVarInsn(ILOAD,4);
+                            super.visitMethodInsn(INVOKESTATIC,quick,"allowMovement","(II)Z",false);
+                            Label allowed=new Label();super.visitJumpInsn(IFNE,allowed);
+                            super.visitInsn(ICONST_0);super.visitInsn(IRETURN);super.visitLabel(allowed);
+                        }
+                        if(name.equals(gameAction)&&n.equals("mpEndInputOrders"))
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"beforeHostTurn","()V",false);
                         if(name.equals(touch)&&d.equals("(IIII)V")&&(n.equals("actionDown")||n.equals("actionUp"))){
+                            for(int i=1;i<=4;i++)super.visitVarInsn(ILOAD,i);
+                            super.visitMethodInsn(INVOKESTATIC,quick,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
+                            Label quickDone=new Label();super.visitJumpInsn(IFEQ,quickDone);super.visitInsn(RETURN);super.visitLabel(quickDone);
                             for(int i=1;i<=4;i++)super.visitVarInsn(ILOAD,i);
                             super.visitMethodInsn(INVOKESTATIC,countryChoice,n.equals("actionDown")?"touchDown":"touchUp","(IIII)Z",false);
                             Label otherUi=new Label();super.visitJumpInsn(IFEQ,otherUi);super.visitInsn(RETURN);super.visitLabel(otherUi);
@@ -97,11 +124,28 @@ public final class SharedAgent implements Opcodes {
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(gameAction)&&n.equals("updatePlayerData")&&owner.equals(gameAction)&&method.equals("hideExtraViews")){
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"hideTurnViews","(L"+gameAction+";)V",false);
+                            return;
+                        }
                         if(name.equals(startup)&&n.equals("draw")&&owner.equals(root+"CFG")&&method.equals("drawJakowskiGamesRIGHT_BOT")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliSplash","draw",descriptor,false);
                         }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
                     }
                     public void visitFieldInsn(int opcode,String owner,String field,String descriptor){
+                        if(name.equals(root+"MenuManager")&&n.equals("getViewID")&&opcode==GETFIELD
+                                &&owner.equals(root+"GameValues/GV_InGame")&&field.equals("CIV_VIEW_STATS_SCALE_DOWN_IF_TOO_BIG")){
+                            // Shrinking the viewport here clips the native stats and the profile row.
+                            super.visitInsn(POP);
+                            super.visitInsn(FCONST_1);
+                            return;
+                        }
+                        if(name.equals(gameAction)&&opcode==PUTSTATIC
+                                &&owner.equals(root+"Menus/Messages/Menu_InGame_Messages")&&field.equals("START_ANIMATION")
+                                &&(n.equals("startNewTurn_End")||n.equals("loadActivePlayerData"))){
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"turnMessageAnimation","(Z)V",false);
+                            return;
+                        }
                         if(name.equals(browserBar)&&n.equals("onBackPressed")&&opcode==GETSTATIC
                                 &&owner.equals(root+"View")&&field.equals("eMAINMENU"))field="eMP";
 
@@ -113,12 +157,19 @@ public final class SharedAgent implements Opcodes {
                         }
                     }
                     public void visitLdcInsn(Object v){
+                        if(name.equals(march)&&n.equals("updateMovingLine")&&Float.valueOf(600f).equals(v)){
+                            super.visitLdcInsn(v);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","marchMillis","(F)F",false);
+                            return;
+                        }
                         if(name.equals(root+"CFG")&&n.equals("gLGMP")&&" & LeoC".equals(v))v="";
                         if("2.2".equals(v))v="1.0";
                         if("https://discord.gg/GDTgYj2dJ".equals(v))v="https://discord.gg/zGdxgSvW4";
                         super.visitLdcInsn(v);
                     }
                     public void visitInsn(int opcode){
+                        if(name.equals(gameAction)&&n.equals("startNewTurn_End")&&opcode==RETURN)
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"afterHostTurn","()V",false);
                         if(name.equals(browserBar)&&n.equals("<init>")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);
                             super.visitMethodInsn(INVOKESTATIC,b,"browserBar","(L"+root+"Menu;)V",false);
@@ -185,6 +236,7 @@ public final class SharedAgent implements Opcodes {
                 };
             }
         },0);
+        System.out.println("SHARED_PATCH: statistics hook for "+type);
         return writer.toByteArray();
     }
     public static void premain(String args,Instrumentation instrumentation)throws Exception{
@@ -251,6 +303,7 @@ public final class SharedAgent implements Opcodes {
                                         case "refreshServers"->{super.visitInsn(ICONST_1);super.visitFieldInsn(PUTSTATIC,P+"MP","browseAll","Z");}
                                         case "join"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
                                         case "onHello"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","beforeHello","()V",false);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}
+                                        case "loadSnapshot"->super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","beforeSnapshot","()V",false);
                                         case "update"->{found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliPings","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliInputRecovery","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","tick","()V",false);}
                                         case "civFree"->{
                                             found.add(method);
@@ -315,7 +368,7 @@ public final class SharedAgent implements Opcodes {
                                         if(method.equals("onCmd")&&opcode==RETURN){found.add(method);call("afterCommand","()V");}
                                         if(method.equals("assign")&&opcode==RETURN){super.visitVarInsn(ALOAD,0);super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","assigned","("+C+"I)V",false);}
                                         if(method.equals("stop")&&opcode==RETURN){found.add(method);call("reset","()V");super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","reset","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","leaveSession","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","reset","()V",false);}
-                                        if(method.equals("loadSnapshot")&&opcode==RETURN){found.add(method);super.visitVarInsn(ALOAD,1);call("loaded","(Ljava/lang/Object;)V");}
+                                        if(method.equals("loadSnapshot")&&opcode==RETURN){found.add(method);super.visitVarInsn(ALOAD,1);call("loaded","(Ljava/lang/Object;)V");super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","afterSnapshot","()V",false);}
                                         if(method.equals("buildSnapshot")&&opcode==ARETURN){found.add(method);call("built","(Ljava/util/concurrent/Future;)Ljava/util/concurrent/Future;");}
                                     }else if(name.equals(P+"MP_Save")&&method.equals("pieces")&&opcode==ARETURN){found.add(method);call("pieces","(Ljava/util/Map;)Ljava/util/Map;");}
                                     super.visitInsn(opcode);
@@ -342,6 +395,9 @@ public final class SharedAgent implements Opcodes {
                 }catch(Throwable e){e.printStackTrace();Runtime.getRuntime().halt(7);return null;}
             }
         });
+        ClassLoader gameLoader=ClassLoader.getSystemClassLoader();
+        Class.forName("age.of.civilizations2.jakowski.lukasz.Civilization",false,gameLoader);
+        Class.forName("age.of.civilizations2.jakowski.lukasz.Province",false,gameLoader);
     }
 }
 

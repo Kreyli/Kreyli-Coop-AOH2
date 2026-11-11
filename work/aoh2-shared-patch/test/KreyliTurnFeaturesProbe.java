@@ -39,7 +39,7 @@ public final class KreyliTurnFeaturesProbe {
   var remote=MP.class.getDeclaredField("remoteRequested");remote.setAccessible(true);remote.setBoolean(null,true);
   new Thread(()->{try{Thread.sleep(480000);}catch(InterruptedException ignored){return;}Runtime.getRuntime().halt(8);},"probe-watchdog").start();
   var config=new Lwjgl3ApplicationConfiguration();config.setWindowedMode(1280,720);config.setInitialVisible(false);config.disableAudio(true);config.setForegroundFPS(30);
-  new Lwjgl3Application(new AA_Game(){int frames,phase,civ,hostCiv,startTurn,guestCiv;long guestGold,senderGold,waitStart;
+  new Lwjgl3Application(new AA_Game(){int frames,phase,civ,hostCiv,startTurn,guestCiv,autoCountry,autoSettledFrames;long guestGold,senderGold,waitStart;
    boolean exists(String name){return Files.exists(channel.resolve(name));}
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
@@ -101,10 +101,16 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==10&&GameCalendar.TURNID==startTurn+4&&playable()){signal("early-advanced","ok");phase=11;}
      if(phase==11&&exists("client-pass")&&MP.clients.isEmpty()){
       KreyliLobby.readMode(true);
+      CFG.setActiveCivInfoId(hostCiv);
+      CFG.menus.setVisible_InGame_CivInfo(true);
+      require(CFG.menus.getVisible_InGame_CivInfo(),"Country details opened before auto-turn");
+      autoCountry=CFG.getActiveCivInfoId();
+      require(KreyliTurns.marchMillis(600)==5000,"Real-time movement interpolates over the turn interval");
       startTurn=GameCalendar.TURNID;
       phase=12;
      }
-     if(phase==12&&GameCalendar.TURNID>startTurn&&playable()){
+     if(phase==12&&GameCalendar.TURNID>startTurn&&playable()&&++autoSettledFrames>=3){
+      require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
       MP.stop();
       for(Menu top:new Menu[]{
         new age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_1(),

@@ -89,7 +89,7 @@ public final class KreyliTurns {
     public static void chooseSkip(){changeSkip(1);}
     public static void changeSkip(int change){selected=Math.max(1,Math.min(KreyliSkipVote.MAX_TURNS,selected+change));}
     public static void proposeSkip(){
-        if(!active())return;
+        if(KreyliQuickGame.active()||KreyliLobby.realTime()||!active())return;
         if(MP.isHost())propose(selected,HOST);else if(MP.isClient()&&host()!=null)host().send("kreyli_skip_propose",GameCalendar.TURNID,selected);
     }
     public static void acceptSkip(){respond(true);}
@@ -105,7 +105,7 @@ public final class KreyliTurns {
         else if(host()!=null)host().send("kreyli_skip_cancel",remoteId,GameCalendar.TURNID);
     }
     private static void propose(int count,Object sender){
-        if(!active()||!vote.propose(++serial,GameCalendar.TURNID,count,voters(),sender,System.nanoTime()))return;
+        if(KreyliQuickGame.active()||KreyliLobby.realTime()||!active()||!vote.propose(++serial,GameCalendar.TURNID,count,voters(),sender,System.nanoTime()))return;
         clearWait();send("kreyli_ready_state",GameCalendar.TURNID,"",-1);
         lastVoteSeconds=30;outcome="";publish();
     }
@@ -201,21 +201,45 @@ public final class KreyliTurns {
         if(forcePublish||!oldPlayer.equals(readyPlayer)||oldSeconds!=shownSeconds)send("kreyli_ready_state",turn,readyPlayer,shownSeconds);
         if(waitDeadline!=0&&shownSeconds==0&&SharedSupport.canEnd())advance();
     }
-    private static long automaticTurn;
+    private static final long AUTO_TURN_MILLIS=5_000;
+    private static long automaticTurn, quickTurnDeadline;
+    private static int quickTurn=-1;
+    /** Stretch the native marker animation across the auto-turn interval in the orders phase. */
+    public static float marchMillis(float nativeMillis){
+        return KreyliLobby.realTime()&&MP.playing()&&MP.inputOrders()?AUTO_TURN_MILLIS:nativeMillis;
+    }
     private static void tickAutomaticTurn(){
+        KreyliRealtimeUi.finishAutomaticTurn();
         if(!active()){
             automaticTurn=0;
             return;
         }
         long now=System.nanoTime();
-        if(automaticTurn==0)automaticTurn=now+5_000_000_000L;
+        if(automaticTurn==0)automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
         if(now>=automaticTurn&&SharedSupport.canEnd()){
-            automaticTurn=now+5_000_000_000L;
+            automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
+            KreyliRealtimeUi.beforeAutomaticTurn();
             advance();
         }
     }
+    private static boolean tickQuickTurn(){
+        if(!KreyliQuickGame.running()||!active()){
+            quickTurnDeadline=0;
+            return false;
+        }
+        long now=System.nanoTime();
+        int turn=GameCalendar.TURNID;
+        if(quickTurnDeadline==0||quickTurn!=turn){
+            quickTurn=turn;
+            quickTurnDeadline=now+KreyliQuickRules.TURN_MILLIS*1_000_000L;
+        }
+        if(now<quickTurnDeadline||!SharedSupport.canEnd())return false;
+        advance();
+        return true;
+    }
     public static void tick(){
         if(!MP.isHost()||!MP.started)return;
+        if(KreyliQuickGame.active()&&tickQuickTurn())return;
         if(KreyliLobby.realTime()){tickAutomaticTurn();return;}
         int turn=GameCalendar.TURNID;
         for(var iterator=readyRequests.entrySet().iterator();iterator.hasNext();){
@@ -259,5 +283,5 @@ public final class KreyliTurns {
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){automaticTurn=0;clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
+    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimeUi.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }
