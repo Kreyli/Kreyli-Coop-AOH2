@@ -68,7 +68,7 @@ public final class KreyliTurnHud {
             pressed=null;
             return;
         }
-        if(!MP.playing()||!CFG.menus.getInGameView()){
+        if(KreyliLobby.realTime()||!MP.playing()||!CFG.menus.getInGameView()){
             choosing=false;
             slide=0;
             lastReadySoundTurn=-1;

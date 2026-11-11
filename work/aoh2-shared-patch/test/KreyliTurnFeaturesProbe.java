@@ -44,7 +44,7 @@ public final class KreyliTurnFeaturesProbe {
    void signal(String name,String value)throws Exception{Files.writeString(channel.resolve(name),value);}
    String read(String name)throws Exception{return Files.readString(channel.resolve(name));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
-   int marchFrom=-1,marchTo=-1,marchSource,marchDestination;
+   int marchFrom=-1,marchTo=-1,marchSource,marchDestination,selectedProvince;
    long marchIssued;
    void startMarch(){
     var country=CFG.core.getCiv(hostCiv);
@@ -139,8 +139,10 @@ public final class KreyliTurnFeaturesProbe {
       MP.turnSeconds=90;MP.endTurnPressed();signal("early-ready","ok");phase=10;
      }
      if(phase==10&&GameCalendar.TURNID==startTurn+4&&playable()){signal("early-advanced","ok");phase=11;}
-     if(phase==11&&exists("client-pass")&&MP.clients.isEmpty()){
+     if(phase==11&&exists("realtime-client-ready")){
       KreyliLobby.readMode(true);
+      selectedProvince=CFG.core.getCiv(hostCiv).getProvID(0);
+      CFG.core.setActiveProvID(selectedProvince);
       CFG.setActiveCivInfoId(hostCiv);
       CFG.menus.setVisible_InGame_CivInfo(true);
       require(CFG.menus.getVisible_InGame_CivInfo(),"Country details opened before auto-turn");
@@ -150,17 +152,33 @@ public final class KreyliTurnFeaturesProbe {
       waitStart=System.nanoTime();
       phase=12;
      }
-     if(phase==12&&marchIssued==0&&System.nanoTime()-waitStart>2_000_000_000L)startMarch();
+     if(phase==12&&marchIssued==0&&System.nanoTime()-waitStart>2_000_000_000L){
+      require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Real-time hides Auto turn");
+      require(!CFG.menus.getInGameMenu().getMenuElem(5).getVisibleE(),"Real-time hides turn and ready counters");
+      MP.endTurnPressed();
+      require(GameCalendar.TURNID==startTurn&&MP.inputOrders(),"Ready shortcut cannot advance real-time mode");
+      startMarch();
+      selectedProvince=marchFrom;
+      CFG.core.setActiveProvID(selectedProvince);
+      CFG.map.getMpS().setCurrScale(1.2f);
+      CFG.core.chooseProvinceMode();
+      require(CFG.chooseProvinceMode,"Army selection active at close zoom");
+      age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.gameSaved=true;
+     }
      if(phase==12&&GameCalendar.TURNID>startTurn&&playable()&&++autoSettledFrames>=3){
       require(marchIssued>0&&marchQueued()&&CFG.core.getProv(marchTo).getArmyCivID1(hostCiv)==marchDestination,
               "March crosses a turn boundary before arriving");
       require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
+      require(CFG.core.getActiveProvID()==selectedProvince,"Selected province survives automatic update");
+      require(CFG.menus.getInGameMenu().getVisibleM()&&!CFG.HIDE_UI,"The native HUD stays visible at close zoom");
+      require(!CFG.menus.getInGameMenu(CFG.menus.INGAME_SAVED_GAME).getVisibleM(),"Automatic update does not show the saved-game notice");
+      require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Auto turn stays hidden after automatic update");
       marchSource=CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv);
       marchDestination=CFG.core.getProv(marchTo).getArmyCivID1(hostCiv);
       checkSavedMarch();
       phase=13;
      }
-     if(phase==13&&playable()&&!marchQueued()){
+     if(phase==13&&playable()&&!marchQueued()&&exists("client-pass")){
       long travel=System.nanoTime()-marchIssued;
       require(travel>=4_950_000_000L&&travel<8_500_000_000L,"March arrival follows the order clock");
       require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==marchSource
@@ -206,7 +224,22 @@ public final class KreyliTurnFeaturesProbe {
      }}
      if(phase==7&&exists("stale-rejected")&&KreyliTurns.readinessStatus().contains("SkipHost")&&KreyliTurns.readinessStatus().endsWith(KreyliText.t(" с"," s"))){signal("saw-countdown","ok");phase=8;}
      if(phase==8&&exists("early-ready")&&GameCalendar.TURNID==startTurn+3&&playable()){MP.endTurnPressed();phase=9;}
-     if(phase==9&&exists("early-advanced")){signal("client-pass","ok");MP.stop();System.out.println("TURN_FEATURES PASS ready UI, gift acceptance, skip voting and host countdown");Runtime.getRuntime().halt(0);}
+     if(phase==9&&exists("early-advanced")&&GameCalendar.TURNID==startTurn+4&&playable()){
+      KreyliLobby.readMode(true);
+      selectedProvince=CFG.core.getCiv(civ).getProvID(0);
+      CFG.core.setActiveProvID(selectedProvince);
+      startTurn=GameCalendar.TURNID;
+      signal("realtime-client-ready","ok");
+      phase=10;
+     }
+     if(phase==10&&GameCalendar.TURNID>startTurn&&playable()){
+      require(CFG.core.getActiveProvID()==selectedProvince,"Guest province survives host update");
+      require(!CFG.menus.getInGameProvInfo().getMenuElem(0).getVisibleE(),"Guest does not see Auto turn");
+      signal("client-pass","ok");
+      MP.stop();
+      System.out.println("TURN_FEATURES PASS guest selection and controls across a real-time snapshot");
+      Runtime.getRuntime().halt(0);
+     }
     }
    }catch(Throwable error){error.printStackTrace();Runtime.getRuntime().halt(3);}}
   },config);

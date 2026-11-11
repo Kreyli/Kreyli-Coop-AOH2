@@ -206,7 +206,7 @@ public final class KreyliTurns {
     private static int quickTurn=-1;
     /** Stretch the native marker animation across the auto-turn interval. */
     public static float marchMillis(float nativeMillis){
-        return KreyliLobby.realTime()&&MP.playing()&&MP.inputOrders()?KreyliRealtimeMarch.DURATION_MILLIS:nativeMillis;
+        return KreyliLobby.realTime()&&MP.playing()?KreyliRealtimeMarch.DURATION_MILLIS:nativeMillis;
     }
     private static void tickAutomaticTurn(){
         KreyliRealtimeUi.finishAutomaticTurn();
@@ -217,11 +217,11 @@ public final class KreyliTurns {
         }
         long now=System.nanoTime();
         if(automaticTurn==0)automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
-        if(now>=automaticTurn&&SharedSupport.canEnd()){
-            automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
-            KreyliRealtimeUi.beforeAutomaticTurn();
-            advance();
-        }
+        if(now<automaticTurn||!SharedSupport.canEnd())return;
+        if(CFG.menus.getInGame_ProvinceMoveUnits_Visible()&&now-automaticTurn<1_500_000_000L)return;
+        automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
+        KreyliRealtimeUi.beforeAutomaticTurn();
+        advance();
     }
     private static boolean tickQuickTurn(){
         if(!KreyliQuickGame.running()||!active()){
@@ -270,15 +270,24 @@ public final class KreyliTurns {
             }
         }else updateWait(turn,hostReady,players,changedTurn);
     }
+    public static boolean blockRealtimeReady(){
+        return KreyliLobby.realTime()&&MP.playing()&&!MP.hasBattleReports();
+    }
+    public static boolean hideRealtimeControls(){
+        if(!KreyliLobby.realTime()||!MP.playing()||CFG.menus==null||!CFG.menus.getInGameView())return false;
+        var top=CFG.menus.getInGameMenu();
+        if(top instanceof age.of.civilizations2.jakowski.lukasz.Menus.ZRest.Menu_InGame_2)
+            top.getMenuElem(5).setVisibleE(false);
+        var ready=CFG.menus.getInGameProvInfo().getMenuElem(0);
+        ready.setVisibleE(MP.hasBattleReports());
+        if(MP.hasBattleReports())return false;
+        ready.setClickable(false);
+        return true;
+    }
     public static void updateUi(){
         KreyliTurnHud.update();
-        if(!MP.playing()||!MP.inputOrders()||MP.hasBattleReports())return;
+        if(KreyliLobby.realTime()||!MP.playing()||!MP.inputOrders()||MP.hasBattleReports())return;
         var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
-        if(KreyliLobby.realTime()){
-            button.setTextE(KreyliText.t("Автоход","Auto turn"));
-            button.setClickable(false);
-            return;
-        }
         boolean ready=MP.isHost()?Boolean.TRUE.equals(field("hostReady")):MP.ready;
         button.setTextE(ready?KreyliText.t("Отменить готовность","Cancel readiness"):KreyliText.t("Готов","Ready"));button.setClickable(true);
     }

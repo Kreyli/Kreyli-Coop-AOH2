@@ -116,6 +116,7 @@ public final class SharedSupport {
         return true;
     }
     public static void incoming(Object[] message){
+        if(message.length==1&&"turnEnd".equals(message[0]))KreyliRealtimeUi.beforeRemoteAdvance();
         if(message.length>0&&"welcome".equals(message[0])){
             KreyliProfile.connected((MP_Net.Conn)get("host"));
             KreyliSaveSeats.afterWelcome();

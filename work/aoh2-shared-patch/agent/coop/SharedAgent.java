@@ -25,7 +25,7 @@ public final class SharedAgent implements Opcodes {
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
         if(!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
-                root+"Save/SaveGameManager").contains(name))return data;
+                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
         reader.accept(new ClassVisitor(ASM8,writer){
@@ -124,6 +124,10 @@ public final class SharedAgent implements Opcodes {
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(root+"Menus/Turn/Menu_NextPlayerTurn")&&owner.equals(root+"MenuManager")&&method.equals("rebuildMenu_InGame_SavedGame")){
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"showAutomaticSave","(L"+root+"MenuManager;)V",false);
+                            return;
+                        }
                         if(name.equals(gameAction)&&n.equals("updatePlayerData")&&owner.equals(gameAction)&&method.equals("hideExtraViews")){
                             super.visitMethodInsn(INVOKESTATIC,realtime,"hideTurnViews","(L"+gameAction+";)V",false);
                             return;
@@ -291,6 +295,9 @@ public final class SharedAgent implements Opcodes {
                                         super.visitMethodInsn(INVOKESTATIC,P+"MP","isOn","()Z",false);
                                         Label networked=new Label();super.visitJumpInsn(IFNE,networked);
                                         super.visitInsn(RETURN);super.visitLabel(networked);
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","hideRealtimeControls","()Z",false);
+                                        Label keepNative=new Label();super.visitJumpInsn(IFEQ,keepNative);
+                                        super.visitInsn(RETURN);super.visitLabel(keepNative);
                                     }
                                     if(name.equals(P+"MP_Net")&&method.equals("writeLine")){found.add(method);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliBrowser","advertise","(Ljava/lang/String;)Ljava/lang/String;",false);super.visitVarInsn(ASTORE,1);}
                                     if(name.equals(P+"MP_UI$PlayersTable")&&method.equals("actionEL")){
@@ -326,7 +333,13 @@ public final class SharedAgent implements Opcodes {
                                         case "onClientMessage"->{found.add(method);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","clientMessage","([Ljava/lang/Object;)Z",false);Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);super.visitVarInsn(ALOAD,1);call("incoming","([Ljava/lang/Object;)V");}
                                         case "syncAfter"->{guard("lightSync","(Ljava/lang/String;)Z",ALOAD,0);}
                                         case "markReady"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","markReady","()Z",false);Label normal=new Label();super.visitJumpInsn(IFEQ,normal);super.visitInsn(RETURN);super.visitLabel(normal);}
-                                        case "endTurnPressed"->{found.add(method);guard("cancelReady","()Z");guard("waitBeforeReady","()Z");}
+                                        case "endTurnPressed"->{
+                                            found.add(method);
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","blockRealtimeReady","()Z",false);
+                                            Label nativeReady=new Label();super.visitJumpInsn(IFEQ,nativeReady);
+                                            super.visitInsn(RETURN);super.visitLabel(nativeReady);
+                                            guard("cancelReady","()Z");guard("waitBeforeReady","()Z");
+                                        }
                                         case "endTurn"->{found.add(method);call("canEnd","()Z");Label yes=new Label();super.visitJumpInsn(IFNE,yes);super.visitInsn(RETURN);super.visitLabel(yes);}
                                         case "sendSnap"->{found.add(method);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);call("sending","("+C+"Ljava/util/concurrent/Future;)V");}
                                     }
@@ -335,8 +348,13 @@ public final class SharedAgent implements Opcodes {
                                     if(launcher&&"Age of History 2: Definitive Edition Multiplayer".equals(v)){v="Kreyli Coop AOH2";found.add("title");}
                                     if(v instanceof String s&&s.equals("AoH2DE-MP-2.2|2.01 Definitive Edition"))v=s+"|kreyli-coop-5";super.visitLdcInsn(v);
                                 }
-                                public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
-                                    if(name.equals(P+"MP")&&method.equals("registerDirect")&&owner.equals(P+"MP_Net")
+                                public void visitMethodInsn(int opcode,String owner,String called,String descriptor,boolean itf){
+                                    String core="age/of/civilizations2/jakowski/lukasz/Core/Core";
+                                    if(name.equals(P+"MP")&&method.equals("loadSnapshot")&&owner.equals(core)&&called.equals("setActiveProvID")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","applySnapshotProvince","(L"+core+";I)V",false);
+                                        return;
+                                    }
+                                    if(name.equals(P+"MP")&&called.equals("registerDirect")&&owner.equals(P+"MP_Net")
                                             &&descriptor.equals("(Ljava/lang/String;II)Ljava/net/Socket;")){
                                         super.visitFieldInsn(GETSTATIC,P+"MP","server","Ljava/net/ServerSocket;");
                                         super.visitMethodInsn(INVOKESTATIC,P+"SharedHostForm","registerDirect",
@@ -344,17 +362,17 @@ public final class SharedAgent implements Opcodes {
                                         return;
                                     }
                                     String config="com/badlogic/gdx/backends/lwjgl3/Lwjgl3ApplicationConfiguration";
-                                    if(launcher&&owner.equals(config)&&method.equals("setWindowIcon")){
+                                    if(launcher&&owner.equals(config)&&called.equals("setWindowIcon")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliWindow","icon","(L"+config+";Lcom/badlogic/gdx/Files$FileType;[Ljava/lang/String;)V",false);
                                         return;
                                     }
-                                    if(launcher&&owner.equals(config)&&method.equals("setFullscreenMode")
+                                    if(launcher&&owner.equals(config)&&called.equals("setFullscreenMode")
                                             &&descriptor.equals("(Lcom/badlogic/gdx/Graphics$DisplayMode;)V")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliWindow","borderless",
                                                 "(L"+config+";Lcom/badlogic/gdx/Graphics$DisplayMode;)V",false);
                                         return;
                                     }
-                                    super.visitMethodInsn(opcode,owner,method,descriptor,itf);
+                                    super.visitMethodInsn(opcode,owner,called,descriptor,itf);
                                 }
                                 public void visitInsn(int opcode){
                                     if(name.equals(P+"MP_Save")&&method.equals("saveToDisk")&&opcode==RETURN)super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","save","()V",false);

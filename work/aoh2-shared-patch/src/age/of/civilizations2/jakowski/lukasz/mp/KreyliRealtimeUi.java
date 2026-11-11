@@ -11,9 +11,9 @@ import java.util.List;
 /** Preserve the local inspection UI while the authoritative campaign advances. */
 public final class KreyliRealtimeUi {
     private record Panel(int index, Class<?> type) {}
-    private record State(int view,int country,boolean countryVisible,List<Panel> panels,boolean startAnimation,
+    private record State(int view,int province,int country,boolean countryVisible,boolean choosingProvince,List<Panel> panels,boolean startAnimation,
                          boolean inAnimation,long animationTimer) {}
-    private static State snapshot, hostTurn, automatic;
+    private static State snapshot, hostTurn, clientTurn, automatic;
     private static int automaticStartTurn;
     public static void beforeAutomaticTurn(){
         automatic=capture();
@@ -34,7 +34,18 @@ public final class KreyliRealtimeUi {
     private KreyliRealtimeUi() {}
 
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}
-    public static void beforeSnapshot(){snapshot=capture();}
+    static void beforeRemoteAdvance(){clientTurn=capture();}
+    public static void beforeSnapshot(){
+        snapshot=clientTurn!=null?clientTurn:capture();
+        clientTurn=null;
+    }
+    public static void applySnapshotProvince(age.of.civilizations2.jakowski.lukasz.Core.Core core,int nativeProvince){
+        int province=snapshot==null?nativeProvince:snapshot.province();
+        core.setActiveProvID(province>=-1&&province<core.getProvinSize()?province:nativeProvince);
+    }
+    public static void showAutomaticSave(MenuManager manager){
+        if(automatic==null&&hostTurn==null&&snapshot==null)manager.rebuildMenu_InGame_SavedGame();
+    }
     public static void afterSnapshot(){State state=snapshot;snapshot=null;restore(state);}
     public static void beforeHostTurn(){if(MP.isHost()){hostTurn=capture();KreyliRealtimeMarch.beforeTurn();}}
     public static void afterHostTurn(){if(MP.isHost()){KreyliRealtimeMarch.afterTurn();State state=hostTurn;hostTurn=null;restore(state);}}
@@ -60,7 +71,7 @@ public final class KreyliRealtimeUi {
                 if(menu!=null&&menu.getVisibleM())visible.add(new Panel(index,menu.getClass()));
             }
         }
-        return new State(manager.getViewID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),visible,
+        return new State(manager.getViewID(),CFG.core.getActiveProvID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),CFG.chooseProvinceMode,visible,
                 Menu_InGame_Messages.START_ANIMATION,Menu_InGame_Messages.IN_ANIMATION,
                 Menu_InGame_Messages.ANIMATION_TIMER);
     }
@@ -68,6 +79,11 @@ public final class KreyliRealtimeUi {
     private static void restore(State state){
         MenuManager manager=CFG.menus;
         if(state==null||manager==null||!manager.getInGameView()||manager.getViewID()!=state.view())return;
+        int province=state.province();
+        if(province>=-1&&province<CFG.core.getProvinSize()&&CFG.core.getActiveProvID()!=province){
+            CFG.core.setActiveProvID(province);
+            CFG.gameAction.updateInGame_ProvinceInfo();
+        }
         if(state.countryVisible()&&!manager.getVisible_InGame_CivInfo())manager.setVisible_InGame_CivInfo(true);
         if(state.country()>0&&MP.validCiv(state.country())&&CFG.getActiveCivInfoId()!=state.country()
                 &&state.countryVisible()){
@@ -80,6 +96,8 @@ public final class KreyliRealtimeUi {
             Menu menu=menus.get(panel.index());
             if(menu!=null&&menu.getClass()==panel.type()&&!menu.getVisibleM())menu.setVisibleM(true);
         }
+        if(state.choosingProvince()&&!CFG.chooseProvinceMode&&province>=0&&CFG.gameAction.controlsArmyInProvince(province))
+            CFG.core.autoBuildChooseProvinceMode(true);
         Menu_InGame_Messages.START_ANIMATION=state.startAnimation();
         Menu_InGame_Messages.IN_ANIMATION=state.inAnimation();
         Menu_InGame_Messages.ANIMATION_TIMER=state.animationTimer();
@@ -89,5 +107,5 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime())Menu_InGame_Messages.START_ANIMATION=requested;
     }
 
-    public static void reset(){snapshot=hostTurn=automatic=null;KreyliRealtimeMarch.reset();}
+    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;KreyliRealtimeMarch.reset();}
 }
