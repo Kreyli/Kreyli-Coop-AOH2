@@ -159,9 +159,9 @@ public final class KreyliRealtimePause {
                 int accepted=MP.isHost()?yes.size():remoteYes;
                 int total=MP.isHost()?electorate.size():remoteTotal;
                 String action=paused()?t("Продолжение","Resume vote"):t("Пауза","Pause vote");
-                button(batch,x,width,action+" · "+accepted+"/"+total,false);
+                button(batch,x,width,action+" - "+accepted+"/"+total,false);
             }else{
-                button(batch,x,width,paused()?t("На паузе · Продолжить","Paused · Resume"):t("Предложить паузу","Request pause"),true);
+                button(batch,x,width,paused()?t("На паузе - Продолжить","Paused - Resume"):t("Предложить паузу","Request pause"),true);
             }
         }finally{
             batch.setPackedColor(original);
