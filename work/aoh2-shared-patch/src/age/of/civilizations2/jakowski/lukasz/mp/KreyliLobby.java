@@ -65,6 +65,7 @@ public final class KreyliLobby {
         advance();return true;
     }
     public static boolean clientMessage(Object[] message){
+        if(KreyliMilitaryExpertise.clientMessage(message))return true;
         if(KreyliQuickGame.clientMessage(message))return true;
         if(KreyliCountrySeats.clientMessage(message))return true;
         if(KreyliProfile.clientMessage(message))return true;

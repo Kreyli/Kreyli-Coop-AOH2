@@ -2,8 +2,13 @@ package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.AI.AI;
 import age.of.civilizations2.jakowski.lukasz.CFG;
+import age.of.civilizations2.jakowski.lukasz.Civilization;
+import age.of.civilizations2.jakowski.lukasz.GameAction;
 import age.of.civilizations2.jakowski.lukasz.GameCalendar;
 import age.of.civilizations2.jakowski.lukasz.MoveUnitsB.MoveUnits;
+import age.of.civilizations2.jakowski.lukasz.Province;
+import age.of.civilizations2.jakowski.lukasz.RegroupArmy.RegroupArmy;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,9 +22,9 @@ public final class KreyliRealtimeMarch {
     private static final long AI_ATTACK_SPACING_NANOS=3_000_000_000L;
     private static final HashMap<Integer,Long> nextAiAttack=new HashMap<>();
     private static final IdentityHashMap<MoveUnits,Long> starts=new IdentityHashMap<>();
-    private static final HashSet<MoveUnits> nativeFallback=new HashSet<>();
     private record Pending(int civ,MoveUnits move,long start) {}
     private static final List<Pending> pending=new ArrayList<>();
+    private static volatile List<Pending> heldForDraw=List.of();
     private static long nextCheck;
 
     private KreyliRealtimeMarch(){}
@@ -56,6 +61,93 @@ public final class KreyliRealtimeMarch {
         return false;
     }
 
+    public static boolean firstRegroupLeg(GameAction action,int from,int next,int troops,int civ,
+                                          boolean drawLine,boolean useMovement,RegroupArmy route){
+        if(MP.isClient()&&MP.playing()&&KreyliLobby.realTime()&&civ==MP.myCiv){
+            if(MP.inputOrders()&&!KreyliRealtimePause.paused()){
+                KreyliOrderSync.requestRoute(from,route.getToProvinceID(),troops);
+            }
+            return false;
+        }
+        return action.moveArmyAction(from,next,troops,civ,drawLine,useMovement);
+    }
+
+    static void startGuestRoute(int civ,int from,int destination,int troops){
+        if(!enabled()||!MP.inputOrders()||KreyliRealtimePause.paused()||!MP.validCiv(civ))return;
+        int provinces=CFG.core.getProvinSize();
+        if(from<0||from>=provinces||destination<0||destination>=provinces||from==destination||troops<=0)return;
+        var origin=CFG.core.getProv(from);
+        if(origin.getCivId()!=civ||origin.getArmyCivID1(civ)<troops)return;
+        var route=new RegroupArmy(civ,from,destination);
+        if(route.getRouteSize()==0)return;
+        int first=route.getRoute(0);
+        if(!CFG.gameAction.moveArmyAction(from,first,troops,civ,true,true))return;
+        if(route.getRouteSize()>1){
+            route.setFromProvinceID(first);
+            route.removeRoute(0);
+            route.setNumOfUnits(troops);
+            CFG.core.getCiv(civ).addRegroupArmy(route);
+        }
+        KreyliOrderSync.mark();
+    }
+
+    public static boolean waitForRegroup(Civilization country,int index){
+        if(!enabled())return false;
+        var route=country.getRegroupArmy(index);
+        int civ=country.getCivId();
+        for(var march:pending){
+            if(march.civ()==civ&&follows(route,march.move()))return true;
+        }
+        for(int i=0;i<country.moveUnitsSize();i++){
+            var move=country.getMoveUnits(i);
+            if(follows(route,move)&&(starts.containsKey(move)||eligible(civ,move)))return true;
+        }
+        return false;
+    }
+
+    private static boolean follows(RegroupArmy route,MoveUnits move){
+        return follows(route,move.getToProvID(),move.getNumberOfUnits());
+    }
+
+    private static boolean follows(RegroupArmy route,int waypoint,int troops){
+        return route.getFromProvinceID()==waypoint&&route.getNumOfUnits()==troops;
+    }
+
+    private static int followingRoute(Civilization country,int waypoint,int troops){
+        for(int i=0;i<country.getRegroupArmySize();i++){
+            if(follows(country.getRegroupArmy(i),waypoint,troops))return i;
+        }
+        return -1;
+    }
+
+    private static void continueRoute(Civilization country,int waypoint,int sent,int arrived){
+        int index=followingRoute(country,waypoint,sent);
+        if(index<0)return;
+        int civ=country.getCivId();
+        var route=country.getRegroupArmy(index);
+        int from=route.getFromProvinceID();
+        var province=CFG.core.getProv(from);
+        int troops=Math.min(arrived,province.getArmyCivID1(civ));
+        if(province.getCivId()!=civ||troops<=0||route.getRouteSize()==0||!route.continueMovingArmy(civ)){
+            country.removeRegroupArmy(index);
+            return;
+        }
+        int next=route.getRoute(0);
+        if(!RegroupArmy.canBeUsedInPath(civ,next,false,route.getToProvinceID())){
+            country.removeRegroupArmy(index);
+            return;
+        }
+        route.setNumOfUnits(troops);
+        if(!CFG.gameAction.moveArmyAction(from,next,troops,civ,true,true))return;
+        if(route.getRouteSize()==1){
+            country.removeRegroupArmy(index);
+        }else{
+            route.setFromProvinceID(next);
+            route.removeRoute(0);
+            country.getCurrentRegroupArmyLine(index).remove(0);
+        }
+    }
+
     static void tick(){
         if(!enabled()||!MP.inputOrders()||!pending.isEmpty())return;
         long now=KreyliRealtimePause.clock();
@@ -63,17 +155,19 @@ public final class KreyliRealtimeMarch {
         nextCheck=now+50_000_000L;
         boolean changed=false;
         var live=new HashSet<MoveUnits>();
-        var fallback=new HashSet<MoveUnits>();
         for(int civ=1;civ<CFG.core.getCivsSize();civ++){
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
                 if(!eligible(civ,move)){
-                    if(starts.containsKey(move)||nativeFallback.contains(move))fallback.add(move);
+                    if(starts.containsKey(move)){
+                        country.removeMove(i--);
+                        cancel(civ,move);
+                        changed=true;
+                    }
                     continue;
                 }
                 Long original=starts.putIfAbsent(move,now);
-                nativeFallback.remove(move);
                 if(original==null)KreyliOrderSync.mark();
                 long start=original==null?now:original;
                 if(now-start<DURATION_NANOS){
@@ -87,8 +181,11 @@ public final class KreyliRealtimeMarch {
                         live.add(move);
                         continue;
                     }
+                    int sent=move.getNumberOfUnits(),stationed=to.getArmyCivID1(civ);
                     if(KreyliRealtimeCombat.resolve(civ,i)){
                         if(ai)nextAiAttack.put(civ,now+AI_ATTACK_SPACING_NANOS);
+                        int arrived=Math.min(sent,to.getArmyCivID1(civ)-stationed);
+                        continueRoute(country,move.getToProvID(),sent,arrived);
                         i--;
                         changed=true;
                     }else live.add(move);
@@ -104,12 +201,11 @@ public final class KreyliRealtimeMarch {
                 country.removeMove(i--);
                 to.updateArmy4(civ,destination+amount);
                 to.updateDrawArmyInProv();
+                continueRoute(country,move.getToProvID(),amount,amount);
                 changed=true;
             }
         }
         starts.keySet().retainAll(live);
-        nativeFallback.clear();
-        nativeFallback.addAll(fallback);
         if(changed)refresh();
     }
 
@@ -123,11 +219,18 @@ public final class KreyliRealtimeMarch {
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
-                if(!eligible(civ,move))continue;
+                if(!eligible(civ,move)){
+                    if(starts.containsKey(move)){
+                        country.removeMove(i--);
+                        cancel(civ,move);
+                    }
+                    continue;
+                }
                 pending.add(new Pending(civ,move,starts.getOrDefault(move,now)));
                 country.removeMove(i--);
             }
         }
+        heldForDraw=List.copyOf(pending);
     }
 
     static void afterTurn(){
@@ -136,16 +239,43 @@ public final class KreyliRealtimeMarch {
         for(var march:pending){
             int civ=march.civ();
             var move=march.move();
+            if(!eligible(civ,move)){
+                cancel(civ,move);
+                continue;
+            }
             var country=CFG.core.getCiv(civ);
             country.newMove(move.getFromProviID(),move.getToProvID(),move.getNumberOfUnits(),true);
             var restored=country.getMoveUnits(country.moveUnitsSize()-1);
-            if(eligible(civ,restored)){
-                starts.put(restored,march.start());
-                drawProgress(restored,elapsed(restored));
-            }else nativeFallback.add(restored);
+            starts.put(restored,march.start());
+            drawProgress(restored,elapsed(restored));
         }
         pending.clear();
+        heldForDraw=List.of();
         refresh();
+    }
+
+    private static void cancel(int civ,MoveUnits move){
+        var country=CFG.core.getCiv(civ);
+        int route=followingRoute(country,move.getToProvID(),move.getNumberOfUnits());
+        if(route>=0)country.removeRegroupArmy(route);
+        var origin=CFG.core.getProv(move.getFromProviID());
+        var retreat=origin.getCivId()==civ?origin:null;
+        for(int i=0;retreat==null&&i<origin.getNeighProvincesSize();i++){
+            var adjacent=CFG.core.getProv(origin.getNeighProvinces(i));
+            if(!adjacent.getSeaProv()&&adjacent.getCivId()==civ)retreat=adjacent;
+        }
+        int troops=move.getNumberOfUnits();
+        if(retreat!=null){
+            int stationed=retreat.getArmyCivID1(civ);
+            int received=Math.min(troops,Integer.MAX_VALUE-stationed);
+            retreat.updateArmy4(civ,stationed+received);
+            retreat.updateDrawArmyInProv();
+            troops-=received;
+        }
+        if(troops>0){
+            country.setNumberOfUnits(Math.max(0,country.getNumberOfUnits()-troops));
+        }
+        KreyliOrderSync.worldChanged();
     }
 
     static int elapsed(MoveUnits move){
@@ -168,7 +298,7 @@ public final class KreyliRealtimeMarch {
             var country=CFG.core.getCiv(civ);
             for(int i=0;i<country.moveUnitsSize();i++){
                 var move=country.getMoveUnits(i);
-                if(eligible(civ,move)||nativeFallback.contains(move))
+                if(eligible(civ,move)||starts.containsKey(move))
                     appendRoute(routes,civ,move,Math.max(0,elapsed(move)));
             }
         }
@@ -207,7 +337,7 @@ public final class KreyliRealtimeMarch {
                     country.newMove(from,to,amount,true);
                     move=country.getMoveUnits(country.moveUnitsSize()-1);
                 }
-                if(move.getNumberOfUnits()!=amount||!KreyliLobby.realTime()||!eligible(civ,move))continue;
+                if(move.getNumberOfUnits()!=amount||!KreyliLobby.realTime())continue;
                 starts.putIfAbsent(move,now-age*1_000_000L);
                 drawProgress(move,elapsed(move));
             }catch(NumberFormatException ignored){}
@@ -243,6 +373,59 @@ public final class KreyliRealtimeMarch {
         }
     }
 
+    public static boolean drawArmies(SpriteBatch batch,float scale){
+        if(!KreyliLobby.realTime()||!MP.playing()||CFG.core.getPlayersSize()==0)return false;
+        var player=CFG.core.getPlayer(0);
+        int viewer=MP.isHost()?player.getCivId():MP.myCiv;
+        if(viewer<=0&&!CFG.SPECTATOR_MODE)return false;
+        float previous=batch.getPackedColor();
+        try{
+            if(MP.isHost()&&!MP.inputOrders()){
+                for(var march:heldForDraw)drawArmy(batch,scale,viewer,march.civ(),march.move(),
+                        (float)(KreyliRealtimePause.clock()-march.start())/DURATION_NANOS);
+                return false;
+            }
+            for(int civ=1;civ<CFG.core.getCivsSize();civ++){
+                var country=CFG.core.getCiv(civ);
+                for(int i=0;i<country.moveUnitsSize();i++){
+                    var move=country.getMoveUnits(i);
+                    var line=move.getMoveUnits_Line();
+                    if(line==null)continue;
+                    int age=MP.isHost()?elapsed(move):-1;
+                    if(age<0){
+                        line.updateMovingLine();
+                        line.fMovingPercentage=Math.min(1f,line.fMovingPercentage);
+                        line.lMovingTime=System.currentTimeMillis();
+                    }
+                    float progress=age>=0?(float)age/DURATION_MILLIS:(line.getMovingPercentage()-.1f)/.9f;
+                    drawArmy(batch,scale,viewer,civ,move,progress);
+                }
+            }
+            return true;
+        }finally{batch.setPackedColor(previous);}
+    }
+
+    private static void drawArmy(SpriteBatch batch,float scale,int viewer,int civ,MoveUnits move,float progress){
+        progress=Math.clamp(progress,0f,1f);
+        var from=CFG.core.getProv(move.getFromProviID());
+        var to=CFG.core.getProv(move.getToProvID());
+        if(!from.getDrawProv()&&!to.getDrawProv())return;
+        if(viewer!=civ&&!CFG.SPECTATOR_MODE&&CFG.FOG_OF_WAR!=0){
+            int position=progress<.5f?move.getFromProviID():move.getToProvID();
+            if(!CFG.core.getPlayer(0).getFog(position))return;
+        }
+        int x=(int)((armyX(from)+(armyX(to)-armyX(from))*progress)*scale);
+        int fromY=from.getCeY()+from.getShPY(),toY=to.getCeY()+to.getShPY();
+        int y=(int)((fromY+(toY-fromY)*progress+CFG.map.getMpC().getPY())*scale);
+        if(civ!=to.getCivId()&&to.getCivId()>0&&CFG.core.getCivsAtWar(civ,to.getCivId()))
+            CFG.core.drawProvinceArmyWithFlag_Attack(batch,x,y,civ,move.getNumberOfUnits(),move.getUnitsWidth());
+        else CFG.core.drawProvArmyWithFlag(batch,x,y,civ,move.getNumberOfUnits(),move.getUnitsWidth());
+    }
+
+    private static int armyX(Province province){
+        return province.getCeX()+province.getShPX()+province.getTranslateProvPosX();
+    }
+
     private static void refresh(){
         CFG.core.buildMoveUnits_JustDraw_AnotherArmies();
         CFG.core.updateDrawMoveUnitsArmy();
@@ -254,7 +437,7 @@ public final class KreyliRealtimeMarch {
         nextAiAttack.clear();
         starts.clear();
         pending.clear();
-        nativeFallback.clear();
+        heldForDraw=List.of();
         nextCheck=0;
     }
 }

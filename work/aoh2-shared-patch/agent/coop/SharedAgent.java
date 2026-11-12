@@ -14,6 +14,7 @@ public final class SharedAgent implements Opcodes {
         String workshop=root+"Z_Other/ST/sUM";
         String quick=P+"KreyliQuickGame", diplomacy=root+"GameManager";
         String browserBar=P+"MP_Browser$Bar";
+        String touchManager=root+"TouchManager";
         String touch=root+"Touch",province=root+"Menus/Info/Menu_InGame_ProvInfo",profile=P+"KreyliProfileUi";
         String countryChoice=P+"KreyliCountryChoice", newGame=root+"Menus/NewGame/Menu_CreateNewGame";
         String hud=P+"KreyliTurnHud", readyButton=root+"Button/Game/Button_GameNextTurn";
@@ -22,10 +23,12 @@ public final class SharedAgent implements Opcodes {
         String buttonText=root+"Button/ButtonM", startup=root+"Menus/Menu_InitGame";
         String gameAction=root+"GameAction", realtime=P+"KreyliRealtimeUi";
         String march=root+"MoveUnitsB/Line/MoveUnits_Line";
+        if(name.equals(root+"Core/Core"))return realtimeArmyView(data);
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
-        if(!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
-                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn").contains(name))return data;
+        boolean expertise=name.startsWith(root+"Menus/ZRest/Exp/Menu_InGame_MilitaryExp$");
+        if(!expertise&&!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,touchManager,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
+                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn",root+"AI/AI_Playstyle/AIPlaystyle").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
         reader.accept(new ClassVisitor(ASM8,writer){
@@ -36,6 +39,16 @@ public final class SharedAgent implements Opcodes {
             }
             public MethodVisitor visitMethod(int a,String n,String d,String sig,String[] ex){
                 var mv=super.visitMethod(a,n,d,sig,ex);
+                if(name.equals(touchManager)&&n.equals("mABX")&&d.equals("()V"))return new MethodVisitor(ASM8,mv){
+                    int moves;
+                    public void visitMethodInsn(int opcode,String owner,String method,String desc,boolean itf){
+                        if(owner.equals(gameAction)&&method.equals("moveArmyAction")&&++moves==3){
+                            super.visitVarInsn(ALOAD,5);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeMarch","firstRegroupLeg",
+                                    "(L"+gameAction+";IIIIZZL"+root+"RegroupArmy/RegroupArmy;)Z",false);
+                        }else super.visitMethodInsn(opcode,owner,method,desc,itf);
+                    }
+                };
                 if(name.equals(root+"CFG")&&(n.equals("drawVersion_LEFT_BOT")||n.equals("drawVersionLB"))){
                     mv.visitCode();mv.visitInsn(RETURN);mv.visitMaxs(0,0);mv.visitEnd();return null;
                 }
@@ -79,6 +92,22 @@ public final class SharedAgent implements Opcodes {
                             super.visitMethodInsn(INVOKESTATIC,quick,"allowMovement","(II)Z",false);
                             Label allowed=new Label();super.visitJumpInsn(IFNE,allowed);
                             super.visitInsn(ICONST_0);super.visitInsn(IRETURN);super.visitLabel(allowed);
+                        }
+                        if(name.equals(root+"AI/AI_Playstyle/AIPlaystyle")&&n.equals("moveAtWar")&&d.equals("(I)V")){
+                            super.visitVarInsn(ILOAD,1);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeAi","skipNativePlanning","(I)Z",false);
+                            Label plan=new Label();
+                            super.visitJumpInsn(IFEQ,plan);
+                            super.visitInsn(RETURN);
+                            super.visitLabel(plan);
+                        }
+                        if(name.equals(root+"MenuManager")&&n.equals("setVisible_InGame_ProvinceAction")&&d.equals("(Z)V")){
+                            super.visitVarInsn(ILOAD,1);
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"holdProvinceActions","(Z)Z",false);
+                            Label nativeVisibility=new Label();
+                            super.visitJumpInsn(IFEQ,nativeVisibility);
+                            super.visitInsn(RETURN);
+                            super.visitLabel(nativeVisibility);
                         }
                         if(name.equals(gameAction)&&n.equals("mpEndInputOrders"))
                             super.visitMethodInsn(INVOKESTATIC,realtime,"beforeHostTurn","()V",false);
@@ -126,6 +155,12 @@ public final class SharedAgent implements Opcodes {
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
                         if(name.equals(root+"NewTurn")&&n.equals("updateBuildingsConstruction")&&owner.equals(root+"Civilization")&&method.equals("runConstructions")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeConstruction","resolveNative","(L"+root+"Civilization;)V",false);
+                            return;
+                        }
+                        if(expertise&&owner.equals(root+"Core/Core")&&descriptor.equals("(I)Z")
+                                &&(method.equals("addArmyExpertiseAttack")||method.equals("addArmyExpertiseDefense"))){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliMilitaryExpertise",
+                                    method.equals("addArmyExpertiseAttack")?"attack":"defense","(L"+root+"Core/Core;I)Z",false);
                             return;
                         }
                         if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(root+"Save/SaveGameManager")&&method.equals("trySaveGame")){
@@ -246,6 +281,32 @@ public final class SharedAgent implements Opcodes {
         },ClassReader.EXPAND_FRAMES);
         return writer.toByteArray();
     }
+    private static byte[] realtimeArmyView(byte[] data){
+        String descriptor="(Lcom/badlogic/gdx/graphics/g2d/SpriteBatch;F)";
+        var reader=new ClassReader(data);
+        var writer=new ClassWriter(reader,ClassWriter.COMPUTE_MAXS);
+        reader.accept(new ClassVisitor(ASM8,writer){
+            public MethodVisitor visitMethod(int access,String name,String desc,String signature,String[] exceptions){
+                var original=super.visitMethod(access,name,desc,signature,exceptions);
+                if(!name.equals("drawMoveUnitsArmy")||!desc.equals(descriptor+"V"))return original;
+                return new MethodVisitor(ASM8,original){
+                    public void visitCode(){
+                        super.visitCode();
+                        super.visitVarInsn(ALOAD,1);
+                        super.visitVarInsn(FLOAD,2);
+                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeMarch","drawArmies",descriptor+"Z",false);
+                        var nativeView=new Label();
+                        super.visitJumpInsn(IFEQ,nativeView);
+                        super.visitInsn(RETURN);
+                        super.visitLabel(nativeView);
+                        super.visitFrame(F_SAME,0,null,0,null);
+                    }
+                };
+            }
+        },0);
+        return writer.toByteArray();
+    }
+
     private static byte[] trackStatistics(String type,byte[] data){
         boolean gold=type.endsWith("/Civilization");
         ClassReader reader=new ClassReader(data);
@@ -255,6 +316,28 @@ public final class SharedAgent implements Opcodes {
         reader.accept(new ClassVisitor(ASM8,writer){
             public MethodVisitor visitMethod(int access,String name,String descriptor,String signature,String[] exceptions){
                 MethodVisitor original=super.visitMethod(access,name,descriptor,signature,exceptions);
+                if(gold&&name.equals("moveRegroupArmy")&&descriptor.equals("()V"))return new MethodVisitor(ASM8,original){
+                    Label loop;
+                    boolean patched;
+                    public void visitLabel(Label label){
+                        super.visitLabel(label);
+                        if(!patched)loop=label;
+                    }
+                    public void visitJumpInsn(int opcode,Label label){
+                        super.visitJumpInsn(opcode,label);
+                        if(patched||opcode!=IF_ICMPGE)return;
+                        patched=true;
+                        super.visitVarInsn(ALOAD,0);
+                        super.visitVarInsn(ILOAD,1);
+                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeMarch","waitForRegroup","(L"+type+";I)Z",false);
+                        Label proceed=new Label();
+                        super.visitJumpInsn(IFEQ,proceed);
+                        super.visitIincInsn(1,1);
+                        super.visitJumpInsn(GOTO,loop);
+                        super.visitLabel(proceed);
+                        super.visitFrame(F_SAME,0,null,0,null);
+                    }
+                };
                 if(!gold&&name.equals("loadProvinceBG"))return new MethodVisitor(ASM8,original){
                     public void visitMethodInsn(int opcode,String owner,String method,String desc,boolean itf){
                         if(opcode==INVOKESTATIC&&owner.equals("com/badlogic/gdx/graphics/PixmapIO")

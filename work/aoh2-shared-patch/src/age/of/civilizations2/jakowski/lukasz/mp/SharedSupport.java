@@ -99,6 +99,7 @@ public final class SharedSupport {
         if(KreyliCountrySeats.sharedCountry(MP.myCiv))((MP_Net.Conn)get("host")).send("coop_ack",rev);
     }
     public static boolean message(MP_Net.Conn connection,Object[] message){
+        if(KreyliMilitaryExpertise.hostMessage(connection,message))return true;
         if(KreyliCountrySeats.hostMessage(connection,message))return true;
         if(KreyliProfile.hostMessage(connection,message))return true;
         if(KreyliOrderSync.hostMessage(connection,message))return true;

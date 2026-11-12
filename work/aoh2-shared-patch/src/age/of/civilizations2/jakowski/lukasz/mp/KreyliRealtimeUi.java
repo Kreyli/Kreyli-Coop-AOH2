@@ -35,6 +35,10 @@ public final class KreyliRealtimeUi {
         if(visible||!KreyliLobby.realTime()||!MP.playing())manager.setVisibleInGame_Messages(visible);
     }
 
+    public static boolean holdProvinceActions(boolean visible){
+        return !visible&&KreyliLobby.realTime()&&MP.playing()&&!MP.inputOrders();
+    }
+
     private KreyliRealtimeUi() {}
 
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}

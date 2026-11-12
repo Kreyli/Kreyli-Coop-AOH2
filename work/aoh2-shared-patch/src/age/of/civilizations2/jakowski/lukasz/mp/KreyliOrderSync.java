@@ -14,10 +14,26 @@ public final class KreyliOrderSync {
  public static void mark(){if(MP.isHost()&&MP.playing())dirty=true;}
  public static void request(){
   if(!MP.isClient()||!MP.playing())return;
-  try{var f=MP.class.getDeclaredField("host");f.setAccessible(true);var host=(MP_Net.Conn)f.get(null);if(host!=null)host.send("kreyli_orders_request");}catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
+  var host=host();
+  if(host!=null)host.send("kreyli_orders_request");
+ }
+ static void requestRoute(int from,int destination,int troops){
+  var host=host();
+  if(host!=null)host.send("kreyli_regroup",from,destination,troops);
+ }
+ private static MP_Net.Conn host(){
+  try{var f=MP.class.getDeclaredField("host");f.setAccessible(true);return (MP_Net.Conn)f.get(null);}
+  catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
  }
  public static boolean hostMessage(MP_Net.Conn connection,Object[] message){
-  if(message.length==0||!"kreyli_orders_request".equals(message[0]))return false;
+  if(message.length==0)return false;
+  if("kreyli_regroup".equals(message[0])){
+   if(message.length==4&&MP.isHost()&&MP.clients.contains(connection)&&connection.civ>0
+      &&message[1] instanceof Integer from&&message[2] instanceof Integer destination&&message[3] instanceof Integer troops)
+    KreyliRealtimeMarch.startGuestRoute(connection.civ,from,destination,troops);
+   return true;
+  }
+  if(!"kreyli_orders_request".equals(message[0]))return false;
   if(message.length==1&&MP.isHost()&&MP.clients.contains(connection)&&connection.civ>0)mark();return true;
  }
  public static void reset(){dirty=worldDirty=false;lastWorldSync=lastSent=sequence=received=0;receivedTurn=sentTurn=-1;sentCountries.clear();}

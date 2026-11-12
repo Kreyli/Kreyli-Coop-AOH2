@@ -128,7 +128,17 @@ public final class KreyliTurnFeaturesProbe {
       guestCiv=MP.clients.get(0).civ;guestGold=CFG.core.getCiv(guestCiv).getGold();senderGold=CFG.core.getCiv(hostCiv).getGold();
       GameManager.sendGift(guestCiv,hostCiv,10);require(CFG.core.getCiv(hostCiv).getGold()==senderGold-10,"Gift debited sender");MP.requestSync();signal("gift-sent",Long.toString(guestGold));phase=3;
      }
-     if(phase==3&&exists("accepted")&&CFG.core.getCiv(guestCiv).getGold()==guestGold+10&&hudControl("OPEN")!=null){
+     if(phase==3&&exists("accepted")&&!exists("expertise-granted")){
+      var data=CFG.core.getCiv(guestCiv).civGD;
+      data.armyExpertiseLevel=2;
+      data.armyExpertiseAttack=data.armyExpertiseDefense=0;
+      MP.requestSync();
+      signal("expertise-granted","ok");
+     }
+     if(phase==3&&exists("expertise-spent")&&CFG.core.getCiv(guestCiv).getGold()==guestGold+10&&hudControl("OPEN")!=null){
+      var expertise=CFG.core.getCiv(guestCiv).civGD;
+      require(expertise.armyExpertiseAttack==1&&expertise.armyExpertiseDefense==1
+              &&CFG.core.armyExpertisePointsLeft(guestCiv)==0,"Host spends both points for the correct guest");
       int[] arrow=hudControl("OPEN");
       var button=CFG.menus.getInGameProvInfo().getMenuElem(0);
       require(arrow[0]==CFG.menus.getInGameProvInfo().getMenuPosX()+button.getPosXE(),"Arrow stays inside Ready bounds");
@@ -321,9 +331,29 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==3&&exists("gift-sent")){
       var box=CFG.core.getCiv(civ).getCivDiploGD().messageBox;for(int i=0;i<box.getMessagesSize();i++)if(box.getMessage(i) instanceof Message_Gift gift){require(MP.ready,"Recipient still ready when gift arrives");gift.onAccept(civ);require(!MP.ready,"Gift acceptance withdraws readiness");signal("accepted","ok");phase=4;break;}
      }
+     if(phase==4&&exists("expertise-granted")&&!exists("expertise-spent")&&playable()){
+      var data=CFG.core.getCiv(civ).civGD;
+      if(data.armyExpertiseLevel==2&&data.armyExpertiseAttack==0&&data.armyExpertiseDefense==0&&!exists("expertise-clicked")){
+       CFG.menus.rebuildInGame_MilitaryExp(civ);
+       var menu=CFG.menus.getInGameMenu(CFG.menus.INGAME_TECHNOLOGY);
+       var attack=menu.menuElem.stream().filter(e->e.getClass().getName().endsWith("MilitaryExp$5")).findFirst().orElseThrow();
+       var defense=menu.menuElem.stream().filter(e->e.getClass().getName().endsWith("MilitaryExp$8")).findFirst().orElseThrow();
+       attack.actionElem(menu.menuElem.indexOf(attack));
+       defense.actionElem(menu.menuElem.indexOf(defense));
+       attack.actionElem(menu.menuElem.indexOf(attack));
+       require(data.armyExpertiseAttack==0&&data.armyExpertiseDefense==0,"Guest buttons wait for host confirmation");
+       signal("expertise-clicked","ok");
+      }
+      if(data.armyExpertiseAttack==1&&data.armyExpertiseDefense==1&&CFG.core.armyExpertisePointsLeft(civ)==0){
+       CFG.menus.getInGameMenu(CFG.menus.INGAME_TECHNOLOGY).setVisibleM(false);
+       signal("expertise-spent","ok");
+      }
+     }
      if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){KreyliUiProbe.capture("kreyli-skip-notice.png");pressHud("DECLINE");signal("cancelled","ok");phase=5;}}
      if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()&&hudControl("ACCEPT")!=null){pressHud("ACCEPT");phase=6;}
      if(phase==6&&exists("host-final")&&playable()){String[] parts=read("host-final").split(",");if(GameCalendar.TURNID==Integer.parseInt(parts[1])){
+      var expertise=CFG.core.getCiv(civ).civGD;
+      require(expertise.armyExpertiseAttack==1&&expertise.armyExpertiseDefense==1,"Expertise survives the next campaign snapshot");
       require(CFG.core.getCiv(civ).getGold()==Long.parseLong(parts[0]),"Final money agrees");
       var hostField=MP.class.getDeclaredField("host");hostField.setAccessible(true);var count=MP.class.getDeclaredField("sentCmds");count.setAccessible(true);
       ((MP_Net.Conn)hostField.get(null)).send("kreyli_ready",startTurn,count.getInt(null),999999L,true);signal("stale-sent","ok");phase=7;

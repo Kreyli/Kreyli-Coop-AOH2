@@ -30,7 +30,7 @@ public final class KreyliOrderNetworkProbe {
   var remote=MP.class.getDeclaredField("remoteRequested");remote.setAccessible(true);remote.setBoolean(null,true);
   new Thread(()->{try{Thread.sleep(480000);}catch(InterruptedException e){return;}Runtime.getRuntime().halt(8);}).start();
   var config=new Lwjgl3ApplicationConfiguration();config.setWindowedMode(1280,720);config.setInitialVisible(false);config.disableAudio(true);config.setForegroundFPS(30);
-  new Lwjgl3Application(new AA_Game(){int frame,phase,civ,hostCiv,guestCiv,from,to;long began,snapshots,orderSequence;
+  new Lwjgl3Application(new AA_Game(){int frame,phase,civ,hostCiv,guestCiv,from,to,routeOrigin,routeGoal;long began,snapshots,orderSequence;
    boolean has(String key){return Files.exists(channel.resolve(key));}void put(String key,String value)throws Exception{Files.writeString(channel.resolve(key),value);}String get(String key)throws Exception{return Files.readString(channel.resolve(key));}
    boolean playable(){return CFG.menus.getInGameView()&&MP.inputOrders();}
    boolean openRemoteProfile()throws Exception{
@@ -84,6 +84,31 @@ public final class KreyliOrderNetworkProbe {
       var own=CFG.core.getCiv(hostCiv);from=to=-1;for(int i=0;i<own.getNumOfProvs()&&from<0;i++){int p=own.getProvID(i);for(int j=0;j<CFG.core.getProv(p).getNeighProvincesSize();j++){int q=CFG.core.getProv(p).getNeighProvinces(j);if(!CFG.core.getProv(p).getSeaProv()&&!CFG.core.getProv(q).getSeaProv()&&CFG.core.getProv(q).getCivId()==hostCiv){from=p;to=q;break;}}}check(from>=0,"Adjacent friendly movement fixture");CFG.core.getProv(from).updateArmy4(hostCiv,50);MP.requestSync();put("fixture",from+","+to);phase=7;
      }
      if(phase==7&&has("fixture-ready")){CFG.gameAction.moveArmyAction(from,to,10,hostCiv,false,true);put("moved","ok");phase=8;}
+     if(phase==8&&has("prepare-route")&&!has("host-route-pass")&&playable()){
+      var country=CFG.core.getCiv(guestCiv);
+      routeOrigin=routeGoal=-1;
+      for(int i=0;i<country.getNumOfProvs()&&routeGoal<0;i++){
+       int origin=country.getProvID(i);
+       if(CFG.core.getProv(origin).getSeaProv()||origin==from||origin==to)continue;
+       for(int j=0;j<country.getNumOfProvs()&&routeGoal<0;j++){
+        int goal=country.getProvID(j);
+        if(origin==goal||goal==from||goal==to||CFG.core.getProv(goal).getSeaProv())continue;
+        var route=new age.of.civilizations2.jakowski.lukasz.RegroupArmy.RegroupArmy(guestCiv,origin,goal);
+        if(route.getRouteSize()==2){routeOrigin=origin;routeGoal=goal;}
+       }
+      }
+      check(routeGoal>=0,"Two-leg guest route fixture");
+      CFG.core.getProv(routeOrigin).updateArmy4(guestCiv,50);
+      CFG.core.getProv(routeGoal).updateArmy4(guestCiv,0);
+      KreyliLobby.readMode(true);
+      KreyliOrderSync.mark();
+      put("route-fixture",routeOrigin+","+routeGoal);
+      phase=12;
+     }
+     if(phase==12&&CFG.core.getProv(routeGoal).getArmyCivID1(guestCiv)==10){
+      put("host-route-pass","ok");
+      phase=8;
+     }
      if(phase==8&&has("client-pass")){MP.stop();System.out.println("ORDER_NETWORK PASS host lightweight move and bidirectional allied ping shared="+shared);Runtime.getRuntime().halt(0);}
     }else{
      if(phase==1&&MP.picking&&has("ready")&&!MP.pickPending()){hostCiv=Integer.parseInt(get("ready"));civ=shared?hostCiv:1;while(!shared&&(civ==hostCiv||CFG.core.getCiv(civ).getNumOfProvs()==0))civ++;KreyliCountrySeats.submit(civ,1);phase=2;}
@@ -110,7 +135,22 @@ public final class KreyliOrderNetworkProbe {
      }
      if(phase==11){
       KreyliUiProbe.capture("kreyli-remote-profile.png");
-      put("client-pass","ok");System.out.println("ORDER_NETWORK PASS client no save reload, movement queues, left Alt ping, F10 headers and shared country profiles");MP.stop();Runtime.getRuntime().halt(0);
+      put("prepare-route","ok");
+      phase=12;
+     }
+     if(phase==12&&has("route-fixture")&&playable()){
+      String[] pair=get("route-fixture").split(",");
+      routeOrigin=Integer.parseInt(pair[0]);
+      routeGoal=Integer.parseInt(pair[1]);
+      if(CFG.core.getProv(routeOrigin).getArmyCivID1(civ)!=50)return;
+      KreyliLobby.readMode(true);
+      var route=new age.of.civilizations2.jakowski.lukasz.RegroupArmy.RegroupArmy(civ,routeOrigin,routeGoal);
+      check(route.getRouteSize()==2,"Guest sees a two-leg route");
+      KreyliRealtimeMarch.firstRegroupLeg(CFG.gameAction,routeOrigin,route.getRoute(0),10,civ,true,true,route);
+      phase=13;
+     }
+     if(phase==13&&has("host-route-pass")&&CFG.core.getProv(routeGoal).getArmyCivID1(civ)==10){
+      put("client-pass","ok");System.out.println("ORDER_NETWORK PASS client no save reload, movement queues, left Alt ping, F10 headers, country profiles and two-leg guest route");MP.stop();Runtime.getRuntime().halt(0);
      }
     }
    }catch(Throwable e){e.printStackTrace();Runtime.getRuntime().halt(3);}}
