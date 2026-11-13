@@ -20,11 +20,11 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.26");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.27");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
-    private static int creditsClicks;
-    private static Music creditsMusic;
+    private static final int[] creditsClicks=new int[2];
+    private static final Music[] creditsMusic=new Music[2];
     private static boolean requested;
     private static volatile List<String[]> arrived;
     private KreyliBranding(){}
@@ -56,15 +56,17 @@ public final class KreyliBranding {
                 KreyliText.t("Спасибо, что играете!","Thanks for playing!")};
         for(int i=0;i<lines.length;i++){
             MenuElemUI line;
-            if(i==3){
+            boolean tester=i==3||i==4;
+            if(tester){
+                int sound=i-3;
                 line=new TextScale(lines[i],x,y,.9f){
                     private final Color plainText=new Color(.78f,.78f,.78f,.7f);
                     @Override public Color getColor(boolean selected){return plainText;}
-                    @Override public void actionElem(int index){creditsClicked();}
+                    @Override public void actionElem(int index){creditsClicked(sound);}
                 };
 
             }else line=new TextScale(lines[i],x,y,i==0?1f:.9f);
-            line.setClickable(i==3);
+            line.setClickable(tester);
             items.add(line);
             y+=line.getHeightE()+CFG.PADD*2;
         }
@@ -75,22 +77,28 @@ public final class KreyliBranding {
         return y+discord.getHeightE()+CFG.PADD*2;
     }
 
-    private static void creditsClicked(){
-        if(++creditsClicks<10)return;
-        creditsClicks=0;
+    private static void creditsClicked(int sound){
+        if(++creditsClicks[sound]<10)return;
         try{
-            if(creditsMusic==null)creditsMusic=Gdx.audio.newMusic(Gdx.files.classpath("kreyli-credits.wav"));
-            creditsMusic.stop();
-            creditsMusic.setVolume(1f);
-            creditsMusic.play();
+            creditsClicks[sound]=0;
+            stopCreditsAudio();
+            if(creditsMusic[sound]==null){
+                String asset=sound==0?"kreyli-credits.wav":"kreyli-spacebodik.ogg";
+                creditsMusic[sound]=Gdx.audio.newMusic(Gdx.files.classpath(asset));
+            }
+            creditsMusic[sound].setVolume(1f);
+            creditsMusic[sound].play();
         }catch(RuntimeException error){
             Gdx.app.error("Kreyli Coop AOH2","Could not play credits audio",error);
         }
     }
 
     public static void closeCredits(){
-        creditsClicks=0;
-        if(creditsMusic!=null&&creditsMusic.isPlaying())creditsMusic.stop();
+        java.util.Arrays.fill(creditsClicks,0);
+        stopCreditsAudio();
+    }
+    private static void stopCreditsAudio(){
+        for(Music music:creditsMusic)if(music!=null&&music.isPlaying())music.stop();
     }
 
     public static void mainMenu(Menu menu){

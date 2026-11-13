@@ -13,7 +13,7 @@ if($LASTEXITCODE -ne 0){throw 'Agent compile failed'}
 & jar "-J-Djava.io.tmpdir=$agent" cfm (Join-Path $agent 'shared-agent.jar') (Join-Path $agent 'MANIFEST.MF') -C $agent coop
 if($LASTEXITCODE -ne 0){throw 'Jar build failed'}
 $resources=Join-Path $PSScriptRoot 'resources'
-Copy-Item -LiteralPath (Join-Path $resources 'kreyli-credits.wav') -Destination $build -Force
+Copy-Item -LiteralPath (Join-Path $resources 'kreyli-credits.wav'),(Join-Path $resources 'kreyli-spacebodik.ogg') -Destination $build -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../kreyli-installer/branding/project-logo.png') -Destination (Join-Path $build 'kreyli-splash.png') -Force
-& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age -C $build 'kreyli-credits.wav' -C $build 'kreyli-splash.png'
+& jar "-J-Djava.io.tmpdir=$build" cf (Join-Path $build 'shared-support.jar') -C $build age -C $build 'kreyli-credits.wav' -C $build 'kreyli-spacebodik.ogg' -C $build 'kreyli-splash.png'
 if($LASTEXITCODE -ne 0){throw 'Support jar build failed'}

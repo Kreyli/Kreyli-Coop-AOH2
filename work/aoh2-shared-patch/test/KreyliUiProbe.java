@@ -108,12 +108,14 @@ public final class KreyliUiProbe {
                 "Pin text never highlights or reveals the secret");
         var original=Gdx.audio;
         int[] plays={0},stops={0};
+        var assets=new java.util.ArrayList<String>();
+        boolean[] playing={false};
         var music=(com.badlogic.gdx.audio.Music)java.lang.reflect.Proxy.newProxyInstance(
                 KreyliUiProbe.class.getClassLoader(),new Class<?>[]{com.badlogic.gdx.audio.Music.class},(proxy,method,args)->{
                     switch(method.getName()){
-                        case "play" -> plays[0]++;
-                        case "stop" -> stops[0]++;
-                        case "isPlaying" -> {return true;}
+                        case "play" -> {plays[0]++;playing[0]=true;}
+                        case "stop" -> {stops[0]++;playing[0]=false;}
+                        case "isPlaying" -> {return playing[0];}
                     }
                     return null;
                 });
@@ -121,7 +123,8 @@ public final class KreyliUiProbe {
                 KreyliUiProbe.class.getClassLoader(),new Class<?>[]{Audio.class},(proxy,method,args)->{
                     if(!method.getName().equals("newMusic"))throw new AssertionError(method.getName());
                     var asset=(com.badlogic.gdx.files.FileHandle)args[0];
-                    require(asset.readBytes().length>44,"Credits WAV packaged on classpath");
+                    require(asset.readBytes().length>44,"Credits sound packaged on classpath");
+                    assets.add(asset.name());
                     return music;
                 });
         try{
@@ -130,14 +133,18 @@ public final class KreyliUiProbe {
             about.actionEL(index);
             require(plays[0]==1,"Tenth click plays once");
             for(int i=0;i<10;i++)about.actionEL(index);
-            require(plays[0]==2&&stops[0]==2,"Repeat stops the current sound and restarts it");
+            require(plays[0]==2&&stops[0]==1,"Repeat stops the current sound and restarts it");
+            for(int i=0;i<9;i++)about.actionEL(index+1);
+            require(plays[0]==2,"SpaceBodik has a separate ten-click counter");
+            about.actionEL(index+1);
+            require(plays[0]==3&&stops[0]==2&&assets.equals(java.util.List.of("kreyli-credits.wav","kreyli-spacebodik.ogg")),"Tester clips switch without overlap");
             KreyliBranding.closeCredits();
             require(stops[0]==3,"Leaving credits stops the sound");
         }finally{
             Gdx.audio=original;
             var cached=KreyliBranding.class.getDeclaredField("creditsMusic");
             cached.setAccessible(true);
-            cached.set(null,null);
+            java.util.Arrays.fill((Object[])cached.get(null),null);
         }
     }
     static void capture(String name){

@@ -161,11 +161,12 @@ public final class KreyliTurnHud {
         if(slide==0)return;
         if(slide<1)CFG.setRenderO(true);
         int gap=Math.max(4,CFG.PADD);
-        int width=Math.min(date.x-gap*2,Math.max(CFG.BUTTON_W*3,MP_UI.textWidth(lastProposal)+gap*4));
+        int right=date.x-Math.max(gap*3,Math.min(CFG.BUTTON_W/3,date.x/12));
+        int width=Math.min(right-gap,Math.max(CFG.BUTTON_W*3,MP_UI.textWidth(lastProposal)+gap*4));
         if(width<CFG.BUTTON_W)return;
         int row=Math.max(24,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
         int y=Math.max(gap,date.y);
-        int x=Math.max(gap,date.x-gap-width-Math.round((1-slide)*(1-slide)*row*2));
+        int x=Math.max(gap,right-width-Math.round((1-slide)*(1-slide)*row*2));
         boolean voting=responding||cancelling;
         int rows=(lastReadiness.isEmpty()?0:1)+(lastProposal.isEmpty()?0:1)+(voting?2:0);
         panel(batch,new Box(x,y,width,rows*row+gap*2));
