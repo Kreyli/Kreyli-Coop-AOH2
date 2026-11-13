@@ -26,7 +26,7 @@ public final class KreyliTurnHud {
     private static Action pressed;
     private static float slide;
     private static String lastReadiness="",lastProposal="";
-    private static int lastReadySoundTurn=-1;
+    private static String lastReadySound="";
     private static long lastVoteSound;
     private static String shownReadiness="",shownVote="";
 
@@ -79,7 +79,7 @@ public final class KreyliTurnHud {
         if(!MP.playing()||!CFG.menus.getInGameView()){
             choosing=false;
             slide=0;
-            lastReadySoundTurn=-1;
+            lastReadySound="";
             lastVoteSound=0;
             return;
         }
@@ -148,10 +148,12 @@ public final class KreyliTurnHud {
         if(responding&&vote!=lastVoteSound){
             lastVoteSound=vote;
             chime();
-        }else if(!readiness.isEmpty()&&lastReadySoundTurn!=GameCalendar.TURNID){
-            lastReadySoundTurn=GameCalendar.TURNID;
+        }
+        String readyEvent=KreyliTurns.readinessName();
+        if(!readyEvent.isEmpty()&&!readyEvent.equals(lastReadySound)){
             chime();
         }
+        lastReadySound=readyEvent;
         boolean visible=!readiness.isEmpty()||!proposal.isEmpty();
         if(visible){lastReadiness=readiness;lastProposal=proposal;}
         float step=Math.min(0.3f,Gdx.graphics.getDeltaTime())*5;

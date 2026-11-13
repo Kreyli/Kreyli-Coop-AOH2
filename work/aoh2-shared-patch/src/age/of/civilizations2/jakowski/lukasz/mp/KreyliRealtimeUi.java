@@ -4,6 +4,8 @@ import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.GameCalendar;
 import age.of.civilizations2.jakowski.lukasz.Menu;
 import age.of.civilizations2.jakowski.lukasz.MenuManager;
+import age.of.civilizations2.jakowski.lukasz.View;
+import age.of.civilizations2.jakowski.lukasz.Civilizations.PeaceT.PeaceTreaty_Data;
 import age.of.civilizations2.jakowski.lukasz.Menus.Messages.Menu_InGame_Messages;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,12 +13,33 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import age.of.civilizations2.jakowski.lukasz.Core.Core;
 import age.of.civilizations2.jakowski.lukasz.Province_Animation_MoveUnits2;
+import age.of.civilizations2.jakowski.lukasz.Province_Animation2;
 
 /** Preserve the local inspection UI while the authoritative campaign advances. */
 public final class KreyliRealtimeUi {
     private record Panel(int index, Class<?> type) {}
     private record State(int view,int province,int country,boolean countryVisible,boolean choosingProvince,int moveTarget,int moveAmount,List<Panel> panels,boolean startAnimation,
-                         boolean inAnimation,long animationTimer,Highlight highlight) {}
+                         boolean inAnimation,long animationTimer,Highlight highlight,ProvincePulse provincePulse,boolean hidden) {}
+    private record ProvincePulse(long fillTime,int alpha,int colorStep,int step,boolean backwards,
+                                 long borderTime,int borderStep,int borderAlpha,boolean borderBackwards){
+        ProvincePulse(Province_Animation2 animation){
+            this(animation.lTime,animation.fAlpha,animation.iColorStepID,animation.iStepID,animation.backAnimation,
+                 animation.lTimeBorder,animation.iStepIDBorder,animation.iBorderAlpha,animation.backAnimationBorder);
+        }
+
+        void restore(Province_Animation2 animation){
+            animation.lTime=fillTime;
+            animation.fAlpha=alpha;
+            animation.iColorStepID=colorStep;
+            animation.iStepID=step;
+            animation.backAnimation=backwards;
+            animation.lTimeBorder=borderTime;
+            animation.iStepIDBorder=borderStep;
+            animation.iBorderAlpha=borderAlpha;
+            animation.backAnimationBorder=borderBackwards;
+        }
+    }
+
     /** Animation is local presentation, never host campaign state. */
     private record Highlight(float percentage,long borderTime,boolean backwards,boolean updating,
                              long cityTime,boolean citiesFading,long lineTime,int lineOffset) {}
@@ -51,7 +74,15 @@ public final class KreyliRealtimeUi {
         core.updateHighlight_MoveUnitsProvinces(province);
         restoreHighlight(core,phase);
     }
+    private record PeaceDraft(View view,PeaceTreaty_Data data) {}
+    private static PeaceDraft peaceDraft;
+    private record Camera(int x,int y,float zoom) {}
+    private static Camera camera;
     private static State snapshot, hostTurn, clientTurn, automatic;
+
+    static boolean editingPeace(){
+        return CFG.menus!=null&&(CFG.menus.getInGame_PeaceTreaty()||CFG.menus.getInGame_PeaceTreaty_Response());
+    }
     private static int automaticStartTurn;
     public static void beforeAutomaticTurn(){
         automatic=capture();
@@ -98,7 +129,16 @@ public final class KreyliRealtimeUi {
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}
     static void beforeRemoteAdvance(){clientTurn=capture();}
     public static void beforeSnapshot(){
-        snapshot=clientTurn!=null?clientTurn:capture();
+        if(MP.isClient()&&MP.playing()&&CFG.map!=null){
+            var coords=CFG.map.getMpC();
+            camera=new Camera(coords.getPX(),coords.getPY(),CFG.map.getMpS().getCurrSc());
+        }
+        if(KreyliLobby.realTime()&&editingPeace()){
+            View view=CFG.menus.getInGame_PeaceTreaty()?View.eINGAME_PEACE_TREATY:View.eINGAME_PEACE_TREATY_RESPONSE;
+            peaceDraft=new PeaceDraft(view,CFG.peaceTreatyData);
+        }
+        State current=capture();
+        snapshot=current!=null?current:clientTurn;
         clientTurn=null;
     }
     public static void applySnapshotProvince(age.of.civilizations2.jakowski.lukasz.Core.Core core,int nativeProvince){
@@ -109,7 +149,28 @@ public final class KreyliRealtimeUi {
     public static void showAutomaticSave(MenuManager manager){
         if(automatic==null&&hostTurn==null&&snapshot==null)manager.rebuildMenu_InGame_SavedGame();
     }
-    public static void afterSnapshot(){State state=snapshot;snapshot=null;restore(state);}
+    public static void afterSnapshot(){
+        State state=snapshot;
+        snapshot=null;
+        var savedCamera=camera;
+        camera=null;
+        if(savedCamera!=null&&MP.playing()&&!MP.picking){
+            var coords=CFG.map.getMpC();
+            CFG.map.getMpS().setCurrScale(savedCamera.zoom());
+            coords.setStartingPosX(savedCamera.x());
+            coords.setStartingPosY(savedCamera.y());
+            coords.setNewPosX(savedCamera.x());
+            coords.setNewPosY(savedCamera.y());
+        }
+        var draft=peaceDraft;
+        peaceDraft=null;
+        if(draft!=null&&draft.data()!=null&&MP.playing()){
+            CFG.peaceTreatyData=draft.data();
+            if(!editingPeace())CFG.menus.setMenuIDWithoutAnim(draft.view());
+            CFG.map.getTouchMgr().ueExA();
+            CFG.setRenderO(true);
+        }else restore(state);
+    }
     public static void beforeHostTurn(){if(MP.isHost()){hostTurn=capture();KreyliRealtimeMarch.beforeTurn();}}
     public static void afterHostTurn(){if(MP.isHost()){KreyliRealtimeMarch.afterTurn();State state=hostTurn;hostTurn=null;restore(state);}}
 
@@ -140,7 +201,8 @@ public final class KreyliRealtimeUi {
         int amount=moving?manager.getInGame_ProvinceMoveUnits_Slider().getCurr():0;
         return new State(manager.getViewID(),CFG.core.getActiveProvID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),CFG.chooseProvinceMode,target,amount,visible,
                 Menu_InGame_Messages.START_ANIMATION,Menu_InGame_Messages.IN_ANIMATION,
-                Menu_InGame_Messages.ANIMATION_TIMER,CFG.chooseProvinceMode?captureHighlight(CFG.core):null);
+                Menu_InGame_Messages.ANIMATION_TIMER,CFG.chooseProvinceMode?captureHighlight(CFG.core):null,
+                new ProvincePulse(CFG.core.getProvinceAnimation_Active_Data()),CFG.HIDE_UI);
     }
 
     private static void restore(State state){
@@ -151,6 +213,8 @@ public final class KreyliRealtimeUi {
             CFG.core.setActiveProvID(province);
             CFG.gameAction.updateInGame_ProvinceInfo();
         }
+        state.provincePulse().restore(CFG.core.getProvinceAnimation_Active_Data());
+        CFG.HIDE_UI=state.hidden();
         if(state.countryVisible()&&!manager.getVisible_InGame_CivInfo())manager.setVisible_InGame_CivInfo(true);
         if(state.country()>0&&MP.validCiv(state.country())&&CFG.getActiveCivInfoId()!=state.country()
                 &&state.countryVisible()){
@@ -188,5 +252,5 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime())Menu_InGame_Messages.START_ANIMATION=requested;
     }
 
-    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;KreyliRealtimeMarch.reset();KreyliRealtimeMessages.reset();}
+    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;peaceDraft=null;camera=null;KreyliRealtimeMarch.reset();KreyliRealtimeMessages.reset();}
 }

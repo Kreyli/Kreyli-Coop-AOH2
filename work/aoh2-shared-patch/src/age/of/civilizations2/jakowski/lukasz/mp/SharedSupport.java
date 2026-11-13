@@ -32,11 +32,12 @@ public final class SharedSupport {
     private static void set(String name,Object value) {try{var f=MP.class.getDeclaredField(name);f.setAccessible(true);f.set(null,value);}catch(Exception e){throw new IllegalStateException(e);}}
     private static Object call(String name,Class<?>[] types,Object...args){try{var m=MP.class.getDeclaredMethod(name,types);m.setAccessible(true);return m.invoke(null,args);}catch(InvocationTargetException e){throw new IllegalStateException(e.getCause());}catch(Exception e){throw new IllegalStateException(e);}}
     public static boolean command(String op,int civ,Object[] args){
+        KreyliNuclearSync.beforeCommand(op);
         if(!MP.applying&&KreyliRealtimePause.paused())return true;
         if(!MP.applying&&KreyliQuickGame.active()
                 &&(KreyliQuickGame.blocksOrders(civ)||"dw".equals(op)&&args.length>1&&args[1] instanceof Integer target&&!KreyliQuickGame.allowWar(civ,target)))
             return true;
-        if(MP.isHost()){if(!MP.applying&&MP.playing()&&MP.inputOrders())KreyliTurns.order();militaryOnly=op.equals("ma")||op.equals("mtp");KreyliOrderSync.mark();}
+        if(MP.isHost()){militaryOnly=op.equals("ma")||op.equals("mtp");KreyliOrderSync.mark();}
         // New local orders withdraw the vote before the ordered network command.
         // In particular, accepting diplomacy must not silently discard its mutation.
         if(!MP.applying&&MP.playing()&&MP.inputOrders()&&
@@ -45,13 +46,13 @@ public final class SharedSupport {
             if(pending || MP.ready) return true;
             int before=(Integer)get("sentCmds");
             boolean result=(Boolean)call("coopOriginalCmd",new Class[]{String.class,int.class,Object[].class},op,civ,args);
-            if((Integer)get("sentCmds")>before){KreyliTurns.order();pendingRequest=(Integer)get("sentCmds");pending=true;return true;}
+            if((Integer)get("sentCmds")>before){pendingRequest=(Integer)get("sentCmds");pending=true;return true;}
             return result;
         }
         if(KreyliCountrySeats.anyShared() && MP.isHost() && !MP.applying && MP.started && MP.inputOrders()&&!militaryOnly) MP.requestSync();
         return (Boolean)call("coopOriginalCmd",new Class[]{String.class,int.class,Object[].class},op,civ,args);
     }
-    public static void afterCommand(){KreyliOrderSync.mark();KreyliTurns.order();if(KreyliCountrySeats.anyShared() && MP.isHost()&&!militaryOnly)MP.requestSync();}
+    public static void afterCommand(){KreyliOrderSync.mark();if(KreyliCountrySeats.anyShared() && MP.isHost()&&!militaryOnly)MP.requestSync();}
     public static boolean leave(MP_Net.Conn connection){
         if(!MP.validCiv(connection.civ))return false;
         boolean remaining=connection.civ==CFG.core.getPlayer(0).getCivId();

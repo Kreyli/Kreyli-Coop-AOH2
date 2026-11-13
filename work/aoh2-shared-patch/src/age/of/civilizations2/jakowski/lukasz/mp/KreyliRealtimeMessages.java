@@ -5,10 +5,12 @@ import age.of.civilizations2.jakowski.lukasz.Menu;
 import age.of.civilizations2.jakowski.lukasz.MenuManager;
 import age.of.civilizations2.jakowski.lukasz.Messages.Message;
 import age.of.civilizations2.jakowski.lukasz.Messages.MessageBox_GameData;
+import age.of.civilizations2.jakowski.lukasz.Messages.MessageType;
 import java.util.List;
 
 public final class KreyliRealtimeMessages {
-    private record Row(int sender,int icon,int background,int first,int second,Class<?> type,Object kind,String tag) {}
+    private record Row(int sender,int icon,int background,int first,int second,Class<?> type,MessageType kind,String tag,boolean response) {}
+    private static final int MAX_VISIBLE=8;
     private static Menu menu;
     private static List<Row> rows;
     private static boolean slowAging;
@@ -21,7 +23,7 @@ public final class KreyliRealtimeMessages {
         int civ=CFG.core.getPlayer(CFG.PLAYER_TURN_ID).getCivId();
         if(!MP.validCiv(civ)||civ<=0)return null;
         return CFG.core.getCiv(civ).getCivDiploGD().messageBox.lMessages.stream()
-            .map(m->new Row(m.fromCivID,m.getImageID(),m.getBGImageID(),m.iValue,m.iValue2,m.getClass(),m.messageType,m.TAG)).toList();
+            .map(m->new Row(m.fromCivID,m.getImageID(),m.getBGImageID(),m.iValue,m.iValue2,m.getClass(),m.messageType,m.TAG,m.requestsResponse)).toList();
     }
 
     public static boolean keepMenu(MenuManager manager){
@@ -31,6 +33,35 @@ public final class KreyliRealtimeMessages {
     public static void rebuilt(MenuManager manager){
         rows=manager.getInGameView()?current():null;
         menu=rows==null?null:manager.getInGame_Messages();
+        if(menu!=null)limitButtons();
+    }
+
+    private static void limitButtons(){
+        int responses=(int)rows.stream().filter(Row::response).count();
+        int passiveSlots=Math.max(0,MAX_VISIBLE-responses);
+        int displayed=0,x=0;
+        for(int i=0;i<menu.getMenuElemsSize()&&i<rows.size();i++){
+            var button=menu.getMenuElem(i);
+            Row row=rows.get(rows.size()-1-i);
+            boolean visible=displayed<MAX_VISIBLE&&(row.response()||passiveSlots>0&&!passiveRelationship(row.kind()))
+                    &&x+button.getWidthE()<=menu.getWidthM();
+            button.setVisibleE(visible);
+            button.setClickable(visible);
+            if(visible){
+                button.setPosX(x);
+                x+=button.getWidthE()+CFG.PADD;
+                displayed++;
+                if(!row.response())passiveSlots--;
+            }
+        }
+        menu.updateMenuElements_IsInView();
+        menu.updateMenuElements_IsInView_X();
+    }
+
+    private static boolean passiveRelationship(MessageType kind){
+        return kind==MessageType.RELATIONS_INCREASE
+                ||kind==MessageType.RELATIONS_INCREASE_ENDED
+                ||kind==MessageType.RELATIONS_FRIENDLY;
     }
 
     public static void ageBox(MessageBox_GameData box,int civ){

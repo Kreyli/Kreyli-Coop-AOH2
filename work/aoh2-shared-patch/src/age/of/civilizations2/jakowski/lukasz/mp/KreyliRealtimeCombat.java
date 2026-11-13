@@ -28,6 +28,14 @@ final class KreyliRealtimeCombat {
         return Math.max(1,troops-(int)(troops*(double)loser/winner*0.65));
     }
 
+    static boolean hasDefenders(int attacker,Province target){
+        for(int i=0;i<target.getCivsSize();i++){
+            var army=target.getArmyObject(i);
+            if(army.getArmy()>0&&army.getCivID()!=attacker&&CFG.core.getCivsAtWar(attacker,army.getCivID()))return true;
+        }
+        return false;
+    }
+
     static boolean resolve(int civ,int index){
         if(!MP.inputOrders())return false;
         var country=CFG.core.getCiv(civ);

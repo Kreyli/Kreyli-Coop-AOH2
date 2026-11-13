@@ -118,6 +118,15 @@ public final class SharedAgent implements Opcodes {
                             super.visitInsn(RETURN);
                             super.visitLabel(nativeVisibility);
                         }
+                        if(name.equals(gameAction)&&n.equals("moveArmyAction")&&d.equals("(IIIIZZ)Z")){
+                            for(int slot:new int[]{1,2,4})super.visitVarInsn(ILOAD,slot);
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeMarch","blocksMove","(III)Z",false);
+                            Label allowed=new Label();
+                            super.visitJumpInsn(IFEQ,allowed);
+                            super.visitInsn(ICONST_0);
+                            super.visitInsn(IRETURN);
+                            super.visitLabel(allowed);
+                        }
                         if(name.equals(gameAction)&&n.equals("mpEndInputOrders"))
                             super.visitMethodInsn(INVOKESTATIC,realtime,"beforeHostTurn","()V",false);
                         if(name.equals(touch)&&d.equals("(IIII)V")&&(n.equals("actionDown")||n.equals("actionUp"))){

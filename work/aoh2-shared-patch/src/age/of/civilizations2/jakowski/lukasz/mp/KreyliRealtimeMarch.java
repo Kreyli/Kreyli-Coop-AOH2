@@ -22,6 +22,8 @@ public final class KreyliRealtimeMarch {
     private static final long DURATION_NANOS=DURATION_MILLIS*1_000_000L;
     private static final long CLASH_NANOS=2_000_000_000L;
     private static final long AI_ATTACK_SPACING_NANOS=3_000_000_000L;
+    private record StationaryBattle(int attacker,int from,long deadline) {}
+    private static final HashMap<Integer,StationaryBattle> stationaryBattles=new HashMap<>();
     private static final HashMap<Integer,Long> nextAiAttack=new HashMap<>();
     private static final IdentityHashMap<MoveUnits,Long> starts=new IdentityHashMap<>();
     private static IdentityHashMap<MoveUnits,RemoteProgress> remoteProgress=new IdentityHashMap<>();
@@ -169,6 +171,51 @@ public final class KreyliRealtimeMarch {
         }
     }
 
+    public static boolean blocksMove(int from,int to,int civ){
+        if(!enabled()||!MP.validCiv(civ))return false;
+        var battle=stationaryBattles.get(from);
+        if(battle!=null&&CFG.core.getCivsAtWar(battle.attacker(),civ))return true;
+        battle=stationaryBattles.get(to);
+        if(battle!=null&&battle.attacker()==civ&&battle.from()==from)return true;
+        var country=CFG.core.getCiv(civ);
+        long now=KreyliRealtimePause.clock();
+        for(int i=0;i<country.moveUnitsSize();i++){
+            var move=country.getMoveUnits(i);
+            if(move.getFromProviID()!=from||move.getToProvID()!=to)continue;
+            int defender=CFG.core.getProv(to).getCivId();
+            if(defender<=0||defender==civ||!CFG.core.getCivsAtWar(civ,defender))continue;
+            var enemy=CFG.core.getCiv(defender);
+            int opposite=oppositeMarch(enemy,move);
+            if(opposite<0)continue;
+            Long start=starts.get(move),otherStart=starts.get(enemy.getMoveUnits(opposite));
+            if(start!=null&&otherStart!=null&&now>=contact(start,otherStart))return true;
+        }
+        return false;
+    }
+
+    private static long contact(long start,long otherStart){
+        return Math.max(Math.max(start,otherStart),start+(otherStart-start)/2+DURATION_NANOS/2);
+    }
+
+    private static boolean waitForDefender(int civ,MoveUnits move,long now,long start){
+        int to=move.getToProvID();
+        var current=stationaryBattles.get(to);
+        if(current!=null){
+            if(current.attacker()!=civ||current.from()!=move.getFromProviID())return true;
+            return now<current.deadline();
+        }
+        if(!KreyliRealtimeCombat.hasDefenders(civ,CFG.core.getProv(to)))return false;
+        long deadline=start+DURATION_NANOS+CLASH_NANOS;
+        stationaryBattles.put(to,new StationaryBattle(civ,move.getFromProviID(),deadline));
+        return now<deadline;
+    }
+
+    private static void endStationaryBattle(int civ,MoveUnits move){
+        int to=move.getToProvID();
+        var battle=stationaryBattles.get(to);
+        if(battle!=null&&battle.attacker()==civ&&battle.from()==move.getFromProviID())stationaryBattles.remove(to);
+    }
+
     static void tick(){
         if(!enabled()||!MP.inputOrders()||!pending.isEmpty())return;
         long now=KreyliRealtimePause.clock();
@@ -195,10 +242,11 @@ public final class KreyliRealtimeMarch {
                 if(defender!=civ&&KreyliRealtimeCombat.hostile(civ,CFG.core.getProv(move.getToProvID()),move.getNumberOfUnits())){
                     var enemy=CFG.core.getCiv(defender);
                     int opposite=oppositeMarch(enemy,move);
-                    if(opposite>=0){
+                    if(opposite>=0&&!stationaryBattles.containsKey(move.getToProvID())
+                            &&!stationaryBattles.containsKey(move.getFromProviID())){
                         var incoming=enemy.getMoveUnits(opposite);
                         long otherStart=starts.computeIfAbsent(incoming,key->now);
-                        long contact=Math.max(Math.max(start,otherStart),start+(otherStart-start)/2+DURATION_NANOS/2);
+                        long contact=contact(start,otherStart);
                         if(now-contact<CLASH_NANOS){
                             live.add(move);
                             continue;
@@ -230,8 +278,13 @@ public final class KreyliRealtimeMarch {
                         live.add(move);
                         continue;
                     }
+                    if(waitForDefender(civ,move,now,start)){
+                        live.add(move);
+                        continue;
+                    }
                     int sent=move.getNumberOfUnits(),stationed=to.getArmyCivID1(civ);
                     if(KreyliRealtimeCombat.resolve(civ,i)){
+                        endStationaryBattle(civ,move);
                         if(ai)nextAiAttack.put(civ,now+AI_ATTACK_SPACING_NANOS);
                         int arrived=Math.min(sent,to.getArmyCivID1(civ)-stationed);
                         continueRoute(country,move.getToProvID(),sent,arrived);
@@ -240,6 +293,7 @@ public final class KreyliRealtimeMarch {
                     }else live.add(move);
                     continue;
                 }
+                endStationaryBattle(civ,move);
                 int destination=to.getArmyCivID1(civ);
                 int amount=move.getNumberOfUnits();
                 if(destination>Integer.MAX_VALUE-amount){
@@ -318,6 +372,7 @@ public final class KreyliRealtimeMarch {
     }
 
     private static void cancel(int civ,MoveUnits move){
+        endStationaryBattle(civ,move);
         var country=CFG.core.getCiv(civ);
         int route=followingRoute(country,move.getToProvID(),move.getNumberOfUnits());
         if(route>=0)country.removeRegroupArmy(route);
@@ -489,6 +544,13 @@ public final class KreyliRealtimeMarch {
                             }
                         }
                         animating|=drawArmy(batch,scale,local,viewer,civ,move,progress);
+                        if(progress>=1f&&defender>0&&defender!=civ
+                                &&(viewer==civ||viewer==defender||CFG.SPECTATOR_MODE)
+                                &&KreyliRealtimeCombat.hostile(civ,target,move.getNumberOfUnits())
+                                &&KreyliRealtimeCombat.hasDefenders(civ,target)){
+                            drawClash(batch,scale,move,1f,(progress-1f)*DURATION_NANOS/CLASH_NANOS);
+                            animating=true;
+                        }
                     }
                 }
             }
@@ -566,6 +628,7 @@ public final class KreyliRealtimeMarch {
 
     static void reset(){
         nextAiAttack.clear();
+        stationaryBattles.clear();
         remoteProgress.clear();
         starts.clear();
         pending.clear();

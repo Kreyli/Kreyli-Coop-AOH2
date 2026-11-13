@@ -152,8 +152,9 @@ public final class KreyliRealtimeAlerts {
         }
         hits.clear();
         int gap=Math.max(5,CFG.PADD), row=Math.max(26,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
-        int width=Math.min(CFG.GAMEWIDTH-gap*2,CFG.BUTTON_W*3);
-        int x=CFG.GAMEWIDTH-width-gap, y=KreyliRealtimePause.top()-row-gap;
+        int width=KreyliRealtimePause.overlayWidth();
+        if(width<CFG.BUTTON_W)return;
+        int x=KreyliRealtimePause.overlayRight()-width-gap, y=KreyliRealtimePause.top()-row-gap;
         float color=batch.getPackedColor();
         try{
             for(var it=visibleNotices.reversed().iterator();it.hasNext()&&y>=0;){

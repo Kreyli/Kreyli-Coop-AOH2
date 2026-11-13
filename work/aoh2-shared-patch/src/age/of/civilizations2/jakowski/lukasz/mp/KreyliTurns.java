@@ -68,6 +68,10 @@ public final class KreyliTurns {
     }
     private static String name(Object who){return who==HOST?MP.nick:who instanceof MP_Net.Conn c?c.nick:"";}
     public static String voteOutcome(){return System.nanoTime()<outcomeUntil?outcome:"";}
+    static String readinessName(){
+        return MP.isHost()?readyPlayer:remoteReadyTurn==GameCalendar.TURNID?remoteReadyPlayer:"";
+    }
+
     public static String readinessStatus(){
         if(!active())return "";
         boolean host=MP.isHost();
@@ -121,6 +125,7 @@ public final class KreyliTurns {
                 vote.yes(),vote.threshold(),name(vote.proposer),vote.canVote(c),vote.id!=0&&vote.remaining==0&&vote.proposer==c);
     }
     private static void finish(String result){
+        skipWars=null;
         vote.clear();publish();showOutcome(result);send("kreyli_skip_result",result);
     }
     private static void showOutcome(String result){outcome=result;outcomeUntil=System.nanoTime()+4_000_000_000L;}
@@ -157,10 +162,23 @@ public final class KreyliTurns {
         int camY=CFG.map!=null&&CFG.map.getMpC()!=null?CFG.map.getMpC().getPY():0;
         if(CFG.map!=null&&CFG.map.getMpC()!=null){CFG.map.getMpC().setNewPosX(camX);CFG.map.getMpC().setNewPosY(camY);}
     }
-    /** Call only for a genuine local or accepted remote command during INPUT_ORDERS. */
-    public static void order(){
-        if(MP.isHost()&&vote.remaining>0)finish(KreyliText.t("Пропуск прерван новым приказом","Skip interrupted by a new order"));
+    private static java.util.Set<Long> skipWars;
+
+    private static java.util.Set<Long> wars(){
+        var pairs=new java.util.HashSet<Long>();
+        for(int i=0;i<CFG.core.getWarsSize();i++){
+            var war=CFG.core.getWar(i);
+            for(int a=0;a<war.getAggressorsSize();a++){
+                int left=war.getAggressorID(a).getCivID();
+                for(int b=0;b<war.getDefendersSize();b++){
+                    int right=war.getDefenderID(b).getCivID();
+                    pairs.add(((long)Math.min(left,right)<<32)|Integer.toUnsignedLong(Math.max(left,right)));
+                }
+            }
+        }
+        return pairs;
     }
+
     public static void newTurn(){
         if(!MP.isHost())return;
         clearWait();
@@ -225,7 +243,7 @@ public final class KreyliTurns {
         }
         long now=KreyliRealtimePause.clock();
         if(automaticTurn==0)automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
-        if(now<automaticTurn||!SharedSupport.canEnd())return;
+        if(now<automaticTurn||KreyliRealtimeUi.editingPeace()||!SharedSupport.canEnd())return;
         if(CFG.menus.getInGame_ProvinceMoveUnits_Visible()&&now-automaticTurn<1_500_000_000L)return;
         automaticTurn=now+AUTO_TURN_MILLIS*1_000_000L;
         KreyliRealtimeUi.beforeAutomaticTurn();
@@ -271,7 +289,13 @@ public final class KreyliTurns {
             long now=System.nanoTime();
             if(!vote.sameRoster(voters()))finish(KreyliText.t("Состав игроков изменился","Player roster changed"));
             else if(vote.failed(now))finish(KreyliText.t("Большинство не набрано","Majority not reached"));
-            else if(vote.mayAdvance(turn)&&active()&&SharedSupport.synchronizedToAdvance()){vote.started();advance();}
+            else if(vote.remaining>0&&skipWars!=null&&!wars().equals(skipWars)){
+                finish(KreyliText.t("Пропуск прерван объявлением войны или миром","Skip interrupted by war or peace"));
+            }else if(vote.mayAdvance(turn)&&active()&&SharedSupport.synchronizedToAdvance()){
+                if(skipWars==null)skipWars=wars();
+                vote.started();
+                advance();
+            }
             else if(vote.remaining==0){
                 int seconds=(int)Math.max(0,(vote.deadline-now+999_999_999L)/1_000_000_000L);
                 if(seconds!=lastVoteSeconds){lastVoteSeconds=seconds;publish();}
@@ -301,5 +325,5 @@ public final class KreyliTurns {
     }
     /** Before clickEndTurn: remove only the multiplayer no-orders prompt. */
     public static void beforeReadyClick(){if(MP.playing()&&MP.inputOrders())CFG.core.getPlayer(CFG.PLAYER_TURN_ID).setNoOrders(false);}
-    public static void reset(){automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimePause.reset();KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();KreyliRealtimeConstruction.reset();KreyliRealtimeAi.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
+    public static void reset(){skipWars=null;automaticTurn=quickTurnDeadline=0;quickTurn=-1;KreyliRealtimePause.reset();KreyliRealtimeUi.reset();KreyliRealtimeRecruitment.reset();KreyliRealtimeEconomy.reset();KreyliRealtimeConstruction.reset();KreyliRealtimeAi.reset();clearWait();remoteReadyTurn=remoteSeconds=-1;remoteReadyPlayer="";vote.clear();remoteId=readySequence=outcomeUntil=0;readySequences.clear();readyRequests.clear();lastReady.clear();remoteCount=remoteRemaining=0;remoteCanVote=remoteCanCancel=lastHost=false;observedTurn=-1;}
 }

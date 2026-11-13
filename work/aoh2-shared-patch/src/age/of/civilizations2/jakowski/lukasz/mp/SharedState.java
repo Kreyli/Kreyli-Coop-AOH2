@@ -72,7 +72,20 @@ public final class SharedState {
             }
             if(!movesMatch){
                 v.clearMoveUnits();
-                for(var dm:desiredMoves)v.newMove(dm[0],dm[1],dm[2],true);
+                for(var dm:desiredMoves){
+                    v.newMove(dm[0],dm[1],dm[2],true);
+                    var line=v.getMoveUnits(v.moveUnitsSize()-1).getMoveUnits_Line();
+                    if(line==null)continue;
+                    for(var previous:existingMoves){
+                        if(previous.getFromProviID()!=dm[0]||previous.getToProvID()!=dm[1])continue;
+                        var oldLine=previous.getMoveUnits_Line();
+                        if(oldLine!=null){
+                            line.fMovingPercentage=oldLine.fMovingPercentage;
+                            line.lMovingTime=oldLine.lMovingTime;
+                        }
+                        break;
+                    }
+                }
             }
             v.clearRecruitArmy();
             for(var r:newRecruit.getOrDefault(c,List.of())){

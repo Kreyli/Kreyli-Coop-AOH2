@@ -136,18 +136,39 @@ public final class KreyliRealtimePause {
                 &&!CFG.menus.getInGame_Report_Visible()&&!CFG.menus.getVisibleInGame_Event();
     }
 
+    static int rowHeight(){
+        int gap=Math.max(5,CFG.PADD);
+        return Math.max(26,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
+    }
+
+    static int overlayRight(){
+        var manager=CFG.menus;
+        var chat=manager.getInGameMenu(manager.INGAME_MP_CHAT);
+        var toggle=manager.getInGameMenu(manager.INGAME_MP_CHAT_TOGGLE);
+        int edge=CFG.GAMEWIDTH-MP_UI.chatWidth();
+        if(chat.getVisibleM())edge=Math.min(edge,chat.getMenuPosX());
+        if(toggle.getVisibleM())edge=Math.min(edge,toggle.getMenuPosX());
+        return edge;
+    }
+
+    static int overlayWidth(){
+        int gap=Math.max(5,CFG.PADD);
+        return Math.max(0,Math.min(CFG.BUTTON_W*3,overlayRight()-gap*2));
+    }
+
     static int top(){
         int gap=Math.max(5,CFG.PADD);
-        return CFG.GAMEHEIGHT-gap-Math.max(26,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
+        return CFG.GAMEHEIGHT-Math.max(CFG.BUTTON_H*3,CFG.GAMEHEIGHT/5)-rowHeight()-gap;
     }
 
     public static void draw(SpriteBatch batch){
         if(!visible())return;
         int gap=Math.max(5,CFG.PADD);
-        width=Math.min(CFG.GAMEWIDTH-gap*2,CFG.BUTTON_W*3);
+        width=overlayWidth();
+        if(width<CFG.BUTTON_W)return;
         y=top();
-        height=CFG.GAMEHEIGHT-gap-y;
-        x=CFG.GAMEWIDTH-width-gap;
+        height=rowHeight();
+        x=overlayRight()-width-gap;
         float original=batch.getPackedColor();
         try{
             long id=currentVote();

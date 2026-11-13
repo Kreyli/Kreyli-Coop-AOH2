@@ -26,7 +26,7 @@ public final class KreyliRealtimeCombatProbe {
         var starts=KreyliRealtimeMarch.class.getDeclaredField("starts");
         starts.setAccessible(true);
         var watchdog=new Thread(()->{
-            try{Thread.sleep(120_000);}
+            try{Thread.sleep(300_000);}
             catch(InterruptedException ignored){return;}
             Runtime.getRuntime().halt(8);
         });
@@ -204,7 +204,7 @@ public final class KreyliRealtimeCombatProbe {
                         require(country.moveUnitsSize()==count+2,"Detached AI orders are restored");
                         var timings=(Map<MoveUnits,Long>)starts.get(null);
                         for(int order=count;order<country.moveUnitsSize();order++)
-                            timings.put(country.getMoveUnits(order),System.nanoTime()-6_000_000_000L);
+                            timings.put(country.getMoveUnits(order),KreyliRealtimePause.clock()-8_000_000_000L);
                         var nextCheck=KreyliRealtimeMarch.class.getDeclaredField("nextCheck");
                         nextCheck.setAccessible(true);
                         nextCheck.setLong(null,0);
@@ -285,7 +285,7 @@ public final class KreyliRealtimeCombatProbe {
             }
 
             @SuppressWarnings("unchecked")
-            private void checkAttack()throws IllegalAccessException{
+            private void checkAttack()throws Exception{
                 KreyliLobby.readMode(true);
                 if(!CFG.core.getCivsAtWar(attacker,defender))CFG.core.addWarData(attacker,defender);
                 require(CFG.core.getCivsAtWar(attacker,defender),"Countries are at war");
@@ -316,7 +316,25 @@ public final class KreyliRealtimeCombatProbe {
                 require(CFG.gameAction.moveArmyAction(from,to,amount,attacker,false,true),"Native attack order accepted");
                 require(origin.getArmyCivID1(attacker)==10,"Native order reserves troops once");
                 MoveUnits order=country.getMoveUnits(country.moveUnitsSize()-1);
-                ((Map<MoveUnits,Long>)starts.get(null)).put(order,System.nanoTime()-6_000_000_000L);
+                var timing=(Map<MoveUnits,Long>)starts.get(null);
+                long now=KreyliRealtimePause.clock();
+                timing.put(order,now-6_000_000_000L);
+                KreyliRealtimeMarch.tick();
+                require(target.getCivId()==defender&&country.moveUnitsSize()==1,
+                        "Occupied target stays contested until the battle finishes");
+                require(KreyliRealtimeMarch.blocksMove(to,from,defender)
+                        &&KreyliRealtimeMarch.blocksMove(from,to,attacker)
+                        &&!KreyliRealtimeMarch.blocksMove(from,to,defender),
+                        "A battle locks its participating orders only");
+                require(!CFG.gameAction.moveArmyAction(from,to,0,attacker,true,true)
+                        &&country.moveUnitsSize()==1,"Native cancellation cannot withdraw an engaged army");
+                var next=KreyliRealtimeMarch.class.getDeclaredField("nextCheck");
+                next.setAccessible(true);
+                next.setLong(null,0);
+                timing.put(order,now-8_000_000_000L);
+                var battles=KreyliRealtimeMarch.class.getDeclaredField("stationaryBattles");
+                battles.setAccessible(true);
+                ((Map<?,?>)battles.get(null)).clear();
                 KreyliRealtimeMarch.tick();
                 require(GameCalendar.TURNID==turn&&MP.inputOrders(),"Battle does not advance or switch phase");
                 require(origin.getArmyCivID1(attacker)==10,"No second deduction at arrival");
