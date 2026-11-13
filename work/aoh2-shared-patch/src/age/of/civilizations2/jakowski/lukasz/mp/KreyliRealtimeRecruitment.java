@@ -4,6 +4,8 @@ import age.of.civilizations2.jakowski.lukasz.CFG;
 import age.of.civilizations2.jakowski.lukasz.Civilization;
 import age.of.civilizations2.jakowski.lukasz.GameCalendar;
 import age.of.civilizations2.jakowski.lukasz.RecruitArmy;
+import age.of.civilizations2.jakowski.lukasz.Core.Core;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 
@@ -14,6 +16,49 @@ public final class KreyliRealtimeRecruitment {
     private static long nextCheck;
 
     private KreyliRealtimeRecruitment(){}
+
+    /** Core's native moving-army renderer also owns recruitment badges. Restore
+     * them when the realtime march renderer replaces that entire native pass. */
+    public static void drawPending(SpriteBatch batch,float scale,int viewer){
+        if(viewer<=0||viewer>=CFG.core.getCivsSize())return;
+        boolean preview=CFG.menus.getInGame_ProvinceRecruit().getVisibleM();
+        boolean instant=CFG.menus.getInGame_ProvinceRecruit_Instantly().getVisibleM();
+        int alliance=CFG.core.getCiv(viewer).getAlliance();
+        for(int civ=1;civ<CFG.core.getCivsSize();civ++){
+            if(civ!=viewer&&(alliance<=0||CFG.core.getCiv(civ).getAlliance()!=alliance))continue;
+            var country=CFG.core.getCiv(civ);
+            for(int i=0;i<country.getRecruitArmySize();i++){
+                var order=country.getRecruitArmy(i);
+                if(civ==viewer&&(preview||instant)&&Core.ISIP(order.getProvinceID()))continue;
+                drawBadge(batch,scale,civ,order.getProvinceID(),order.getArmy(),order.getArmyWidth(),false);
+            }
+        }
+        if(preview){
+            for(int i=Core.AMRCT.size()-1;i>=0;i--){
+                var order=Core.AMRCT.get(i);
+                drawBadge(batch,scale,viewer,order.OBC,order.SPR,width(order.SPR),true);
+            }
+        }else if(instant){
+            int amount=CFG.menus.getInGame_ProvinceRecruit_Instantly().getMenuElem(2).getCurr();
+            drawBadge(batch,scale,viewer,CFG.core.getActiveProvID(),amount,width(amount),false);
+        }
+    }
+
+    private static int width(int amount){
+        CFG.glyphLay.setText(CFG.fontArmy,Integer.toString(amount));
+        return (int)CFG.glyphLay.width;
+    }
+
+    private static void drawBadge(SpriteBatch batch,float scale,int civ,int province,int amount,int width,boolean preview){
+        if(province<0||province>=CFG.core.getProvinSize())return;
+        var location=CFG.core.getProv(province);
+        if(!location.getDrawProv())return;
+        int x=(int)((location.getCeX()+location.getShPX()+location.getTranslateProvPosX())*scale);
+        int y=CFG.core.getDrawProvinceArmy_EndPosY(province,scale)
+                +(CFG.ARMY_HEIGHT+CFG.ARMY_BG_EXTRA_HEIGHT*2)/2+CFG.ARMY_BG_EXTRA_HEIGHT;
+        if(preview)CFG.core.drawProvinceArmyWithFlag_Recruit2(batch,x,y,civ,amount,width);
+        else CFG.core.drawProvinceArmyWithFlag_Recruit(batch,x,y,civ,amount,width);
+    }
 
     private static boolean enabled(){
         return MP.isHost()&&MP.started&&KreyliLobby.realTime()&&!CFG.RECRUIT_AND_COUNTERATTACK;

@@ -9,7 +9,8 @@ import java.nio.ByteBuffer;
 /** Host-owned treasury and loan settlement on a clock independent of army orders. */
 public final class KreyliRealtimeEconomy {
     private static final String MESSAGE = "kreyli_economy";
-    private static final long INTERVAL = 5_000_000_000L;
+    private static final long INTERVAL = 30_000_000_000L;
+    private static final long FIRST_PAYOUT = 2_500_000_000L;
     private static final int MAX_BYTES = 1_048_576;
     private static final Field SENT_COMMANDS = sentCommandsField();
     private static long deadline;
@@ -31,7 +32,7 @@ public final class KreyliRealtimeEconomy {
     public static void tick() {
         if (!hostEnabled()) return;
         long now = KreyliRealtimePause.clock();
-        if (deadline == 0) deadline = now + INTERVAL / 2;
+        if (deadline == 0) deadline = now + FIRST_PAYOUT;
         if (now < deadline || !MP.inputOrders()) return;
         deadline = now + INTERVAL;
 

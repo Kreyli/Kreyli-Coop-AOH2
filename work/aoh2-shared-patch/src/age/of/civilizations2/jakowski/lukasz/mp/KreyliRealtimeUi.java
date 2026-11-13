@@ -11,7 +11,7 @@ import java.util.List;
 /** Preserve the local inspection UI while the authoritative campaign advances. */
 public final class KreyliRealtimeUi {
     private record Panel(int index, Class<?> type) {}
-    private record State(int view,int province,int country,boolean countryVisible,boolean choosingProvince,List<Panel> panels,boolean startAnimation,
+    private record State(int view,int province,int country,boolean countryVisible,boolean choosingProvince,int moveTarget,int moveAmount,List<Panel> panels,boolean startAnimation,
                          boolean inAnimation,long animationTimer) {}
     private static State snapshot, hostTurn, clientTurn, automatic;
     private static int automaticStartTurn;
@@ -39,6 +39,22 @@ public final class KreyliRealtimeUi {
         return !visible&&KreyliLobby.realTime()&&MP.playing()&&!MP.inputOrders();
     }
 
+    public static boolean backgroundUpdate(){
+        return KreyliLobby.realTime()&&(automatic!=null||hostTurn!=null||snapshot!=null||clientTurn!=null);
+    }
+
+    public static void resetTurnSelection(age.of.civilizations2.jakowski.lukasz.Core.Core core){
+        if(!backgroundUpdate())core.resetChooseProvinceData();
+    }
+
+    public static void showTurnView(MenuManager manager,age.of.civilizations2.jakowski.lukasz.View view){
+        if(!backgroundUpdate())manager.setMenuIDWithoutAnim(view);
+    }
+
+    public static void updateTurnActions(MenuManager manager,int civ){
+        if(!backgroundUpdate())manager.updateInGame_Top_All_NextTurnActions(civ);
+    }
+
     private KreyliRealtimeUi() {}
 
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}
@@ -49,7 +65,8 @@ public final class KreyliRealtimeUi {
     }
     public static void applySnapshotProvince(age.of.civilizations2.jakowski.lukasz.Core.Core core,int nativeProvince){
         int province=snapshot==null?nativeProvince:snapshot.province();
-        core.setActiveProvID(province>=-1&&province<core.getProvinSize()?province:nativeProvince);
+        if(province< -1||province>=core.getProvinSize())province=nativeProvince;
+        if(snapshot==null||core.getActiveProvID()!=province)core.setActiveProvID(province);
     }
     public static void showAutomaticSave(MenuManager manager){
         if(automatic==null&&hostTurn==null&&snapshot==null)manager.rebuildMenu_InGame_SavedGame();
@@ -70,7 +87,8 @@ public final class KreyliRealtimeUi {
                 manager.INGAME_TRIBUTE,manager.INGAME_TECHNOLOGY,manager.INGAME_WARS,
                 manager.INGAME_WAR_DETAILS,manager.INGAME_WORLD_POPULATION,manager.INGAME_STATS,
                 manager.INGAME_HISTORY,manager.INGAME_MAP_MODES,manager.INGAME_MP_PLAYERS,
-                manager.INGAME_OPTIONS};
+                manager.INGAME_OPTIONS,manager.INGAME_PROVINCE_MORE,manager.INGAME_MESSAGE,
+                manager.INGAME_ALLIANCE,manager.INGAME_MILITARY_ALLIANCES,manager.INGAME_HRE};
         List<Menu> menus=manager.getActiveMenu();
         var visible=new ArrayList<Panel>();
         for(int index:indices){
@@ -79,7 +97,10 @@ public final class KreyliRealtimeUi {
                 if(menu!=null&&menu.getVisibleM())visible.add(new Panel(index,menu.getClass()));
             }
         }
-        return new State(manager.getViewID(),CFG.core.getActiveProvID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),CFG.chooseProvinceMode,visible,
+        boolean moving=manager.getInGame_ProvinceMoveUnits_Visible();
+        int target=moving?CFG.chosenProvinceID:-1;
+        int amount=moving?manager.getInGame_ProvinceMoveUnits_Slider().getCurr():0;
+        return new State(manager.getViewID(),CFG.core.getActiveProvID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),CFG.chooseProvinceMode,target,amount,visible,
                 Menu_InGame_Messages.START_ANIMATION,Menu_InGame_Messages.IN_ANIMATION,
                 Menu_InGame_Messages.ANIMATION_TIMER);
     }
@@ -104,8 +125,21 @@ public final class KreyliRealtimeUi {
             Menu menu=menus.get(panel.index());
             if(menu!=null&&menu.getClass()==panel.type()&&!menu.getVisibleM())menu.setVisibleM(true);
         }
-        if(state.choosingProvince()&&!CFG.chooseProvinceMode&&province>=0&&CFG.gameAction.controlsArmyInProvince(province))
-            CFG.core.autoBuildChooseProvinceMode(true);
+        if(state.choosingProvince()&&province>=0&&CFG.gameAction.controlsArmyInProvince(province)){
+            int target=state.moveTarget();
+            boolean restoreMove=target>=0&&target<CFG.core.getProvinSize()
+                    &&(!manager.getInGame_ProvinceMoveUnits_Visible()||CFG.chosenProvinceID!=target);
+            if(!CFG.chooseProvinceMode||restoreMove){
+                CFG.core.chooseProvinceMode();
+                if(restoreMove){
+                    CFG.chosenProvinceID=-1;
+                    CFG.core.setChosenProvinceID(target);
+                    var slider=manager.getInGame_ProvinceMoveUnits_Slider();
+                    slider.setCurr(Math.min(state.moveAmount(),slider.getCurr()));
+                    manager.updateInGame_ActionInfo_Move();
+                }
+            }
+        }
         Menu_InGame_Messages.START_ANIMATION=state.startAnimation();
         Menu_InGame_Messages.IN_ANIMATION=state.inAnimation();
         Menu_InGame_Messages.ANIMATION_TIMER=state.animationTimer();
@@ -115,5 +149,5 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime())Menu_InGame_Messages.START_ANIMATION=requested;
     }
 
-    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;KreyliRealtimeMarch.reset();}
+    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;KreyliRealtimeMarch.reset();KreyliRealtimeMessages.reset();}
 }

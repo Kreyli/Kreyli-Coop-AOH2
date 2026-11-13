@@ -23,12 +23,13 @@ public final class SharedAgent implements Opcodes {
         String buttonText=root+"Button/ButtonM", startup=root+"Menus/Menu_InitGame";
         String gameAction=root+"GameAction", realtime=P+"KreyliRealtimeUi";
         String march=root+"MoveUnitsB/Line/MoveUnits_Line";
+        String manager=root+"MenuManager", messageBox=root+"Messages/MessageBox_GameData", messages=P+"KreyliRealtimeMessages";
         if(name.equals(root+"Core/Core"))return realtimeArmyView(data);
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
         boolean expertise=name.startsWith(root+"Menus/ZRest/Exp/Menu_InGame_MilitaryExp$");
         if(!expertise&&!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,touchManager,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
-                root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn",root+"AI/AI_Playstyle/AIPlaystyle").contains(name))return data;
+                messageBox,root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn",root+"AI/AI_Playstyle/AIPlaystyle").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
         reader.accept(new ClassVisitor(ASM8,writer){
@@ -101,6 +102,14 @@ public final class SharedAgent implements Opcodes {
                             super.visitInsn(RETURN);
                             super.visitLabel(plan);
                         }
+                        if(name.equals(manager)&&n.equals("rebuildInGame_Messages")&&d.equals("()V")){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitMethodInsn(INVOKESTATIC,messages,"keepMenu","(L"+manager+";)Z",false);
+                            Label rebuild=new Label();
+                            super.visitJumpInsn(IFEQ,rebuild);
+                            super.visitInsn(RETURN);
+                            super.visitLabel(rebuild);
+                        }
                         if(name.equals(root+"MenuManager")&&n.equals("setVisible_InGame_ProvinceAction")&&d.equals("(Z)V")){
                             super.visitVarInsn(ILOAD,1);
                             super.visitMethodInsn(INVOKESTATIC,realtime,"holdProvinceActions","(Z)Z",false);
@@ -153,6 +162,31 @@ public final class SharedAgent implements Opcodes {
                         if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(messageBox)&&method.equals("updateNextTurn")){
+                            super.visitMethodInsn(INVOKESTATIC,messages,"ageBox","(L"+messageBox+";I)V",false);
+                            return;
+                        }
+                        if(name.equals(messageBox)&&n.equals("updateNextTurn")&&owner.equals(root+"Messages/Message")
+                                &&method.equals("updateNextTurn")&&descriptor.equals("()Z")){
+                            super.visitMethodInsn(INVOKESTATIC,messages,"ageMessage","(L"+root+"Messages/Message;)Z",false);
+                            return;
+                        }
+                        if(name.equals(gameAction)&&owner.equals(root+"Core/Core")&&n.equals("resetTurnData")
+                                &&method.equals("resetChooseProvinceData")){
+                            super.visitMethodInsn(INVOKESTATIC,realtime,"resetTurnSelection","(L"+root+"Core/Core;)V",false);
+                            return;
+                        }
+                        if(name.equals(gameAction)&&owner.equals(root+"MenuManager")){
+                            if(n.equals("loadActivePlayerData")&&method.equals("setMenuIDWithoutAnim")){
+                                super.visitMethodInsn(INVOKESTATIC,realtime,"showTurnView","(L"+root+"MenuManager;L"+root+"View;)V",false);
+                                return;
+                            }
+                            if((n.equals("endOfInputOrders")||n.equals("turnMoves_UpdatePlayersFogOfWar"))
+                                    &&method.equals("updateInGame_Top_All_NextTurnActions")){
+                                super.visitMethodInsn(INVOKESTATIC,realtime,"updateTurnActions","(L"+root+"MenuManager;I)V",false);
+                                return;
+                            }
+                        }
                         if(name.equals(root+"NewTurn")&&n.equals("updateBuildingsConstruction")&&owner.equals(root+"Civilization")&&method.equals("runConstructions")){
                             super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeConstruction","resolveNative","(L"+root+"Civilization;)V",false);
                             return;
@@ -243,6 +277,10 @@ public final class SharedAgent implements Opcodes {
                         super.visitLdcInsn(v);
                     }
                     public void visitInsn(int opcode){
+                        if(name.equals(manager)&&n.equals("rebuildInGame_Messages")&&d.equals("()V")&&opcode==RETURN){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitMethodInsn(INVOKESTATIC,messages,"rebuilt","(L"+manager+";)V",false);
+                        }
                         if(name.equals(gameAction)&&n.equals("startNewTurn_End")&&opcode==RETURN)
                             super.visitMethodInsn(INVOKESTATIC,realtime,"afterHostTurn","()V",false);
                         if(name.equals(browserBar)&&n.equals("<init>")&&opcode==RETURN){

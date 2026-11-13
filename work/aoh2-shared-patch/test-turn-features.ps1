@@ -8,7 +8,7 @@ foreach($name in @('KreyliTurns.class','KreyliSkipVote.class','KreyliMenus.class
  if(Test-Path -LiteralPath $old){Remove-Item -LiteralPath $old}
 }
 $gameJar=Join-Path $localRoot 'vendor-test-host/game.jar'
-& javac -encoding UTF-8 -cp "$PSScriptRoot/build;$gameJar" -d $testBuild (Join-Path $PSScriptRoot 'test/KreyliTurnFeaturesProbe.java') (Join-Path $PSScriptRoot 'test/KreyliUiProbe.java')
+& javac -encoding UTF-8 -cp "$PSScriptRoot/build;$gameJar" -d $testBuild (Join-Path $PSScriptRoot 'test/KreyliTurnFeaturesProbe.java') (Join-Path $PSScriptRoot 'test/KreyliUiProbe.java') (Join-Path $PSScriptRoot 'test/KreyliRecruitmentRenderProbe.java')
 if($LASTEXITCODE -ne 0){throw 'Feature probe compile failed'}
 $steam=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/build/kreyli-steam.jar')).Path
 $sdk=(Resolve-Path (Join-Path $PSScriptRoot '../kreyli-steam/vendor/steamworks4j-1.9.0.jar')).Path

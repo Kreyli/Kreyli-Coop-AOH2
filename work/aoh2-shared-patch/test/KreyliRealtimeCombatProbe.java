@@ -254,6 +254,23 @@ public final class KreyliRealtimeCombatProbe {
                 KreyliLobby.readMode(true);
                 CFG.core.addWarData(attacker,defender);
                 require(CFG.core.getCivsAtWar(attacker,defender),"Countries are at war");
+                var observer=CFG.core.getPlayer(0);
+                int fogMode=CFG.FOG_OF_WAR;
+                boolean originVisible=observer.getFog(to);
+                try{
+                    CFG.FOG_OF_WAR=1;
+                    observer.setFogOfWar(to,false);
+                    require(KreyliRealtimeMarch.canSeeMarch(observer,attacker,defender,attacker,to),
+                            "Attack on the observer is visible from departure");
+                    require(!KreyliRealtimeMarch.canSeeMarch(observer,attacker,defender,defender,to),
+                            "Unrelated enemy march stays behind the observer's fog");
+                    observer.setFogOfWar(to,true);
+                    require(KreyliRealtimeMarch.canSeeMarch(observer,attacker,defender,defender,to),
+                            "Unrelated enemy march is visible when its position is scouted");
+                }finally{
+                    observer.setFogOfWar(to,originVisible);
+                    CFG.FOG_OF_WAR=fogMode;
+                }
                 int turn=GameCalendar.TURNID;
                 var origin=CFG.core.getProv(from);
                 var target=CFG.core.getProv(to);

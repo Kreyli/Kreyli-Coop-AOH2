@@ -18,7 +18,7 @@ import static age.of.civilizations2.jakowski.lukasz.mp.KreyliText.t;
 /** Local notices for host-confirmed territory changes and an opt-in battle archive. */
 public final class KreyliRealtimeAlerts {
     private static final String MESSAGE="kreyli_territory";
-    private static final long NOTICE_NANOS=14_000_000_000L;
+    private static final long NOTICE_NANOS=24_000_000_000L, MAX_FRAME_NANOS=250_000_000L;
     private static final int MAX_PENDING=128, MAX_ARCHIVE=20, MAX_NOTICES=4, ARCHIVE_ROWS=6;
     private static final Color BORDER=new Color(0xc39648ff), PANEL=new Color(0x101b2af6);
     private static final Color HOVER=new Color(0x2b405aff);
@@ -35,7 +35,10 @@ public final class KreyliRealtimeAlerts {
     private static final ArrayDeque<Notice> notices=new ArrayDeque<>();
     private static final ArrayDeque<Report_Data> archive=new ArrayDeque<>();
     private static final ArrayList<Hit> hits=new ArrayList<>();
-    private static boolean archiveOpen;
+    private static List<Notice> visibleNotices=List.of();
+    private static List<Report_Data> visibleReports=List.of();
+    private static long noticeClock,lastTick;
+    private static boolean archiveOpen,wasInteracting;
     private static Object pressed;
 
     private KreyliRealtimeAlerts(){}
@@ -64,7 +67,13 @@ public final class KreyliRealtimeAlerts {
     public static void tick(){
         if(!active())return;
         long now=System.nanoTime();
-        while(!notices.isEmpty()&&notices.peekFirst().expires()<=now){
+        boolean visible=visible(),interacting=visible&&interacting();
+        if(lastTick!=0&&visible&&!interacting)
+            noticeClock+=Math.min(now-lastTick,MAX_FRAME_NANOS);
+        lastTick=now;
+        if(wasInteracting&&!interacting)CFG.setRenderO(true);
+        wasInteracting=interacting;
+        while(!notices.isEmpty()&&notices.peekFirst().expires()<=noticeClock){
             notices.removeFirst();
             CFG.setRenderO(true);
         }
@@ -83,7 +92,7 @@ public final class KreyliRealtimeAlerts {
         }
         for(Capture capture:changes){
             if(!provinceExists(capture.province())||CFG.core.getProv(capture.province()).getCivId()!=capture.owner())continue;
-            if(capture.concerns(local))notice(capture,now);
+            if(capture.concerns(local))notice(capture);
             for(var guest:MP.clients)
                 if(capture.concerns(guest.civ))guest.send(MESSAGE,capture.province(),capture.former(),capture.owner());
         }
@@ -95,15 +104,15 @@ public final class KreyliRealtimeAlerts {
                 &&message[2] instanceof Integer former&&message[3] instanceof Integer owner
                 &&provinceExists(province)&&former>0&&owner>0&&former!=owner&&MP.validCiv(former)&&MP.validCiv(owner)){
             var capture=new Capture(province,former,owner);
-            if(capture.concerns(localCountry()))notice(capture,System.nanoTime());
+            if(capture.concerns(localCountry()))notice(capture);
         }
         return true;
     }
 
-    private static void notice(Capture capture,long now){
+    private static void notice(Capture capture){
         if(!notices.isEmpty()&&notices.peekLast().capture().equals(capture))return;
         if(notices.size()==MAX_NOTICES)notices.removeFirst();
-        notices.addLast(new Notice(capture,now+NOTICE_NANOS));
+        notices.addLast(new Notice(capture,noticeClock+NOTICE_NANOS));
         CFG.setRenderO(true);
     }
 
@@ -127,15 +136,27 @@ public final class KreyliRealtimeAlerts {
                 &&!CFG.menus.getInGame_Report_Visible()&&!CFG.menus.getVisibleInGame_Event();
     }
 
+    private static boolean interacting(){
+        return pressed!=null||Gdx.input!=null&&hitAt(Gdx.input.getX(),Gdx.input.getY())!=null;
+    }
+
     static void draw(SpriteBatch batch){
+        if(!visible()){
+            hits.clear();
+            return;
+        }
+        // Preserve hit targets across captures, incoming reports and simulation refreshes.
+        if(hits.isEmpty()||!interacting()){
+            visibleNotices=List.copyOf(notices);
+            visibleReports=List.copyOf(archive);
+        }
         hits.clear();
-        if(!visible())return;
         int gap=Math.max(5,CFG.PADD), row=Math.max(26,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
         int width=Math.min(CFG.GAMEWIDTH-gap*2,CFG.BUTTON_W*3);
         int x=CFG.GAMEWIDTH-width-gap, y=KreyliRealtimePause.top()-row-gap;
         float color=batch.getPackedColor();
         try{
-            for(var it=notices.descendingIterator();it.hasNext()&&y>=0;){
+            for(var it=visibleNotices.reversed().iterator();it.hasNext()&&y>=0;){
                 Capture capture=it.next().capture();
                 boolean loss=capture.former()==localCountry();
                 String province=CFG.core.getProv(capture.province()).getProvName();
@@ -143,11 +164,11 @@ public final class KreyliRealtimeAlerts {
                         (loss?t("Территория потеряна: ","Territory lost: "):t("Территория захвачена: ","Territory captured: "))+province,
                         loss?Color.SALMON:Color.GOLD,capture);
             }
-            if(archive.isEmpty()||y<0)return;
+            if(visibleReports.isEmpty()||y<0)return;
             y=card(batch,x,y,width,row,gap,t("Журнал боёв","Battle log"),Color.WHITE,ARCHIVE_BUTTON);
             if(!archiveOpen)return;
             int remaining=ARCHIVE_ROWS;
-            for(var it=archive.descendingIterator();it.hasNext()&&remaining-->0&&y>=0;){
+            for(var it=visibleReports.reversed().iterator();it.hasNext()&&remaining-->0&&y>=0;){
                 var report=it.next();
                 if(!provinceExists(report.iBattleOfProvinceID))continue;
                 String name=CFG.core.getProv(report.iBattleOfProvinceID).getProvName();
@@ -180,7 +201,10 @@ public final class KreyliRealtimeAlerts {
         Object action=pressed;
         pressed=null;
         if(button!=Input.Buttons.LEFT||!visible()||action!=hitAt(x,y))return true;
-        if(action==ARCHIVE_BUTTON)archiveOpen=!archiveOpen;
+        if(action==ARCHIVE_BUTTON){
+            archiveOpen=!archiveOpen;
+            if(archiveOpen)visibleReports=List.copyOf(archive);
+        }
         else if(action instanceof Capture capture&&provinceExists(capture.province()))
             CFG.map.getMpC().centerToProvID(capture.province());
         else if(action instanceof Report_Data report&&provinceExists(report.iBattleOfProvinceID)){
@@ -202,7 +226,10 @@ public final class KreyliRealtimeAlerts {
         notices.clear();
         archive.clear();
         hits.clear();
-        archiveOpen=false;
+        visibleNotices=List.of();
+        visibleReports=List.of();
+        noticeClock=lastTick=0;
+        archiveOpen=wasInteracting=false;
         pressed=null;
     }
 }

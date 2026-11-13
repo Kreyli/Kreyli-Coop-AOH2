@@ -201,6 +201,7 @@ public final class KreyliTurnFeaturesProbe {
       recruitProvince=java.util.stream.IntStream.range(0,country.getNumOfProvs()).map(country::getProvID)
               .filter(p->p!=marchFrom&&p!=marchTo&&CFG.gameAction.gMARY(p)>=10).findFirst().orElseThrow();
       require(country.recruitArmy(recruitProvince,10),"Native recruitment order accepted");
+      KreyliRecruitmentRenderProbe.verify(hostCiv,recruitProvince);
       fortLevelBefore=CFG.core.getProv(recruitProvince).getLvlOfFort();
       country.civGD.lConstructions.add(new age.of.civilizations2.jakowski.lukasz.Civilizations.Construction.BuildingsConstruction__Fort(recruitProvince,1));
       selectedProvince=marchFrom;
@@ -220,6 +221,8 @@ public final class KreyliTurnFeaturesProbe {
               "March crosses a turn boundary before arriving");
       require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
       require(CFG.core.getActiveProvID()==selectedProvince,"Selected province survives automatic update");
+      require(CFG.chooseProvinceMode,"Movement targeting remains active after the automatic update");
+      require(KreyliRealtimeEconomy.snapshotSequence()==1,"Treasury does not pay again at the next five-second world update");
       require(CFG.menus.getInGameMenu().getVisibleM()&&!CFG.HIDE_UI,"The native HUD stays visible at close zoom");
       require(!CFG.menus.getInGameMenu(CFG.menus.INGAME_SAVED_GAME).getVisibleM(),"Automatic update does not show the saved-game notice");
       require(!age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.saveRequest&&age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.iTurnsSinceLastSave==0,"Native save completed without leaving the campaign view");

@@ -6,6 +6,7 @@ import age.of.civilizations2.jakowski.lukasz.Civilization;
 import age.of.civilizations2.jakowski.lukasz.GameAction;
 import age.of.civilizations2.jakowski.lukasz.GameCalendar;
 import age.of.civilizations2.jakowski.lukasz.MoveUnitsB.MoveUnits;
+import age.of.civilizations2.jakowski.lukasz.Player;
 import age.of.civilizations2.jakowski.lukasz.Province;
 import age.of.civilizations2.jakowski.lukasz.RegroupArmy.RegroupArmy;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -22,6 +23,25 @@ public final class KreyliRealtimeMarch {
     private static final long AI_ATTACK_SPACING_NANOS=3_000_000_000L;
     private static final HashMap<Integer,Long> nextAiAttack=new HashMap<>();
     private static final IdentityHashMap<MoveUnits,Long> starts=new IdentityHashMap<>();
+    private static IdentityHashMap<MoveUnits,RemoteProgress> remoteProgress=new IdentityHashMap<>();
+
+    private static final class RemoteProgress {
+        private long age, sampledAt;
+        private boolean wasPaused;
+
+        RemoteProgress(long now,long age,boolean paused){
+            sampledAt=now;
+            this.age=age;
+            wasPaused=paused;
+        }
+
+        long ageAt(long now,boolean paused){
+            if(!paused&&!wasPaused)age=Math.min(DURATION_NANOS,age+Math.max(0,now-sampledAt));
+            sampledAt=now;
+            wasPaused=paused;
+            return age;
+        }
+    }
     private record Pending(int civ,MoveUnits move,long start) {}
     private static final List<Pending> pending=new ArrayList<>();
     private static volatile List<Pending> heldForDraw=List.of();
@@ -358,6 +378,9 @@ public final class KreyliRealtimeMarch {
 
     static void applyClock(String clock){
         if(clock.length()>1_000_000)return;
+        long now=System.nanoTime();
+        boolean paused=KreyliRealtimePause.paused();
+        var updated=new IdentityHashMap<MoveUnits,RemoteProgress>();
         for(String row:clock.split("\n")){
             if(row.isEmpty())continue;
             String[] fields=row.split(",");
@@ -368,58 +391,88 @@ public final class KreyliRealtimeMarch {
                 int age=Integer.parseInt(fields[2]);
                 if(civ<=0||!MP.validCiv(civ)||index<0||age<0||age>DURATION_MILLIS)continue;
                 var country=CFG.core.getCiv(civ);
-                if(index<country.moveUnitsSize())drawProgress(country.getMoveUnits(index),age);
+                if(index<country.moveUnitsSize()){
+                    var move=country.getMoveUnits(index);
+                    var previous=remoteProgress.get(move);
+                    long displayAge=previous==null?age*1_000_000L:Math.max(age*1_000_000L,previous.ageAt(now,paused));
+                    updated.put(move,new RemoteProgress(now,displayAge,paused));
+                    drawProgress(move,age);
+                }
             }catch(NumberFormatException ignored){}
         }
+        remoteProgress=updated;
+        if(!updated.isEmpty())CFG.setRenderO(true);
     }
 
     public static boolean drawArmies(SpriteBatch batch,float scale){
         if(!KreyliLobby.realTime()||!MP.playing()||CFG.core.getPlayersSize()==0)return false;
-        var player=CFG.core.getPlayer(0);
-        int viewer=MP.isHost()?player.getCivId():MP.myCiv;
+        boolean host=MP.isHost(),paused=KreyliRealtimePause.paused();
+        int viewer=host?CFG.core.getPlayer(0).getCivId():MP.myCiv;
         if(viewer<=0&&!CFG.SPECTATOR_MODE)return false;
+        int slot=host?0:CFG.core.getPlayerIDbyCivID(viewer);
+        Player local=slot>=0&&slot<CFG.core.getPlayersSize()?CFG.core.getPlayer(slot):null;
+        long now=host?KreyliRealtimePause.clock():System.nanoTime();
         float previous=batch.getPackedColor();
+        boolean animating=false;
         try{
-            if(MP.isHost()&&!MP.inputOrders()){
-                for(var march:heldForDraw)drawArmy(batch,scale,viewer,march.civ(),march.move(),
-                        (float)(KreyliRealtimePause.clock()-march.start())/DURATION_NANOS);
+            if(host&&!MP.inputOrders()){
+                for(var march:heldForDraw){
+                    float progress=(float)(now-march.start())/DURATION_NANOS;
+                    animating|=drawArmy(batch,scale,local,viewer,march.civ(),march.move(),progress);
+                }
                 return false;
             }
             for(int civ=1;civ<CFG.core.getCivsSize();civ++){
                 var country=CFG.core.getCiv(civ);
                 for(int i=0;i<country.moveUnitsSize();i++){
                     var move=country.getMoveUnits(i);
-                    var line=move.getMoveUnits_Line();
-                    if(line==null)continue;
-                    int age=MP.isHost()?elapsed(move):-1;
-                    if(age<0){
-                        line.updateMovingLine();
-                        line.fMovingPercentage=Math.min(1f,line.fMovingPercentage);
-                        line.lMovingTime=System.currentTimeMillis();
-                    }
-                    float progress=age>=0?(float)age/DURATION_MILLIS:(line.getMovingPercentage()-.1f)/.9f;
-                    drawArmy(batch,scale,viewer,civ,move,progress);
+                    float progress=drawAge(move,now,host,paused);
+                    if(progress>=0)animating|=drawArmy(batch,scale,local,viewer,civ,move,progress);
                 }
             }
+            KreyliRealtimeRecruitment.drawPending(batch,scale,viewer);
             return true;
-        }finally{batch.setPackedColor(previous);}
+        }finally{
+            batch.setPackedColor(previous);
+            if(animating&&!paused)CFG.setRenderO(true);
+        }
     }
 
-    private static void drawArmy(SpriteBatch batch,float scale,int viewer,int civ,MoveUnits move,float progress){
+    private static float drawAge(MoveUnits move,long now,boolean host,boolean paused){
+        if(host){
+            Long start=starts.get(move);
+            if(start!=null)return (float)(now-start)/DURATION_NANOS;
+        }else{
+            var progress=remoteProgress.get(move);
+            if(progress!=null)return (float)progress.ageAt(now,paused)/DURATION_NANOS;
+        }
+        var line=move.getMoveUnits_Line();
+        if(line==null)return -1f;
+        line.updateMovingLine();
+        line.fMovingPercentage=Math.min(1f,line.fMovingPercentage);
+        line.lMovingTime=System.currentTimeMillis();
+        return Math.max(0f,(line.getMovingPercentage()-.1f)/.9f);
+    }
+
+    private static boolean drawArmy(SpriteBatch batch,float scale,Player local,int viewer,int civ,MoveUnits move,float progress){
         progress=Math.clamp(progress,0f,1f);
         var from=CFG.core.getProv(move.getFromProviID());
         var to=CFG.core.getProv(move.getToProvID());
-        if(!from.getDrawProv()&&!to.getDrawProv())return;
-        if(viewer!=civ&&!CFG.SPECTATOR_MODE&&CFG.FOG_OF_WAR!=0){
-            int position=progress<.5f?move.getFromProviID():move.getToProvID();
-            if(!CFG.core.getPlayer(0).getFog(position))return;
-        }
+        if(!from.getDrawProv()&&!to.getDrawProv())return false;
+        if(!canSeeMarch(local,viewer,civ,to.getCivId(),progress<.5f?move.getFromProviID():move.getToProvID()))return false;
         int x=(int)((armyX(from)+(armyX(to)-armyX(from))*progress)*scale);
         int fromY=from.getCeY()+from.getShPY(),toY=to.getCeY()+to.getShPY();
         int y=(int)((fromY+(toY-fromY)*progress+CFG.map.getMpC().getPY())*scale);
         if(civ!=to.getCivId()&&to.getCivId()>0&&CFG.core.getCivsAtWar(civ,to.getCivId()))
             CFG.core.drawProvinceArmyWithFlag_Attack(batch,x,y,civ,move.getNumberOfUnits(),move.getUnitsWidth());
         else CFG.core.drawProvArmyWithFlag(batch,x,y,civ,move.getNumberOfUnits(),move.getUnitsWidth());
+        return progress<1f;
+    }
+
+    static boolean canSeeMarch(Player local,int viewer,int civ,int defender,int position){
+        if(viewer==civ||CFG.SPECTATOR_MODE||CFG.FOG_OF_WAR==0)return true;
+        if(viewer>0&&(CFG.core.isAlly(viewer,civ)||defender==viewer&&CFG.core.getCivsAtWar(viewer,civ)))return true;
+        return local!=null&&local.getFog(position);
     }
 
     private static int armyX(Province province){
@@ -435,6 +488,7 @@ public final class KreyliRealtimeMarch {
 
     static void reset(){
         nextAiAttack.clear();
+        remoteProgress.clear();
         starts.clear();
         pending.clear();
         heldForDraw=List.of();
