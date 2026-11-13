@@ -1,14 +1,11 @@
 package age.of.civilizations2.jakowski.lukasz.mp;
 
 import age.of.civilizations2.jakowski.lukasz.CFG;
-import age.of.civilizations2.jakowski.lukasz.GameAction;
-import age.of.civilizations2.jakowski.lukasz.MoveUnitsB.MoveUnits_TurnData;
 import age.of.civilizations2.jakowski.lukasz.Province;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import age.of.civilizations2.jakowski.lukasz.Report_Data;
+import age.of.civilizations2.jakowski.lukasz.MoveUnitsB.MoveUnits;
 
-/** Resolve a timed land attack with the campaign's existing combat rules. */
+/** Resolve a timed land attack using troop strength and home defense. */
 final class KreyliRealtimeCombat {
     private KreyliRealtimeCombat(){}
 
@@ -22,62 +19,95 @@ final class KreyliRealtimeCombat {
                 &&CFG.core.getCiv(defender).getPuppetOfCiv()!=civ;
     }
 
-    static boolean resolve(int civ,int index){
-        GameAction action=CFG.gameAction;
-        if(action.getCurrentMoveunits()!=null||!MP.inputOrders())return false;
-        var country=CFG.core.getCiv(civ);
-        var move=country.getMoveUnits(index);
-        if(!hostile(civ,CFG.core.getProv(move.getToProvID()),move.getNumberOfUnits()))return false;
-        var origin=CFG.core.getProv(move.getFromProviID());
-        int garrison=origin.getArmyCivID1(civ),amount=move.getNumberOfUnits();
-        if(garrison>Integer.MAX_VALUE-amount)return false;
-        var battle=new MoveUnits_TurnData(civ);
-        battle.addMoveUnits(move,civ);
-        var report=action.battleReportSave;
-        boolean showReport=action.SHOW_REPORT,saveReport=action.SAVE_REPORT;
-        int attackerDice=action.diceAggressors,defenderDice=action.diceDefenders;
-        boolean consumed=false;
-        try{
-            Native.current.set(action,battle);
-            Native.roll.invoke(action);
-            // The order reserved these units, but the native battle removes them from the source itself.
-            origin.updateArmy4(civ,garrison+amount);
-            country.removeMove(index);
-            consumed=true;
-            action.SHOW_REPORT=false;
-            action.SAVE_REPORT=true;
-            Native.resolve.invoke(action);
-        }catch(IllegalAccessException e){
-            throw new IllegalStateException("Pinned combat callback is inaccessible",e);
-        }catch(InvocationTargetException e){
-            // Native combat may have changed the world before failing. Never replay this order.
-            CFG.exceptionStack(e.getCause());
-        }finally{
-            action.resetCurrentMoveUnits();
-            action.SHOW_REPORT=showReport;
-            action.SAVE_REPORT=saveReport;
-            action.battleReportSave=report;
-            action.diceAggressors=attackerDice;
-            action.diceDefenders=defenderDice;
-        }
-        if(consumed)KreyliOrderSync.worldChanged();
-        return consumed;
+    static long strength(long troops,boolean defendingHome){
+        return troops*(defendingHome?110:100);
     }
 
-    private static final class Native {
-        static final Field current;
-        static final Method resolve,roll;
-        static {
-            try{
-                current=GameAction.class.getDeclaredField("currentMoveUnits");
-                resolve=GameAction.class.getDeclaredMethod("turnMoves_MoveCurrentArmy");
-                roll=GameAction.class.getDeclaredMethod("rollDices");
-                current.setAccessible(true);
-                resolve.setAccessible(true);
-                roll.setAccessible(true);
-            }catch(ReflectiveOperationException e){
-                throw new ExceptionInInitializerError(e);
-            }
+    static int survivors(int troops,long winner,long loser){
+        if(loser==0)return troops;
+        return Math.max(1,troops-(int)(troops*(double)loser/winner*0.65));
+    }
+
+    static boolean resolve(int civ,int index){
+        if(!MP.inputOrders())return false;
+        var country=CFG.core.getCiv(civ);
+        var move=country.getMoveUnits(index);
+        var target=CFG.core.getProv(move.getToProvID());
+        int defender=target.getCivId(), attackers=move.getNumberOfUnits();
+        if(!hostile(civ,target,attackers))return false;
+        var report=new Report_Data();
+        report.iBattleOfProvinceID=move.getToProvID();
+        long defense=0;
+        for(int i=0;i<target.getCivsSize();i++){
+            var army=target.getArmyObject(i);
+            int armyCiv=army.getCivID(),troops=army.getArmy();
+            if(troops<=0||armyCiv==civ||!CFG.core.getCivsAtWar(civ,armyCiv))continue;
+            report.lDefenders_IDs.add(armyCiv);
+            report.lDefenders_Armies.add(troops);
+            defense+=strength(troops,armyCiv==target.getTrueOwnerOfProv());
         }
+        long attack=strength(attackers,civ==target.getTrueOwnerOfProv());
+        boolean won=attack>defense;
+        int remaining=won?survivors(attackers,attack,defense):0;
+        country.removeMove(index);
+        for(int i=0;i<report.lDefenders_IDs.size();i++){
+            int troops=report.lDefenders_Armies.get(i);
+            int left=won?0:survivors(troops,defense,attack);
+            target.updateArmy4(report.lDefenders_IDs.get(i),left);
+            report.lDefenders_ArmiesLost.add(troops-left);
+            casualties(civ,report.lDefenders_IDs.get(i),troops-left);
+        }
+        if(won){
+            target.setCivId(civ,false,true);
+            CFG.core.updateWarStatistics_ConqueredProvinces(CFG.core.getWarID(civ,defender),civ,defender);
+            addTroops(target,civ,remaining);
+        }
+        target.updateDrawArmyInProv();
+        report.lAttackers_IDs.add(civ);
+        report.lAttackers_Armies.add(attackers);
+        report.lAttackers_Armies_Lost.add(attackers-remaining);
+        casualties(defender,civ,attackers-remaining);
+        report.attackersWon=won;
+        CFG.gameAction.battleReports.add(report);
+        KreyliOrderSync.worldChanged();
+        return true;
+    }
+
+    static int crossing(int civ,MoveUnits first,int other,MoveUnits second){
+        int a=first.getNumberOfUnits(),b=second.getNumberOfUnits();
+        // A meeting on the border is neutral ground. On an exact tie neither side advances.
+        int leftA=a>=b?survivors(a,a,b):0,leftB=b>=a?survivors(b,b,a):0;
+        if(a==b){
+            addTroops(CFG.core.getProv(first.getFromProviID()),civ,leftA);
+            addTroops(CFG.core.getProv(second.getFromProviID()),other,leftB);
+        }else{
+            var winner=a>b?first:second;
+            int owner=a>b?civ:other;
+            var country=CFG.core.getCiv(owner);
+            country.newMove(winner.getFromProviID(),winner.getToProvID(),Math.max(leftA,leftB),true);
+        }
+        var report=new Report_Data();
+        report.iBattleOfProvinceID=first.getToProvID();
+        report.lAttackers_IDs.add(civ);
+        report.lAttackers_Armies.add(a);
+        report.lAttackers_Armies_Lost.add(a-leftA);
+        report.lDefenders_IDs.add(other);
+        report.lDefenders_Armies.add(b);
+        report.lDefenders_ArmiesLost.add(b-leftB);
+        report.attackersWon=a>b;
+        casualties(other,civ,a-leftA);
+        casualties(civ,other,b-leftB);
+        CFG.gameAction.battleReports.add(report);
+        KreyliOrderSync.worldChanged();
+        return a==b?0:a>b?civ:other;
+    }
+
+    private static void casualties(int opponent,int civ,int losses){
+        if(losses>0)CFG.core.updateWarStatistics_Casualties(CFG.core.getWarID(opponent,civ),opponent,civ,losses);
+    }
+
+    private static void addTroops(Province province,int civ,int troops){
+        province.updateArmy4(civ,(int)Math.min(Integer.MAX_VALUE,(long)province.getArmyCivID1(civ)+troops));
+        province.updateDrawArmyInProv();
     }
 }

@@ -20,6 +20,7 @@ import java.util.List;
 public final class KreyliRealtimeMarch {
     static final int DURATION_MILLIS=5_000;
     private static final long DURATION_NANOS=DURATION_MILLIS*1_000_000L;
+    private static final long CLASH_NANOS=2_000_000_000L;
     private static final long AI_ATTACK_SPACING_NANOS=3_000_000_000L;
     private static final HashMap<Integer,Long> nextAiAttack=new HashMap<>();
     private static final IdentityHashMap<MoveUnits,Long> starts=new IdentityHashMap<>();
@@ -190,6 +191,34 @@ public final class KreyliRealtimeMarch {
                 Long original=starts.putIfAbsent(move,now);
                 if(original==null)KreyliOrderSync.mark();
                 long start=original==null?now:original;
+                int defender=CFG.core.getProv(move.getToProvID()).getCivId();
+                if(defender!=civ&&KreyliRealtimeCombat.hostile(civ,CFG.core.getProv(move.getToProvID()),move.getNumberOfUnits())){
+                    var enemy=CFG.core.getCiv(defender);
+                    int opposite=oppositeMarch(enemy,move);
+                    if(opposite>=0){
+                        var incoming=enemy.getMoveUnits(opposite);
+                        long otherStart=starts.computeIfAbsent(incoming,key->now);
+                        long contact=Math.max(Math.max(start,otherStart),start+(otherStart-start)/2+DURATION_NANOS/2);
+                        if(now-contact<CLASH_NANOS){
+                            live.add(move);
+                            continue;
+                        }
+                        removeRouteFor(country,move);
+                        removeRouteFor(enemy,incoming);
+                        country.removeMove(i--);
+                        enemy.removeMove(opposite);
+                        starts.remove(incoming);
+                        int victor=KreyliRealtimeCombat.crossing(civ,move,defender,incoming);
+                        if(victor!=0){
+                            var winningCountry=CFG.core.getCiv(victor);
+                            var survivor=winningCountry.getMoveUnits(winningCountry.moveUnitsSize()-1);
+                            starts.put(survivor,now-DURATION_NANOS/2);
+                            live.add(survivor);
+                        }
+                        changed=true;
+                        continue;
+                    }
+                }
                 if(now-start<DURATION_NANOS){
                     live.add(move);
                     continue;
@@ -227,6 +256,20 @@ public final class KreyliRealtimeMarch {
         }
         starts.keySet().retainAll(live);
         if(changed)refresh();
+    }
+
+    private static int oppositeMarch(Civilization enemy,MoveUnits move){
+        for(int i=0;i<enemy.moveUnitsSize();i++){
+            var candidate=enemy.getMoveUnits(i);
+            if(candidate.getFromProviID()==move.getToProvID()&&candidate.getToProvID()==move.getFromProviID()
+                    &&eligible(enemy.getCivId(),candidate))return i;
+        }
+        return -1;
+    }
+
+    private static void removeRouteFor(Civilization country,MoveUnits move){
+        int route=followingRoute(country,move.getToProvID(),move.getNumberOfUnits());
+        if(route>=0)country.removeRegroupArmy(route);
     }
 
     static void beforeTurn(){
@@ -427,7 +470,26 @@ public final class KreyliRealtimeMarch {
                 for(int i=0;i<country.moveUnitsSize();i++){
                     var move=country.getMoveUnits(i);
                     float progress=drawAge(move,now,host,paused);
-                    if(progress>=0)animating|=drawArmy(batch,scale,local,viewer,civ,move,progress);
+                    if(progress>=0){
+                        var target=CFG.core.getProv(move.getToProvID());
+                        int defender=target.getCivId();
+                        int reverse=defender>0&&defender!=civ&&CFG.core.getCivsAtWar(civ,defender)
+                                ?oppositeMarch(CFG.core.getCiv(defender),move):-1;
+                        if(reverse>=0){
+                            var incoming=CFG.core.getCiv(defender).getMoveUnits(reverse);
+                            float other=drawAge(incoming,now,host,paused);
+                            if(other>=0&&progress+other>=1f){
+                                float contact=Math.clamp((1f+progress-other)/2f,0f,1f);
+                                animating|=drawArmy(batch,scale,local,viewer,civ,move,contact);
+                                if(civ<defender&&(viewer==civ||viewer==defender||CFG.SPECTATOR_MODE)){
+                                    drawClash(batch,scale,move,contact,(progress+other-1f)*DURATION_NANOS/(2f*CLASH_NANOS));
+                                    animating=true;
+                                }
+                                continue;
+                            }
+                        }
+                        animating|=drawArmy(batch,scale,local,viewer,civ,move,progress);
+                    }
                 }
             }
             KreyliRealtimeRecruitment.drawPending(batch,scale,viewer);
@@ -473,6 +535,22 @@ public final class KreyliRealtimeMarch {
         if(viewer==civ||CFG.SPECTATOR_MODE||CFG.FOG_OF_WAR==0)return true;
         if(viewer>0&&(CFG.core.isAlly(viewer,civ)||defender==viewer&&CFG.core.getCivsAtWar(viewer,civ)))return true;
         return local!=null&&local.getFog(position);
+    }
+
+    private static void drawClash(SpriteBatch batch,float scale,MoveUnits move,float contact,float progress){
+        var from=CFG.core.getProv(move.getFromProviID());
+        var to=CFG.core.getProv(move.getToProvID());
+        if(!from.getDrawProv()&&!to.getDrawProv())return;
+        int x=(int)((armyX(from)+(armyX(to)-armyX(from))*contact)*scale);
+        int fromY=from.getCeY()+from.getShPY(),toY=to.getCeY()+to.getShPY();
+        int y=(int)((fromY+(toY-fromY)*contact+CFG.map.getMpC().getPY())*scale)-CFG.ARMY_HEIGHT;
+        var bar=age.of.civilizations2.jakowski.lukasz.Images.pix;
+        batch.setColor(.15f,.08f,.06f,1f);
+        bar.draw(batch,x-23,y,46,5);
+        batch.setColor(1f,.47f,.18f,1f);
+        int filled=(int)(44*Math.clamp(progress,0f,1f));
+        if(filled>0)bar.draw(batch,x-22,y+1,filled,3);
+        batch.setColor(1f,1f,1f,1f);
     }
 
     private static int armyX(Province province){

@@ -209,6 +209,7 @@ public final class KreyliTurnFeaturesProbe {
       CFG.map.getMpS().setCurrScale(1.2f);
       CFG.core.chooseProvinceMode();
       require(CFG.chooseProvinceMode,"Army selection active at close zoom");
+      KreyliChooserAnimationProbe.beforeTurn();
       age.of.civilizations2.jakowski.lukasz.Save.SaveGameManager.saveRequest=true;
      }
      if(phase==12&&KreyliRealtimeEconomy.snapshotSequence()>0&&!exists("economy-payout")){
@@ -222,6 +223,7 @@ public final class KreyliTurnFeaturesProbe {
       require(CFG.menus.getVisible_InGame_CivInfo()&&CFG.getActiveCivInfoId()==autoCountry,"Country details survive the automatic turn: visible="+CFG.menus.getVisible_InGame_CivInfo()+" country="+CFG.getActiveCivInfoId()+" expected="+autoCountry);
       require(CFG.core.getActiveProvID()==selectedProvince,"Selected province survives automatic update");
       require(CFG.chooseProvinceMode,"Movement targeting remains active after the automatic update");
+      KreyliChooserAnimationProbe.afterTurn();
       require(KreyliRealtimeEconomy.snapshotSequence()==1,"Treasury does not pay again at the next five-second world update");
       require(CFG.menus.getInGameMenu().getVisibleM()&&!CFG.HIDE_UI,"The native HUD stays visible at close zoom");
       require(!CFG.menus.getInGameMenu(CFG.menus.INGAME_SAVED_GAME).getVisibleM(),"Automatic update does not show the saved-game notice");

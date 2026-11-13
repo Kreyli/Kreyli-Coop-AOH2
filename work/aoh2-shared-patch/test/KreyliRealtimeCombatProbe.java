@@ -57,6 +57,7 @@ public final class KreyliRealtimeCombatProbe {
                         phase=1;
                     }
                     if(phase==1&&MP.started&&MP.inputOrders()&&CFG.menus.getInGameView()){
+                        checkCrossing();
                         checkAttack();
                         checkRoute();
                         checkAiAttacks();
@@ -250,9 +251,43 @@ public final class KreyliRealtimeCombatProbe {
             }
 
             @SuppressWarnings("unchecked")
+            private void checkCrossing()throws Exception{
+                KreyliLobby.readMode(true);
+                if(!CFG.core.getCivsAtWar(attacker,defender))CFG.core.addWarData(attacker,defender);
+                require(KreyliRealtimeCombat.strength(100,true)>KreyliRealtimeCombat.strength(100,false),
+                        "Home defense breaks an otherwise even fight");
+                var a=CFG.core.getCiv(attacker);
+                var b=CFG.core.getCiv(defender);
+                int troops=Math.max(100,CFG.MIN_ARMY_REQUIRED_TO_ATTACK);
+                a.newMove(from,to,troops*3,true);
+                b.newMove(to,from,troops,true);
+                var first=a.getMoveUnits(0);
+                var second=b.getMoveUnits(0);
+                var timing=(Map<MoveUnits,Long>)starts.get(null);
+                var next=KreyliRealtimeMarch.class.getDeclaredField("nextCheck");
+                next.setAccessible(true);
+                long now=KreyliRealtimePause.clock();
+                timing.put(first,now-3_000_000_000L);
+                timing.put(second,now-3_000_000_000L);
+                next.setLong(null,0);
+                KreyliRealtimeMarch.tick();
+                require(a.moveUnitsSize()==1&&b.moveUnitsSize()==1,"Crossing orders wait while the battle is active");
+                timing.put(first,now-5_000_000_000L);
+                timing.put(second,now-5_000_000_000L);
+                next.setLong(null,0);
+                KreyliRealtimeMarch.tick();
+                require(a.moveUnitsSize()==1&&b.moveUnitsSize()==0,"Only the larger army continues after the crossing");
+                require(a.getMoveUnits(0).getNumberOfUnits()<troops*3,"Winner advances with losses");
+                require(CFG.core.getProv(from).getCivId()==attacker&&CFG.core.getProv(to).getCivId()==defender,
+                        "Crossing does not swap ownership");
+                a.removeMove(0);
+                next.setLong(null,0);
+            }
+
+            @SuppressWarnings("unchecked")
             private void checkAttack()throws IllegalAccessException{
                 KreyliLobby.readMode(true);
-                CFG.core.addWarData(attacker,defender);
+                if(!CFG.core.getCivsAtWar(attacker,defender))CFG.core.addWarData(attacker,defender);
                 require(CFG.core.getCivsAtWar(attacker,defender),"Countries are at war");
                 var observer=CFG.core.getPlayer(0);
                 int fogMode=CFG.FOG_OF_WAR;

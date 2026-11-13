@@ -7,12 +7,50 @@ import age.of.civilizations2.jakowski.lukasz.MenuManager;
 import age.of.civilizations2.jakowski.lukasz.Menus.Messages.Menu_InGame_Messages;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import age.of.civilizations2.jakowski.lukasz.Core.Core;
+import age.of.civilizations2.jakowski.lukasz.Province_Animation_MoveUnits2;
 
 /** Preserve the local inspection UI while the authoritative campaign advances. */
 public final class KreyliRealtimeUi {
     private record Panel(int index, Class<?> type) {}
     private record State(int view,int province,int country,boolean countryVisible,boolean choosingProvince,int moveTarget,int moveAmount,List<Panel> panels,boolean startAnimation,
-                         boolean inAnimation,long animationTimer) {}
+                         boolean inAnimation,long animationTimer,Highlight highlight) {}
+    /** Animation is local presentation, never host campaign state. */
+    private record Highlight(float percentage,long borderTime,boolean backwards,boolean updating,
+                             long cityTime,boolean citiesFading,long lineTime,int lineOffset) {}
+    private static final Field BORDER_TIME=field(Core.class,"lDashedLineTime_Percentage_HighlitedProvinceBorder"),
+            BACKWARDS=field(Core.class,"highlightedProvinceBorder_BackAnimation"),
+            UPDATING=field(Core.class,"highlightedProvinceBorder_Update"),
+            CITY_TIME=field(Core.class,"lTIME_HIGHLIGHTED_CITIES"),
+            CITIES_FADING=field(Core.class,"HIGHLIGHTED_CITIES_DISABLE_ANIMATION"),
+            LINE_TIME=field(Province_Animation_MoveUnits2.class,"lTimeLine"),
+            LINE_OFFSET=field(Province_Animation_MoveUnits2.class,"iLineOffset");
+    private static final Method CLASSIC=method(Core.class,"enableHighlightedProvinces_Classic");
+    private static Field field(Class<?> owner,String name){try{Field f=owner.getDeclaredField(name);f.setAccessible(true);return f;}catch(ReflectiveOperationException e){throw new ExceptionInInitializerError(e);}}
+    private static Method method(Class<?> owner,String name){try{Method m=owner.getDeclaredMethod(name);m.setAccessible(true);return m;}catch(ReflectiveOperationException e){throw new ExceptionInInitializerError(e);}}
+    private static Highlight captureHighlight(Core core){
+        try{var animation=core.getProvinceAnimation_Highlighted_Data();
+            return new Highlight(core.fDashedLine_Percentage_HighlitedProvinceBorder,BORDER_TIME.getLong(core),BACKWARDS.getBoolean(core),UPDATING.getBoolean(core),CITY_TIME.getLong(core),CITIES_FADING.getBoolean(core),LINE_TIME.getLong(animation),LINE_OFFSET.getInt(animation));
+        }catch(IllegalAccessException e){throw new IllegalStateException(e);}
+    }
+    private static void restoreHighlight(Core core,Highlight state){
+        if(state==null)return;
+        try{var animation=core.getProvinceAnimation_Highlighted_Data();
+            core.fDashedLine_Percentage_HighlitedProvinceBorder=state.percentage();
+            BORDER_TIME.setLong(core,state.borderTime());BACKWARDS.setBoolean(core,state.backwards());UPDATING.setBoolean(core,state.updating());
+            CITY_TIME.setLong(core,state.cityTime());CITIES_FADING.setBoolean(core,state.citiesFading());
+            LINE_TIME.setLong(animation,state.lineTime());LINE_OFFSET.setInt(animation,state.lineOffset());
+            if(!state.updating()&&!state.backwards()&&state.percentage()>=100)CLASSIC.invoke(core);
+        }catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
+    }
+    public static void refreshMovementHighlights(Core core,int province){
+        Highlight phase=backgroundUpdate()&&CFG.chooseProvinceMode&&core.getActiveProvID()==province?captureHighlight(core):null;
+        // Recalculate valid neighbours after borders/diplomacy change, retaining only visual phase.
+        core.updateHighlight_MoveUnitsProvinces(province);
+        restoreHighlight(core,phase);
+    }
     private static State snapshot, hostTurn, clientTurn, automatic;
     private static int automaticStartTurn;
     public static void beforeAutomaticTurn(){
@@ -102,7 +140,7 @@ public final class KreyliRealtimeUi {
         int amount=moving?manager.getInGame_ProvinceMoveUnits_Slider().getCurr():0;
         return new State(manager.getViewID(),CFG.core.getActiveProvID(),CFG.getActiveCivInfoId(),manager.getVisible_InGame_CivInfo(),CFG.chooseProvinceMode,target,amount,visible,
                 Menu_InGame_Messages.START_ANIMATION,Menu_InGame_Messages.IN_ANIMATION,
-                Menu_InGame_Messages.ANIMATION_TIMER);
+                Menu_InGame_Messages.ANIMATION_TIMER,CFG.chooseProvinceMode?captureHighlight(CFG.core):null);
     }
 
     private static void restore(State state){
@@ -129,16 +167,17 @@ public final class KreyliRealtimeUi {
             int target=state.moveTarget();
             boolean restoreMove=target>=0&&target<CFG.core.getProvinSize()
                     &&(!manager.getInGame_ProvinceMoveUnits_Visible()||CFG.chosenProvinceID!=target);
-            if(!CFG.chooseProvinceMode||restoreMove){
+            if(!CFG.chooseProvinceMode){
                 CFG.core.chooseProvinceMode();
-                if(restoreMove){
+            }
+            if(restoreMove){
                     CFG.chosenProvinceID=-1;
                     CFG.core.setChosenProvinceID(target);
                     var slider=manager.getInGame_ProvinceMoveUnits_Slider();
                     slider.setCurr(Math.min(state.moveAmount(),slider.getCurr()));
                     manager.updateInGame_ActionInfo_Move();
-                }
             }
+            restoreHighlight(CFG.core,state.highlight());
         }
         Menu_InGame_Messages.START_ANIMATION=state.startAnimation();
         Menu_InGame_Messages.IN_ANIMATION=state.inAnimation();

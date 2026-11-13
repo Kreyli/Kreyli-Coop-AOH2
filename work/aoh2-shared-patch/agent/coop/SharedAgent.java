@@ -326,6 +326,15 @@ public final class SharedAgent implements Opcodes {
         reader.accept(new ClassVisitor(ASM8,writer){
             public MethodVisitor visitMethod(int access,String name,String desc,String signature,String[] exceptions){
                 var original=super.visitMethod(access,name,desc,signature,exceptions);
+                if(name.equals("autoChooseProvinceMode")&&desc.equals("(I)V"))return new MethodVisitor(ASM8,original){
+                    public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(owner.equals("age/of/civilizations2/jakowski/lukasz/Core/Core")
+                                &&method.equals("updateHighlight_MoveUnitsProvinces")&&descriptor.equals("(I)V")){
+                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","refreshMovementHighlights",
+                                    "(L"+owner+";I)V",false);
+                        }else super.visitMethodInsn(opcode,owner,method,descriptor,itf);
+                    }
+                };
                 if(!name.equals("drawMoveUnitsArmy")||!desc.equals(descriptor+"V"))return original;
                 return new MethodVisitor(ASM8,original){
                     public void visitCode(){

@@ -74,7 +74,7 @@ public final class KreyliTurns {
         String name=host?readyPlayer:remoteReadyTurn==GameCalendar.TURNID?remoteReadyPlayer:"";
         if(name.isEmpty())return "";
         int seconds=host?shownSeconds:remoteSeconds;
-        return name+KreyliText.t(" готов к ходу"," is ready")+(seconds<0?"":" · "+seconds+KreyliText.t(" с"," s"));
+        return name+KreyliText.t(" готов к ходу"," is ready")+(seconds<0?"":" - "+seconds+KreyliText.t(" с"," s"));
     }
     public static String skipStatus(){
         boolean host=MP.isHost();
@@ -84,7 +84,7 @@ public final class KreyliTurns {
             return KreyliText.t("Пропущено ходов: ","Turns skipped: ")+(count-remaining)+" / "+count;
         }
         if(!hasSkipVote())return voteOutcome();
-        return (host?name(vote.proposer):remoteProposer)+" · "+(host?vote.count:remoteCount)+KreyliText.t(" ход. · "," turns · ")+(host?lastVoteSeconds:remoteSecondsLeft)+KreyliText.t(" с · "," s · ")+(host?vote.yes():remoteYes)+"/"+(host?vote.threshold():remoteThreshold);
+        return (host?name(vote.proposer):remoteProposer)+" - "+(host?vote.count:remoteCount)+KreyliText.t(" ход. - "," turns - ")+(host?lastVoteSeconds:remoteSecondsLeft)+KreyliText.t(" с - "," s - ")+(host?vote.yes():remoteYes)+"/"+(host?vote.threshold():remoteThreshold);
     }
     public static void chooseSkip(){changeSkip(1);}
     public static void changeSkip(int change){selected=Math.max(1,Math.min(KreyliSkipVote.MAX_TURNS,selected+change));}
