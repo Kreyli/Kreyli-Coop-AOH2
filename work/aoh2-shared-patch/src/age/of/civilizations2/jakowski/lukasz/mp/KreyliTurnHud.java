@@ -162,7 +162,7 @@ public final class KreyliTurnHud {
         if(slide<1)CFG.setRenderO(true);
         int gap=Math.max(4,CFG.PADD);
         int right=date.x-Math.max(gap*3,Math.min(CFG.BUTTON_W/3,date.x/12));
-        int width=Math.min(right-gap,Math.max(CFG.BUTTON_W*3,MP_UI.textWidth(lastProposal)+gap*4));
+        int width=Math.min(right-gap,Math.max(CFG.BUTTON_W*3,(lastProposal.isEmpty()?0:MP_UI.textWidth(lastProposal))+gap*4));
         if(width<CFG.BUTTON_W)return;
         int row=Math.max(24,CFG.TEXT_HEIGHT_DEFAULT_SMALL+gap*2);
         int y=Math.max(gap,date.y);

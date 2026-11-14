@@ -77,7 +77,7 @@ public final class KreyliRealtimeUi {
     private record PeaceDraft(View view,PeaceTreaty_Data data) {}
     private static PeaceDraft peaceDraft;
     private record Camera(int x,int y,float zoom) {}
-    private static Camera camera;
+    private static Camera camera,turnCamera;
     private static State snapshot, hostTurn, clientTurn, automatic;
 
     static boolean editingPeace(){
@@ -127,12 +127,24 @@ public final class KreyliRealtimeUi {
     private KreyliRealtimeUi() {}
 
     public static void resumeMarches(){KreyliRealtimeMarch.afterTurn();}
-    static void beforeRemoteAdvance(){clientTurn=capture();}
+    private static Camera captureCamera(){
+        if(!MP.isClient()||CFG.map==null||CFG.menus==null||!CFG.menus.getInGameView())return null;
+        var coords=CFG.map.getMpC();
+        return new Camera(coords.getPX(),coords.getPY(),CFG.map.getMpS().getCurrSc());
+    }
+
+    static void beforeRemoteAdvance(){
+        clientTurn=capture();
+        turnCamera=captureCamera();
+    }
+
+    public static void centerBattleReport(age.of.civilizations2.jakowski.lukasz.MapCoords coords,int province){
+        if(!MP.isClient())coords.centerToProvID(province);
+    }
+    public static boolean keepSnapshotCamera(){return camera!=null;}
     public static void beforeSnapshot(){
-        if(MP.isClient()&&MP.playing()&&CFG.map!=null){
-            var coords=CFG.map.getMpC();
-            camera=new Camera(coords.getPX(),coords.getPY(),CFG.map.getMpS().getCurrSc());
-        }
+        camera=turnCamera!=null?turnCamera:captureCamera();
+        turnCamera=null;
         if(KreyliLobby.realTime()&&editingPeace()){
             View view=CFG.menus.getInGame_PeaceTreaty()?View.eINGAME_PEACE_TREATY:View.eINGAME_PEACE_TREATY_RESPONSE;
             peaceDraft=new PeaceDraft(view,CFG.peaceTreatyData);
@@ -154,8 +166,9 @@ public final class KreyliRealtimeUi {
         snapshot=null;
         var savedCamera=camera;
         camera=null;
-        if(savedCamera!=null&&MP.playing()&&!MP.picking){
+        if(savedCamera!=null&&MP.isClient()&&!MP.picking&&CFG.menus.getInGameView()){
             var coords=CFG.map.getMpC();
+            CFG.map.getMpSl().stopScrollingTheMap();
             CFG.map.getMpS().setCurrScale(savedCamera.zoom());
             coords.setStartingPosX(savedCamera.x());
             coords.setStartingPosY(savedCamera.y());
@@ -252,5 +265,5 @@ public final class KreyliRealtimeUi {
         if(!KreyliLobby.realTime())Menu_InGame_Messages.START_ANIMATION=requested;
     }
 
-    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;peaceDraft=null;camera=null;KreyliRealtimeMarch.reset();KreyliRealtimeMessages.reset();}
+    public static void reset(){snapshot=hostTurn=clientTurn=automatic=null;peaceDraft=null;camera=turnCamera=null;KreyliRealtimeMarch.reset();KreyliRealtimeMessages.reset();}
 }

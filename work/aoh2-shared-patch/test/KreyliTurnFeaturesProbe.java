@@ -383,8 +383,9 @@ public final class KreyliTurnFeaturesProbe {
       }
      }
      if(phase==4&&exists("gift-applied")&&KreyliTurns.incomingSkipStatus().contains("SkipHost")){if(waitStart==0)waitStart=System.currentTimeMillis();require(GameCalendar.TURNID==startTurn,"No skip without guest consent");if(System.currentTimeMillis()-waitStart>3000){KreyliUiProbe.capture("kreyli-skip-notice.png");pressHud("DECLINE");signal("cancelled","ok");phase=5;}}
-     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()&&hudControl("ACCEPT")!=null){pressHud("ACCEPT");phase=6;}
+     if(phase==5&&exists("second-proposal")&&KreyliTurns.skipCanRespond()&&hudControl("ACCEPT")!=null){CFG.map.getMpC().setStartingPosX(-1000);CFG.map.getMpC().setStartingPosY(-700);pressHud("ACCEPT");phase=6;}
      if(phase==6&&exists("host-final")&&playable()){String[] parts=read("host-final").split(",");if(GameCalendar.TURNID==Integer.parseInt(parts[1])){
+      require(Math.abs(CFG.map.getMpC().getPX()+1000)<=2,"Guest camera stays at its pre-turn coordinates: "+CFG.map.getMpC().getPX());
       var expertise=CFG.core.getCiv(civ).civGD;
       require(expertise.armyExpertiseAttack==1&&expertise.armyExpertiseDefense==1,"Expertise survives the next campaign snapshot");
       require(CFG.core.getCiv(civ).getGold()==Long.parseLong(parts[0]),"Final money agrees");

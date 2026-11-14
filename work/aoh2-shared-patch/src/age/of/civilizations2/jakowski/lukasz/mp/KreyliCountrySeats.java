@@ -82,7 +82,9 @@ public final class KreyliCountrySeats {
     static void reset(){limits.clear();KreyliCountryChoice.close();}
 
     static boolean hostMessage(MP_Net.Conn guest,Object[] packet){
-        if(packet.length==0||!"kreyli_country_pick".equals(packet[0]))return false;
+        if(packet.length==0)return false;
+        if(KreyliQuickGame.active()&&("pick".equals(packet[0])||"kreyli_country_pick".equals(packet[0])))return true;
+        if(!"kreyli_country_pick".equals(packet[0]))return false;
         if(!MP.isHost()||guest.nick==null||!MP.clients.contains(guest))return true;
         if(packet.length!=3||!(packet[1] instanceof Integer civ)||!(packet[2] instanceof Integer requested)
                 ||requested<1||requested>MAX||!MP.started||guest.civ>0||!MP.pickable(civ)||!MP.inputOrders()){
@@ -121,6 +123,7 @@ public final class KreyliCountrySeats {
         server.send("kreyli_country_pick",civ,limit);
     }
     public static boolean pick(int civ){
+        if(MP.isClient()&&KreyliQuickGame.active())return true;
         if(!MP.isClient()||!MP.picking||!MP.pickable(civ))return false;
         if(!MP.pickPending())KreyliCountryChoice.open(civ,false);
         return true;

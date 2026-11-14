@@ -502,6 +502,13 @@ public final class SharedAgent implements Opcodes {
                                         case "refreshServers"->{super.visitInsn(ICONST_1);super.visitFieldInsn(PUTSTATIC,P+"MP","browseAll","Z");}
                                         case "join"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","apply","()V",false);}
                                         case "onHello"->{super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","beforeHello","()V",false);super.visitVarInsn(ALOAD,0);super.visitVarInsn(ALOAD,1);super.visitMethodInsn(INVOKESTATIC,P+"KreyliIdentity","beforeHello","("+C+"[Ljava/lang/Object;)V",false);found.add(method);guard("rejectExtraPlayer","("+C+")Z",ALOAD,0);}
+                                        case "showLobbyScreen"->{
+                                            super.visitMethodInsn(INVOKESTATIC,P+"KreyliQuickGame","active","()Z",false);
+                                            Label normal=new Label();
+                                            super.visitJumpInsn(IFEQ,normal);
+                                            super.visitInsn(RETURN);
+                                            super.visitLabel(normal);
+                                        }
                                         case "loadSnapshot"->super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","beforeSnapshot","()V",false);
                                         case "update"->{found.add(method);super.visitMethodInsn(INVOKESTATIC,P+"KreyliPings","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliInputRecovery","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSteam","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliLobby","tick","()V",false);super.visitMethodInsn(INVOKESTATIC,P+"KreyliSaveSeats","tick","()V",false);}
                                         case "civFree"->{
@@ -551,6 +558,19 @@ public final class SharedAgent implements Opcodes {
                                 }
                                 public void visitMethodInsn(int opcode,String owner,String called,String descriptor,boolean itf){
                                     String core="age/of/civilizations2/jakowski/lukasz/Core/Core";
+                                    if(name.equals(P+"MP")&&method.equals("showNextBattleReport")&&called.equals("centerToProvID")
+                                            &&descriptor.equals("(I)V")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","centerBattleReport","(L"+owner+";I)V",false);
+                                        return;
+                                    }
+                                    if(name.equals(P+"MP")&&method.equals("loadSnapshot")&&owner.equals(P+"MP")&&called.equals("centerOnOwnCapital")){
+                                        super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","keepSnapshotCamera","()Z",false);
+                                        Label skipCenter=new Label();
+                                        super.visitJumpInsn(IFNE,skipCenter);
+                                        super.visitMethodInsn(opcode,owner,called,descriptor,itf);
+                                        super.visitLabel(skipCenter);
+                                        return;
+                                    }
                                     if(name.equals(P+"MP")&&method.equals("loadSnapshot")&&owner.equals(core)&&called.equals("setActiveProvID")){
                                         super.visitMethodInsn(INVOKESTATIC,P+"KreyliRealtimeUi","applySnapshotProvince","(L"+core+";I)V",false);
                                         return;
