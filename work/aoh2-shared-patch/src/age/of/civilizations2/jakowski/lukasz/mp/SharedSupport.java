@@ -61,6 +61,7 @@ public final class SharedSupport {
         MP.clients.remove(connection);expected.remove(connection);acknowledged.remove(connection);
         MP.toast(connection.nick+" left",false);return true;
     }
+    static void clearLocalReports(){((java.util.List<?>)get("reportsToShow")).clear();}
     public static boolean keepLeader(int civ){return MP.isOn();}
     public static Map<String,Object> pieces(Map<String,Object> pieces){
         pieces.put("coop_realtime",KreyliLobby.realTime());

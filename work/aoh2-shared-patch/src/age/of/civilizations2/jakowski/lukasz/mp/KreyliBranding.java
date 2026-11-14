@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /** Presentation belongs to Kreyli; relay discovery accepts endpoint data only. */
 public final class KreyliBranding {
-    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.27");
+    public static final String LABEL="Kreyli-Coop AOH2 · "+System.getProperty("kreyli.version","1.1.28");
     private static final Color FOOTER_COLOR=new Color(1,1,1,.52f);
 
     private static final int[] creditsClicks=new int[2];

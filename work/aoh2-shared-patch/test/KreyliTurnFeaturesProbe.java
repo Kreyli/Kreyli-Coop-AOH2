@@ -66,6 +66,33 @@ public final class KreyliTurnFeaturesProbe {
     require(CFG.core.getProv(marchFrom).getArmyCivID1(hostCiv)==40,"Order reserves troops at departure");
     marchIssued=System.nanoTime();
    }
+   @SuppressWarnings("unchecked")
+   void checkReportControls()throws Exception{
+    var field=MP.class.getDeclaredField("reportsToShow");
+    field.setAccessible(true);
+    var queue=(java.util.List<age.of.civilizations2.jakowski.lukasz.Report_Data>)field.get(null);
+    var report=new age.of.civilizations2.jakowski.lukasz.Report_Data();
+    report.iBattleOfProvinceID=CFG.core.getCiv(hostCiv).getProvID(0);
+    report.lAttackers_IDs.add(hostCiv);
+    report.lAttackers_Armies.add(10);
+    report.lAttackers_Armies_Lost.add(1);
+    report.lDefenders_IDs.add(guestCiv);
+    report.lDefenders_Armies.add(5);
+    report.lDefenders_ArmiesLost.add(5);
+    int turn=GameCalendar.TURNID;
+    queue.add(report);queue.add(report);queue.add(report);
+    require(KreyliBattleReportControls.keyboardNext()&&queue.size()==2,"Space opens one queued report");
+    var menu=CFG.menus.getInGameMenu(CFG.menus.INGAME_REPORT);
+    int button=menu.getMenuElemsSize()-2;
+    require(menu.getMenuElem(button).getTextE().equals(KreyliText.t("Пропустить все","Skip all")),"Report includes Skip all");
+    menu.actionEL(button);
+    require(queue.isEmpty()&&!CFG.menus.getInGame_Report_Visible(),"Skip all closes report and clears queue");
+    queue.add(report);
+    require(KreyliBattleReportControls.keyboardNext()&&CFG.menus.getInGame_Report_Visible(),"Space opens final report");
+    require(KreyliBattleReportControls.keyboardNext()&&!CFG.menus.getInGame_Report_Visible(),"Space closes final report");
+    require(KreyliBattleReportControls.keyboardNext()&&GameCalendar.TURNID==turn&&!MP.ready,"Repeated Space cannot ready");
+   }
+
    void checkRealtimeBattle()throws Exception{
     var country=CFG.core.getCiv(hostCiv);
     for(int i=0;i<country.getNumOfProvs();i++){
@@ -126,6 +153,7 @@ public final class KreyliTurnFeaturesProbe {
      if(phase==1&&MP.started&&playable()){signal("ready",Integer.toString(civ));phase=2;}
      if(phase==2&&exists("guest-ready")){
       guestCiv=MP.clients.get(0).civ;guestGold=CFG.core.getCiv(guestCiv).getGold();senderGold=CFG.core.getCiv(hostCiv).getGold();
+      checkReportControls();
       GameManager.sendGift(guestCiv,hostCiv,10);require(CFG.core.getCiv(hostCiv).getGold()==senderGold-10,"Gift debited sender");MP.requestSync();signal("gift-sent",Long.toString(guestGold));phase=3;
      }
      if(phase==3&&exists("accepted")&&!exists("expertise-granted")){

@@ -22,13 +22,14 @@ public final class SharedAgent implements Opcodes {
         boolean topMenu=name.equals(top+"1")||name.equals(top+"2");
         String buttonText=root+"Button/ButtonM", startup=root+"Menus/Menu_InitGame";
         String gameAction=root+"GameAction", realtime=P+"KreyliRealtimeUi";
+        String report=root+"Menus/ZRest/Menu_InGame_Report", reportControls=P+"KreyliBattleReportControls";
         String march=root+"MoveUnitsB/Line/MoveUnits_Line";
         String manager=root+"MenuManager", messageBox=root+"Messages/MessageBox_GameData", messages=P+"KreyliRealtimeMessages";
         if(name.equals(root+"Core/Core"))return realtimeArmyView(data);
         if(name.equals(root+"Civilization")||name.equals(root+"Province"))return trackStatistics(name,data);
         String country=root+"Menus/Civilization/Menu_InGame_Civ_Stats";
         boolean expertise=name.startsWith(root+"Menus/ZRest/Exp/Menu_InGame_MilitaryExp$");
-        if(!expertise&&!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,touchManager,province,country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
+        if(!expertise&&!Set.of(P+"MP",ui,browserBar,diplomacy,root+"CFG",root+"MenuManager",main,workshop,touch,touchManager,province,report,root+"AoCGame$3",country,readyButton,buttonText,startup,newGame,gameAction,march,top+"1",top+"2",
                 messageBox,root+"Save/SaveGameManager",root+"Menus/Turn/Menu_NextPlayerTurn",root+"Actions",root+"NewTurn",root+"AI/AI_Playstyle/AIPlaystyle").contains(name))return data;
         ClassReader reader=new ClassReader(data);
         ClassWriter writer=new ClassWriter(reader,ClassWriter.COMPUTE_FRAMES|ClassWriter.COMPUTE_MAXS){@Override protected ClassLoader getClassLoader(){return loader;}};
@@ -168,9 +169,13 @@ public final class SharedAgent implements Opcodes {
                             super.visitLabel(hidden);super.visitInsn(RETURN);super.visitLabel(normal);
                         }
                         if(name.equals(main)&&n.equals("actionEL")&&d.equals("(I)V")){super.visitVarInsn(ILOAD,1);super.visitMethodInsn(INVOKESTATIC,b,"openSinglePlayer","(I)Z",false);Label original=new Label();super.visitJumpInsn(IFEQ,original);super.visitInsn(RETURN);super.visitLabel(original);}
-                        if(n.equals("clickEndTurn")&&name.endsWith("Menu_InGame_ProvInfo"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
+                        if(name.equals(province)&&n.equals("clickEndTurn"))super.visitMethodInsn(INVOKESTATIC,P+"KreyliTurns","beforeReadyClick","()V",false);
                     }
                     public void visitMethodInsn(int opcode,String owner,String method,String descriptor,boolean itf){
+                        if(name.equals(root+"AoCGame$3")&&n.equals("keyDown")&&owner.equals(province)&&method.equals("clickEndTurn")){
+                            super.visitMethodInsn(INVOKESTATIC,reportControls,"onSpace","()V",false);
+                            return;
+                        }
                         if(name.equals(root+"NewTurn")&&n.equals("doAction")&&owner.equals(messageBox)&&method.equals("updateNextTurn")){
                             super.visitMethodInsn(INVOKESTATIC,messages,"ageBox","(L"+messageBox+";I)V",false);
                             return;
@@ -286,6 +291,10 @@ public final class SharedAgent implements Opcodes {
                         super.visitLdcInsn(v);
                     }
                     public void visitInsn(int opcode){
+                        if(name.equals(report)&&n.equals("<init>")&&opcode==RETURN){
+                            super.visitVarInsn(ALOAD,0);
+                            super.visitMethodInsn(INVOKESTATIC,reportControls,"addSkipAll","(L"+root+"Menu;)V",false);
+                        }
                         if(name.equals(manager)&&n.equals("rebuildInGame_Messages")&&d.equals("()V")&&opcode==RETURN){
                             super.visitVarInsn(ALOAD,0);
                             super.visitMethodInsn(INVOKESTATIC,messages,"rebuilt","(L"+manager+";)V",false);
